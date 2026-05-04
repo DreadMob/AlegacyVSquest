@@ -53,7 +53,7 @@ namespace VsQuest.Harmony.Items
                 if (!VsQuest.HarmonyPatchSwitches.ItemEnabled(VsQuest.HarmonyPatchSwitches.Item_CollectibleObject_TryMergeStacks_SecondChanceCharge)) return true;
                 if (op?.CurrentPriority != EnumMergePriority.DirectMerge) return true;
                 
-                API?.Logger.Debug($"[vsquest] TryMergeStacks called: sink={op?.SinkSlot?.Itemstack?.Collectible?.Code}, source={op?.SourceSlot?.Itemstack?.Collectible?.Code}");
+                //API?.Logger.Debug($"[vsquest] TryMergeStacks called: sink={op?.SinkSlot?.Itemstack?.Collectible?.Code}, source={op?.SourceSlot?.Itemstack?.Collectible?.Code}");
                 
                 // Try custom repair first (for items with repairItemCode)
                 if (TryHandleCustomItemRepair(op))
@@ -136,7 +136,7 @@ namespace VsQuest.Harmony.Items
             // Check if this is a Second Chance mask by item code
             if (!IsSecondChanceMask(sinkStack.Collectible.Code))
             {
-                API?.Logger.Debug($"[vsquest] Not a Second Chance mask: {sinkStack.Collectible.Code}");
+                //API?.Logger.Debug($"[vsquest] Not a Second Chance mask: {sinkStack.Collectible.Code}");
                 return false;
             }
 
@@ -299,7 +299,7 @@ namespace VsQuest.Harmony.Items
             
             if (!matches)
             {
-                API?.Logger.Debug($"[vsquest] Source item doesn't match repair code: {sourceCode} != {repairItemCode}");
+                //API?.Logger.Debug($"[vsquest] Source item doesn't match repair code: {sourceCode} != {repairItemCode}");
                 return false;
             }
 
