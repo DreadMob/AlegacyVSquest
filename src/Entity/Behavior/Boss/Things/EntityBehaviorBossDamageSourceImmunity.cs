@@ -4,7 +4,7 @@ using Vintagestory.API.Datastructures;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossDamageSourceImmunity : EntityBehavior
+    public class EntityBehaviorBossDamageSourceImmunity : EntityBehaviorBossBase
     {
         private bool ignoreWeather;
         private bool ignoreExplosion;

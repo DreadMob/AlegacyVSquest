@@ -9,21 +9,37 @@ using Vintagestory.GameContent;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossOxygenDrainAura : EntityBehavior
+    public class EntityBehaviorBossOxygenDrainAura : BossAbilityBase
     {
         private const string LastTickMsKey = "alegacyvsquest:bossoxygendrainaura:lastTickMs";
 
-        private class AuraStage
+        protected override string CooldownKey => "alegacyvsquest:bossoxygendrainaura:lastTickMs";
+        protected override bool UsePeriodicTick() => true;
+        protected override int CheckIntervalMs => 500;
+
+        private class Stage : BossAbilityStage
         {
-            public float whenHealthRelBelow;
             public float range;
             public float oxygenDrainPerSecond;
             public int intervalMs;
             public float minOxygenRel;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                range = json["range"].AsFloat(18f);
+                oxygenDrainPerSecond = json["oxygenDrainPerSecond"].AsFloat(0f);
+                intervalMs = json["intervalMs"].AsInt(500);
+                minOxygenRel = json["minOxygenRel"].AsFloat(0f);
+
+                if (range <= 0f) range = 18f;
+                if (intervalMs < 100) intervalMs = 100;
+                if (minOxygenRel < 0f) minOxygenRel = 0f;
+                if (minOxygenRel > 1f) minOxygenRel = 1f;
+            }
         }
 
-        private ICoreServerAPI sapi;
-        private readonly List<AuraStage> stages = new List<AuraStage>();
+        private List<Stage> stages = new List<Stage>();
 
         public EntityBehaviorBossOxygenDrainAura(Entity entity) : base(entity)
         {
@@ -31,76 +47,29 @@ namespace VsQuest
 
         public override string PropertyName() => "bossoxygendrainaura";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-
-            stages.Clear();
-            try
-            {
-                foreach (var stageObj in attributes["stages"].AsArray())
-                {
-                    if (stageObj == null || !stageObj.Exists) continue;
-
-                    var stage = new AuraStage
-                    {
-                        whenHealthRelBelow = stageObj["whenHealthRelBelow"].AsFloat(1f),
-                        range = stageObj["range"].AsFloat(18f),
-                        oxygenDrainPerSecond = stageObj["oxygenDrainPerSecond"].AsFloat(0f),
-                        intervalMs = stageObj["intervalMs"].AsInt(500),
-                        minOxygenRel = stageObj["minOxygenRel"].AsFloat(0f)
-                    };
-
-                    if (stage.range <= 0f) stage.range = 18f;
-                    if (stage.intervalMs < 100) stage.intervalMs = 100;
-                    if (stage.minOxygenRel < 0f) stage.minOxygenRel = 0f;
-                    if (stage.minOxygenRel > 1f) stage.minOxygenRel = 1f;
-
-                    stages.Add(stage);
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in parsing stages: {ex}");
-            }
+            stages = ParseStages<Stage>(attributes);
         }
 
-        public override void OnGameTick(float dt)
+        protected override void OnPeriodicTick(float dt)
         {
-            base.OnGameTick(dt);
-            if (sapi == null || entity == null) return;
-            if (stages.Count == 0) return;
-            if (!entity.Alive) return;
+            if (Sapi == null || entity == null || stages.Count == 0 || !entity.Alive) return;
 
-            if (!BossBehaviorUtils.TryGetHealthFraction(entity, out float frac)) return;
+            if (!TryGetHealthFraction(out float frac)) return;
 
-            int stageIndex = -1;
-            for (int i = 0; i < stages.Count; i++)
-            {
-                if (frac <= stages[i].whenHealthRelBelow)
-                {
-                    stageIndex = i;
-                }
-            }
+            (object stageObj, int stageIndex) = FindStageForHealth(frac);
+            if (stageObj is not Stage stage) return;
 
-            if (stageIndex < 0) return;
-
-            var stage = stages[stageIndex];
-            long nowMs = sapi.World.ElapsedMilliseconds;
-            long lastTickMs = entity.WatchedAttributes.GetLong(LastTickMsKey, 0);
-            if (nowMs - lastTickMs < stage.intervalMs) return;
-
-            entity.WatchedAttributes.SetLong(LastTickMsKey, nowMs);
-            entity.WatchedAttributes.MarkPathDirty(LastTickMsKey);
+            long nowMs = Sapi.World.ElapsedMilliseconds;
+            if (!ShouldRunInterval(LastTickMsKey, stage.intervalMs, nowMs)) return;
 
             if (stage.oxygenDrainPerSecond <= 0f) return;
 
-            var players = sapi.World.AllOnlinePlayers;
+            var players = Sapi.World.AllOnlinePlayers;
             if (players == null || players.Length == 0) return;
 
-            double range = stage.range > 0 ? stage.range : 18f;
-            double rangeSq = range * range;
+            double rangeSq = (stage.range > 0 ? stage.range : 18f) * (stage.range > 0 ? stage.range : 18f);
             var selfPos = entity.Pos;
             float drain = stage.oxygenDrainPerSecond * (stage.intervalMs / 1000f);
 
@@ -108,8 +77,7 @@ namespace VsQuest
             {
                 var player = players[i] as IServerPlayer;
                 var playerEntity = player?.Entity;
-                if (playerEntity == null) continue;
-                if (playerEntity.Pos.Dimension != selfPos.Dimension) continue;
+                if (playerEntity == null || playerEntity.Pos.Dimension != selfPos.Dimension) continue;
 
                 double dx = playerEntity.Pos.X - selfPos.X;
                 double dy = playerEntity.Pos.Y - selfPos.Y;
@@ -131,5 +99,14 @@ namespace VsQuest
                 }
             }
         }
+
+        // Required abstract overrides for BossAbilityBase (not used in periodic tick mode)
+        protected override void ActivateAbility(object stage, int stageIndex, EntityPlayer target) { }
+        protected override void StopAbility() { }
+        protected override int GetStageCount() => stages.Count;
+        protected override object GetStage(int index) => index >= 0 && index < stages.Count ? stages[index] : null;
+        protected override float GetStageHealthThreshold(object stage) => stage is Stage s ? s.whenHealthRelBelow : 1f;
+        protected override float GetStageCooldown(object stage) => 0f;
+        protected override float GetMaxTargetRange(object stage) => 0f;
     }
 }

@@ -9,27 +9,48 @@ using Vintagestory.GameContent;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossRandomLightning : EntityBehavior
+    public class EntityBehaviorBossRandomLightning : BossAbilityBase
     {
         private const string LastStrikeStartKeyPrefix = "alegacyvsquest:bossrandomlightning:lastStartMs:";
 
-        private class LightningStage
+        protected override string CooldownKey => "alegacyvsquest:bossrandomlightning:lastStartMs";
+
+        private class LightningStage : BossAbilityStage
         {
-            public float whenHealthRelBelow;
             public int minCount;
             public int maxCount;
-            public float cooldownSeconds;
+            public float chance;
             public float minRadius;
             public float maxRadius;
+            public int warningDelayMs;
             public string warningSound;
             public float warningSoundRange;
-            public int warningDelayMs;
             public float warningSoundVolume;
-            public float chance;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                minCount = json["minCount"].AsInt(3);
+                maxCount = json["maxCount"].AsInt(6);
+                chance = json["chance"].AsFloat(1f);
+                minRadius = json["minRadius"].AsFloat(0f);
+                maxRadius = json["maxRadius"].AsFloat(12f);
+                warningDelayMs = json["warningDelayMs"].AsInt(1200);
+                warningSound = json["warningSound"].AsString("effect/lightning");
+                warningSoundRange = json["warningSoundRange"].AsFloat(24f);
+                warningSoundVolume = json["warningSoundVolume"].AsFloat(1f);
+
+                // Validation
+                if (minCount < 1) minCount = 1;
+                if (maxCount < minCount) maxCount = minCount;
+                if (minRadius < 0f) minRadius = 0f;
+                if (maxRadius < minRadius) maxRadius = minRadius;
+                if (warningDelayMs < 0) warningDelayMs = 0;
+            }
         }
 
-        private readonly List<LightningStage> stages = new List<LightningStage>();
-        private ICoreServerAPI sapi;
+        private List<LightningStage> stages = new List<LightningStage>();
+        private long callbackId;
         private WeatherSystemBase weatherSystem;
 
         public EntityBehaviorBossRandomLightning(Entity entity) : base(entity)
@@ -38,89 +59,56 @@ namespace VsQuest
 
         public override string PropertyName() => "bossrandomlightning";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-
-            if (sapi != null)
-            {
-                try
-                {
-                    weatherSystem = sapi.ModLoader?.GetModSystem<WeatherSystemBase>();
-                }
-                catch
-                {
-                    weatherSystem = null;
-                }
-            }
-
-            stages.Clear();
-            try
-            {
-                foreach (var stageObj in attributes["stages"].AsArray())
-                {
-                    if (stageObj == null || !stageObj.Exists) continue;
-
-                    var stage = new LightningStage
-                    {
-                        whenHealthRelBelow = stageObj["whenHealthRelBelow"].AsFloat(1f),
-                        minCount = stageObj["minCount"].AsInt(1),
-                        maxCount = stageObj["maxCount"].AsInt(1),
-                        cooldownSeconds = stageObj["cooldownSeconds"].AsFloat(8f),
-                        minRadius = stageObj["minRadius"].AsFloat(0f),
-                        maxRadius = stageObj["maxRadius"].AsFloat(14f),
-                        warningSound = stageObj["warningSound"].AsString("weather/lightning-verynear"),
-                        warningSoundRange = stageObj["warningSoundRange"].AsFloat(32f),
-                        warningDelayMs = stageObj["warningDelayMs"].AsInt(3000),
-                        warningSoundVolume = stageObj["warningSoundVolume"].AsFloat(1.35f),
-                        chance = stageObj["chance"].AsFloat(1f)
-                    };
-
-                    if (stage.warningSoundVolume <= 0f) stage.warningSoundVolume = 1f;
-
-                    if (stage.maxRadius <= 0f)
-                    {
-                        stage.maxRadius = 14f;
-                    }
-
-                    stages.Add(stage);
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in parsing stages: {ex}");
-            }
+            weatherSystem = entity.Api.ModLoader.GetModSystem<WeatherSystemBase>();
+            stages = ParseStages<LightningStage>(attributes);
         }
 
-        public override void OnGameTick(float dt)
+        protected override int GetStageCount() => stages.Count;
+
+        protected override object GetStage(int index) => stages[index];
+
+        protected override float GetStageHealthThreshold(object stage) => ((LightningStage)stage).whenHealthRelBelow;
+
+        protected override float GetStageCooldown(object stage) => ((LightningStage)stage).cooldownSeconds;
+
+        protected override float GetMaxTargetRange(object stage) => ((LightningStage)stage).maxTargetRange;
+
+        protected override bool ShouldCheckAbility() => !IsAbilityActive;
+
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
-            base.OnGameTick(dt);
+            if (stageObj is not LightningStage stage) return;
+            
+            if (stage.chance < 1f && Sapi.World.Rand.NextDouble() > stage.chance)
+            {
+                MarkCooldownStart();
+                return;
+            }
+            
+            MarkCooldownStart();
+            TriggerLightning(stage);
+        }
 
-            if (sapi == null || entity == null) return;
-            if (stages.Count == 0) return;
-            if (!entity.Alive) return;
+        protected override void StopAbility()
+        {
+            UnregisterCallbackSafe(ref callbackId);
+            SetAbilityActive(false);
+        }
 
-            if (!BossBehaviorUtils.TryGetHealthFraction(entity, out float frac)) return;
+        protected override bool OnAbilityTick(float dt) => false;
 
-            int stageIndex = GetActiveStageIndex(frac);
-            if (stageIndex < 0) return;
-
-            var stage = stages[stageIndex];
+        private void TriggerLightning(LightningStage stage)
+        {
             if (stage == null) return;
-
-            if (!BossBehaviorUtils.IsCooldownReady(sapi, entity, LastStrikeStartKeyPrefix + stageIndex, stage.cooldownSeconds)) return;
-
-            if (stage.chance < 1f && sapi.World.Rand.NextDouble() > stage.chance) return;
-
-            BossBehaviorUtils.MarkCooldownStart(sapi, entity, LastStrikeStartKeyPrefix + stageIndex);
 
             int minCount = Math.Max(1, stage.minCount);
             int maxCount = Math.Max(minCount, stage.maxCount);
             int count = minCount;
             if (maxCount > minCount)
             {
-                count = minCount + sapi.World.Rand.Next(maxCount - minCount + 1);
+                count = minCount + (Sapi?.World?.Rand?.Next(maxCount - minCount + 1) ?? 0);
             }
 
             for (int i = 0; i < count; i++)
@@ -130,27 +118,13 @@ namespace VsQuest
             }
         }
 
-        private int GetActiveStageIndex(float healthFraction)
-        {
-            int activeIndex = -1;
-            for (int i = 0; i < stages.Count; i++)
-            {
-                if (healthFraction <= stages[i].whenHealthRelBelow)
-                {
-                    activeIndex = i;
-                }
-            }
-
-            return activeIndex;
-        }
-
         private Vec3d GetRandomStrikePosition(LightningStage stage)
         {
             double minRadius = Math.Max(0, stage.minRadius);
             double maxRadius = Math.Max(minRadius + 0.1, stage.maxRadius);
 
-            double angle = sapi.World.Rand.NextDouble() * Math.PI * 2.0;
-            double dist = minRadius + sapi.World.Rand.NextDouble() * (maxRadius - minRadius);
+            double angle = Sapi.World.Rand.NextDouble() * Math.PI * 2.0;
+            double dist = minRadius + Sapi.World.Rand.NextDouble() * (maxRadius - minRadius);
 
             double x = entity.Pos.X + Math.Cos(angle) * dist;
             double z = entity.Pos.Z + Math.Sin(angle) * dist;
@@ -162,7 +136,7 @@ namespace VsQuest
 
         private void TriggerStrike(LightningStage stage, Vec3d strikePos)
         {
-            if (sapi == null || stage == null || strikePos == null) return;
+            if (Sapi == null || stage == null || strikePos == null) return;
 
             int delayMs = Math.Max(0, stage.warningDelayMs);
 
@@ -187,23 +161,16 @@ namespace VsQuest
                     int playDelay = i * intervalMs;
                     if (playDelay > delayMs) break;
 
-                    sapi.Event.RegisterCallback(_ =>
+                    Sapi.Event.RegisterCallback(_ =>
                     {
                         TryPlayWarningSound(stage, strikePos);
                     }, playDelay);
                 }
             }
 
-            sapi.Event.RegisterCallback(_ =>
+            Sapi.Event.RegisterCallback(_ =>
             {
-                try
-                {
-                    weatherSystem?.SpawnLightningFlash(strikePos);
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in TriggerStrike: {ex}");
-                }
+                weatherSystem?.SpawnLightningFlash(strikePos);
             }, delayMs);
         }
 
@@ -211,23 +178,16 @@ namespace VsQuest
         {
             if (string.IsNullOrWhiteSpace(stage.warningSound)) return;
 
-            try
-            {
-                AssetLocation soundLoc = AssetLocation.Create(stage.warningSound, "game").WithPathPrefixOnce("sounds/");
-                float volume = stage.warningSoundVolume;
-                if (volume <= 0f) volume = 1f;
+            AssetLocation soundLoc = AssetLocation.Create(stage.warningSound, "game").WithPathPrefixOnce("sounds/");
+            float volume = stage.warningSoundVolume;
+            if (volume <= 0f) volume = 1f;
 
-                // Warning should be very local to the strike position.
-                float range = stage.warningSoundRange > 0f ? stage.warningSoundRange : 2.5f;
-                if (range > 2.5f) range = 2.5f;
+            // Warning should be very local to the strike position.
+            float range = stage.warningSoundRange > 0f ? stage.warningSoundRange : 2.5f;
+            if (range > 2.5f) range = 2.5f;
 
-                float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                sapi.World.PlaySoundAt(soundLoc, strikePos.X, strikePos.Y, strikePos.Z, null, pitch, volume);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlayWarningSound: {ex}");
-            }
+            float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
+            Sapi.World.PlaySoundAt(soundLoc, strikePos.X, strikePos.Y, strikePos.Z, null, pitch, volume);
         }
     }
 }

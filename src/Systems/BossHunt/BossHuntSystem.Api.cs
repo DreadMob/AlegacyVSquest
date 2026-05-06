@@ -42,10 +42,8 @@ namespace VsQuest
                 orderedAnchorsCache.Clear();
                 orderedAnchorsDirty.Clear();
 
-                // Reset boss cache - next tick should re-evaluate
-                cachedBossEntity = null;
-                cachedBossKey = null;
-                nextBossEntityScanTotalHours = 0;
+                // Reset entity tracker - next tick should re-evaluate
+                entityTracker?.ForceScan();
 
                 // Re-register anchors from already loaded chunks by scanning around online players
                 int scannedChunks = 0;
@@ -119,8 +117,7 @@ namespace VsQuest
             var st = GetOrCreateState(cfg.bossKey);
             NormalizeState(cfg, st);
 
-            double nowHours = sapi.World.Calendar.TotalHours;
-            var bossEntity = FindBossEntity(cfg, nowHours);
+            var bossEntity = entityTracker?.GetTrackedEntity(cfg.bossKey);
             if (bossEntity != null && bossEntity.Alive)
             {
                 pos = new Vec3d(bossEntity.Pos.X, bossEntity.Pos.Y, bossEntity.Pos.Z);
@@ -168,9 +165,7 @@ namespace VsQuest
             state.nextBossRotationTotalHours = nowHours - 0.01;
             stateDirty = true;
 
-            cachedBossEntity = null;
-            cachedBossKey = null;
-            nextBossEntityScanTotalHours = 0;
+            entityTracker?.ForceScan();
 
             var cfg = GetActiveBossConfig(nowHours);
             if (cfg == null) return false;

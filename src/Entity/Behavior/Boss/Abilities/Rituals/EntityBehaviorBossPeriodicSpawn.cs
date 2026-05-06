@@ -9,20 +9,17 @@ using Vintagestory.GameContent;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossPeriodicSpawn : EntityBehavior
+    public class EntityBehaviorBossPeriodicSpawn : BossAbilityBase
     {
-        private const string LastSpawnStartMsKey = "alegacyvsquest:bossperiodicspawn:lastStartMs";
         private const string SummonedByEntityIdKey = "alegacyvsquest:bosssummonritual:summonedByEntityId";
         private const string SummonedByEntityCodeKey = "alegacyvsquest:bosssummonritual:summonedByEntityCode";
 
-        private class SpawnStage
+        protected override string CooldownKey => "alegacyvsquest:bossperiodicspawn:lastStartMs";
+        protected override bool UsePeriodicTick() => true;
+        protected override int CheckIntervalMs => 500;
+
+        private class Stage : BossAbilityStage
         {
-            public float whenHealthRelBelow;
-            public float cooldownSeconds;
-
-            public float minTargetRange;
-            public float maxTargetRange;
-
             public string entityCode;
             public int minCount;
             public int maxCount;
@@ -34,10 +31,24 @@ namespace VsQuest
             public float spawnRange;
 
             public bool requireHasTarget;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                entityCode = json["entityCode"].AsString(null);
+                minCount = json["minCount"].AsInt(1);
+                maxCount = json["maxCount"].AsInt(1);
+                chance = json["chance"].AsFloat(1f);
+                maxNearby = json["maxNearby"].AsInt(0);
+                nearbyRange = json["nearbyRange"].AsFloat(0f);
+                spawnRange = json["spawnRange"].AsFloat(8f);
+                requireHasTarget = json["requireHasTarget"].AsBool(true);
+
+                if (spawnRange <= 0f) spawnRange = 4f;
+            }
         }
 
-        private ICoreServerAPI sapi;
-        private readonly List<SpawnStage> stages = new List<SpawnStage>();
+        private List<Stage> stages = new List<Stage>();
 
         public EntityBehaviorBossPeriodicSpawn(Entity entity) : base(entity)
         {
@@ -45,81 +56,28 @@ namespace VsQuest
 
         public override string PropertyName() => "bossperiodicspawn";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-
-            stages.Clear();
-            try
-            {
-                foreach (var stageObj in attributes["stages"].AsArray())
-                {
-                    if (stageObj == null || !stageObj.Exists) continue;
-
-                    var stage = new SpawnStage
-                    {
-                        whenHealthRelBelow = stageObj["whenHealthRelBelow"].AsFloat(1f),
-                        cooldownSeconds = stageObj["cooldownSeconds"].AsFloat(0f),
-
-                        minTargetRange = stageObj["minTargetRange"].AsFloat(0f),
-                        maxTargetRange = stageObj["maxTargetRange"].AsFloat(40f),
-
-                        entityCode = stageObj["entityCode"].AsString(null),
-                        minCount = stageObj["minCount"].AsInt(1),
-                        maxCount = stageObj["maxCount"].AsInt(1),
-                        chance = stageObj["chance"].AsFloat(1f),
-
-                        maxNearby = stageObj["maxNearby"].AsInt(0),
-                        nearbyRange = stageObj["nearbyRange"].AsFloat(0f),
-
-                        spawnRange = stageObj["spawnRange"].AsFloat(8f),
-
-                        requireHasTarget = stageObj["requireHasTarget"].AsBool(true)
-                    };
-
-                    if (stage.cooldownSeconds < 0f) stage.cooldownSeconds = 0f;
-                    if (stage.minTargetRange < 0f) stage.minTargetRange = 0f;
-                    if (stage.maxTargetRange < stage.minTargetRange) stage.maxTargetRange = stage.minTargetRange;
-                    if (stage.minCount < 1) stage.minCount = 1;
-                    if (stage.maxCount < stage.minCount) stage.maxCount = stage.minCount;
-                    if (stage.spawnRange <= 0f) stage.spawnRange = 4f;
-
-                    if (!string.IsNullOrWhiteSpace(stage.entityCode) && stage.chance > 0f)
-                    {
-                        stages.Add(stage);
-                    }
-                }
-            }
-            catch
-            {
-            }
+            stages = ParseStages<Stage>(attributes);
         }
 
-        public override void OnGameTick(float dt)
+        protected override void OnPeriodicTick(float dt)
         {
-            base.OnGameTick(dt);
-            if (sapi == null || entity == null) return;
+            if (Sapi == null || entity == null) return;
             if (stages.Count == 0) return;
             if (entity.Api?.Side != EnumAppSide.Server) return;
 
             if (!entity.Alive) return;
 
-            if (!BossBehaviorUtils.TryGetHealthFraction(entity, out float frac)) return;
+            if (!TryGetHealthFraction(out float frac)) return;
 
-            int stageIndex = -1;
-            for (int i = 0; i < stages.Count; i++)
-            {
-                if (frac <= stages[i].whenHealthRelBelow)
-                {
-                    stageIndex = i;
-                }
-            }
+            (object stageObj, int stageIndex) = FindStageForHealth(frac);
+            if (stageObj == null || stageIndex < 0) return;
 
-            if (stageIndex < 0 || stageIndex >= stages.Count) return;
-            var stage = stages[stageIndex];
+            var stage = stageObj as Stage;
+            if (stage == null) return;
 
-            if (!BossBehaviorUtils.IsCooldownReady(sapi, entity, LastSpawnStartMsKey, stage.cooldownSeconds)) return;
+            if (!IsCooldownReady(stage)) return;
 
             Entity target = null;
             float dist = 0f;
@@ -133,7 +91,7 @@ namespace VsQuest
                 if (dist > stage.maxTargetRange) return;
             }
 
-            if (stage.chance < 1f && sapi.World.Rand.NextDouble() > stage.chance) return;
+            if (stage.chance < 1f && Sapi.World.Rand.NextDouble() > stage.chance) return;
 
             if (stage.maxNearby > 0)
             {
@@ -142,107 +100,70 @@ namespace VsQuest
                 if (aliveNearby >= stage.maxNearby) return;
             }
 
-            BossBehaviorUtils.MarkCooldownStart(sapi, entity, LastSpawnStartMsKey);
+            MarkCooldownStart();
 
             int count = stage.minCount;
             if (stage.maxCount > stage.minCount)
             {
-                count = stage.minCount + sapi.World.Rand.Next(stage.maxCount - stage.minCount + 1);
+                count = stage.minCount + Sapi.World.Rand.Next(stage.maxCount - stage.minCount + 1);
             }
 
             Spawn(stage, count);
         }
 
-        private bool TryFindTarget(SpawnStage stage, out Entity target, out float dist)
+        private bool TryFindTarget(Stage stage, out Entity target, out float dist)
         {
             target = null;
             dist = 0f;
 
-            if (sapi == null || entity == null || stage == null) return false;
+            if (Sapi == null || entity == null || stage == null) return false;
 
-            try
-            {
-                var own = entity.Pos.XYZ;
-                float range = Math.Max(4f, stage.maxTargetRange > 0f ? stage.maxTargetRange : 40f);
-                var found = sapi.World.GetNearestEntity(own, range, range, e => e is EntityPlayer);
-                if (found == null || !found.Alive) return false;
-                if (found.Pos.Dimension != entity.Pos.Dimension) return false;
+            var own = entity.Pos.XYZ;
+            float range = Math.Max(4f, stage.maxTargetRange > 0f ? stage.maxTargetRange : 40f);
+            var found = Sapi.World.GetNearestEntity(own, range, range, e => e is EntityPlayer);
+            if (found == null || !found.Alive) return false;
+            if (found.Pos.Dimension != entity.Pos.Dimension) return false;
 
-                target = found;
-                dist = (float)found.Pos.DistanceTo(entity.Pos);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            target = found;
+            dist = (float)found.Pos.DistanceTo(entity.Pos);
+            return true;
         }
 
         private int CountAliveNearby(string entityCode, float range)
         {
-            if (sapi == null || entity == null) return 0;
-            if (string.IsNullOrWhiteSpace(entityCode)) return 0;
-            if (range <= 0f) return 0;
+            if (Sapi == null || entity == null || string.IsNullOrWhiteSpace(entityCode) || range <= 0f) return 0;
 
-            try
+            int dim = entity.Pos.Dimension;
+            var center = new Vec3d(entity.Pos.X, entity.Pos.Y + dim * 32768.0, entity.Pos.Z);
+            var entities = Sapi.World.GetEntitiesAround(center, range, range, e => e != null && e.Alive);
+            if (entities == null) return 0;
+
+            int alive = 0;
+            for (int i = 0; i < entities.Length; i++)
             {
-                int dim = entity.Pos.Dimension;
-                var center = new Vec3d(entity.Pos.X, entity.Pos.Y + dim * 32768.0, entity.Pos.Z);
-                var entities = sapi.World.GetEntitiesAround(center, range, range, e => e != null && e.Alive);
-                if (entities == null) return 0;
+                var e = entities[i];
+                var code = e?.Code?.ToString();
+                if (string.IsNullOrWhiteSpace(code)) continue;
 
-                int alive = 0;
-                for (int i = 0; i < entities.Length; i++)
+                if (string.Equals(code, entityCode, StringComparison.OrdinalIgnoreCase))
                 {
-                    var e = entities[i];
-                    var code = e?.Code?.ToString();
-                    if (string.IsNullOrWhiteSpace(code)) continue;
-
-                    if (string.Equals(code, entityCode, StringComparison.OrdinalIgnoreCase))
-                    {
-                        alive++;
-                    }
+                    alive++;
                 }
+            }
 
-                return alive;
-            }
-            catch
-            {
-                return 0;
-            }
+            return alive;
         }
 
-        private void Spawn(SpawnStage stage, int count)
+        private void Spawn(Stage stage, int count)
         {
-            if (sapi == null || entity == null || stage == null) return;
-            if (string.IsNullOrWhiteSpace(stage.entityCode)) return;
-            if (count <= 0) return;
+            if (Sapi == null || entity == null || stage == null || string.IsNullOrWhiteSpace(stage.entityCode) || count <= 0) return;
 
-            EntityProperties type = null;
-            AssetLocation codeLoc = null;
-            try
-            {
-                codeLoc = new AssetLocation(stage.entityCode);
-                type = sapi.World.GetEntityType(codeLoc);
-            }
-            catch
-            {
-                type = null;
-            }
+            AssetLocation codeLoc = new AssetLocation(stage.entityCode);
+            EntityProperties type = Sapi.World.GetEntityType(codeLoc);
 
-            if (type == null)
+            if (type == null && string.Equals(codeLoc.Domain, "game", StringComparison.OrdinalIgnoreCase))
             {
-                try
-                {
-                    if (codeLoc != null && string.Equals(codeLoc.Domain, "game", StringComparison.OrdinalIgnoreCase))
-                    {
-                        type = sapi.World.GetEntityType(new AssetLocation("survival", codeLoc.Path));
-                    }
-                }
-                catch
-                {
-                    type = null;
-                }
+                type = Sapi.World.GetEntityType(new AssetLocation("survival", codeLoc.Path));
             }
 
             if (type == null) return;
@@ -250,48 +171,36 @@ namespace VsQuest
             int dim = entity.Pos.Dimension;
             for (int i = 0; i < count; i++)
             {
-                double angle = sapi.World.Rand.NextDouble() * Math.PI * 2.0;
-                double dist = stage.spawnRange * (0.5 + sapi.World.Rand.NextDouble() * 0.5);
+                double angle = Sapi.World.Rand.NextDouble() * Math.PI * 2.0;
+                double dist = stage.spawnRange * (0.5 + Sapi.World.Rand.NextDouble() * 0.5);
                 double x = entity.Pos.X + Math.Cos(angle) * dist;
                 double z = entity.Pos.Z + Math.Sin(angle) * dist;
                 double y = entity.Pos.Y;
 
-                float yaw = (float)(sapi.World.Rand.NextDouble() * Math.PI * 2.0);
+                float yaw = (float)(Sapi.World.Rand.NextDouble() * Math.PI * 2.0);
                 var spawnPos = new Vec3d(x, y + dim * 32768.0, z);
 
-                Entity spawned = sapi.World.ClassRegistry.CreateEntity(type);
+                Entity spawned = Sapi.World.ClassRegistry.CreateEntity(type);
                 if (spawned == null) continue;
 
-                try
+                if (entity.EntityId != 0)
                 {
-                    if (entity.EntityId != 0)
-                    {
-                        spawned.WatchedAttributes.SetLong(SummonedByEntityIdKey, entity.EntityId);
-                        spawned.WatchedAttributes.MarkPathDirty(SummonedByEntityIdKey);
-                    }
-                }
-                catch
-                {
+                    spawned.WatchedAttributes.SetLong(SummonedByEntityIdKey, entity.EntityId);
+                    spawned.WatchedAttributes.MarkPathDirty(SummonedByEntityIdKey);
                 }
 
-                try
+                var summonerCode = entity?.Code?.ToString();
+                if (!string.IsNullOrWhiteSpace(summonerCode))
                 {
-                    var summonerCode = entity?.Code?.ToString();
-                    if (!string.IsNullOrWhiteSpace(summonerCode))
-                    {
-                        spawned.WatchedAttributes.SetString(SummonedByEntityCodeKey, summonerCode);
-                        spawned.WatchedAttributes.MarkPathDirty(SummonedByEntityCodeKey);
-                    }
-                }
-                catch
-                {
+                    spawned.WatchedAttributes.SetString(SummonedByEntityCodeKey, summonerCode);
+                    spawned.WatchedAttributes.MarkPathDirty(SummonedByEntityCodeKey);
                 }
 
                 spawned.Pos.SetPosWithDimension(spawnPos);
                 spawned.Pos.SetFrom(spawned.Pos);
                 spawned.Pos.Yaw = yaw;
 
-                sapi.World.SpawnEntity(spawned);
+                Sapi.World.SpawnEntity(spawned);
 
                 TryDisableFleeForSummonedWolves(spawned);
             }
@@ -299,46 +208,44 @@ namespace VsQuest
 
         private void TryDisableFleeForSummonedWolves(Entity spawned)
         {
-            if (sapi == null || spawned == null) return;
+            if (Sapi == null || spawned == null) return;
 
-            try
+            string code = spawned.Code?.ToShortString();
+            if (string.IsNullOrWhiteSpace(code)) return;
+            if (!code.Contains("wolf", StringComparison.OrdinalIgnoreCase)) return;
+
+            long summonerId = spawned.WatchedAttributes?.GetLong(SummonedByEntityIdKey, 0) ?? 0;
+            if (summonerId <= 0) return;
+
+            Sapi.Event.RegisterCallback(_ =>
             {
-                var code = spawned.Code?.ToString() ?? "";
-                if (code.IndexOf("wolf", StringComparison.OrdinalIgnoreCase) < 0) return;
+                if (spawned == null || !spawned.Alive) return;
 
-                long summonerId = spawned.WatchedAttributes?.GetLong(SummonedByEntityIdKey, 0) ?? 0;
-                if (summonerId <= 0) return;
+                var taskAi = spawned.GetBehavior<EntityBehaviorTaskAI>();
+                if (taskAi?.TaskManager == null) return;
 
-                sapi.Event.RegisterCallback(_ =>
+                taskAi.TaskManager.StopTasks();
+
+                var tasks = taskAi.TaskManager.AllTasks;
+                for (int i = tasks.Count - 1; i >= 0; i--)
                 {
-                    try
+                    var t = tasks[i];
+                    var tn = t?.GetType()?.Name ?? "";
+                    if (tn.IndexOf("AiTaskFlee", StringComparison.OrdinalIgnoreCase) >= 0)
                     {
-                        if (spawned == null || !spawned.Alive) return;
-
-                        var taskAi = spawned.GetBehavior<EntityBehaviorTaskAI>();
-                        if (taskAi?.TaskManager == null) return;
-
-                        taskAi.TaskManager.StopTasks();
-
-                        var tasks = taskAi.TaskManager.AllTasks;
-                        for (int i = tasks.Count - 1; i >= 0; i--)
-                        {
-                            var t = tasks[i];
-                            var tn = t?.GetType()?.Name ?? "";
-                            if (tn.IndexOf("AiTaskFlee", StringComparison.OrdinalIgnoreCase) >= 0)
-                            {
-                                taskAi.TaskManager.RemoveTask(t);
-                            }
-                        }
+                        taskAi.TaskManager.RemoveTask(t);
                     }
-                    catch
-                    {
-                    }
-                }, 1);
-            }
-            catch
-            {
-            }
+                }
+            }, 1);
         }
+
+        // Required abstract overrides for BossAbilityBase (not used in periodic tick mode)
+        protected override void ActivateAbility(object stage, int stageIndex, EntityPlayer target) { }
+        protected override void StopAbility() { }
+        protected override int GetStageCount() => stages.Count;
+        protected override object GetStage(int index) => index >= 0 && index < stages.Count ? stages[index] : null;
+        protected override float GetStageHealthThreshold(object stage) => stage is Stage s ? s.whenHealthRelBelow : 1f;
+        protected override float GetStageCooldown(object stage) => stage is Stage s ? s.cooldownSeconds : 0f;
+        protected override float GetMaxTargetRange(object stage) => stage is Stage s ? s.maxTargetRange : 40f;
     }
 }

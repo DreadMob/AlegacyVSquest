@@ -71,15 +71,7 @@ namespace VsQuest
             var players = sapi?.World?.AllOnlinePlayers;
             if (players == null || players.Length == 0) return;
 
-            long nowMs = 0;
-            try
-            {
-                nowMs = sapi.World.ElapsedMilliseconds;
-            }
-            catch
-            {
-                nowMs = 0;
-            }
+            long nowMs = sapi.World.ElapsedMilliseconds;
 
             for (int i = 0; i < players.Length; i++)
             {
@@ -88,15 +80,7 @@ namespace VsQuest
                 var pos = sp.Entity?.Pos;
                 if (pos == null) continue;
 
-                int curDim;
-                try
-                {
-                    curDim = sp.Entity.Pos.Dimension;
-                }
-                catch
-                {
-                    curDim = 0;
-                }
+                int curDim = sp.Entity.Pos.Dimension;
 
                 int curX = pos.AsBlockPos.X;
                 int curY = pos.AsBlockPos.Y;

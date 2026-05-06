@@ -43,24 +43,14 @@ namespace VsQuest
                 return;
             }
 
-            var player = capi.World?.Player?.Entity;
-            if (player == null)
+            var playerEntity = capi.World?.Player?.Entity;
+            if (playerEntity == null)
             {
                 SetBossMusic(false);
                 return;
             }
 
-            bool inRange;
-            try
-            {
-                inRange = player.Pos.DistanceTo(entity.Pos) <= range;
-            }
-            catch
-            {
-                inRange = false;
-            }
-
-            if (!inRange)
+            if (playerEntity.Pos.DistanceTo(entity.Pos) > range)
             {
                 SetBossMusic(false);
                 return;
@@ -69,22 +59,10 @@ namespace VsQuest
             bool inCombat = true;
             if (requireRecentDamage)
             {
-                long lastDamageMs = 0;
-                try
+                long lastDamageMs = entity.WatchedAttributes.GetLong(EntityBehaviorBossHuntCombatMarker.BossHuntLastDamageMsKey, 0);
+                if (lastDamageMs <= 0)
                 {
-                    var wa = entity.WatchedAttributes;
-                    if (wa != null)
-                    {
-                        lastDamageMs = wa.GetLong(EntityBehaviorBossHuntCombatMarker.BossHuntLastDamageMsKey, 0);
-                        if (lastDamageMs <= 0)
-                        {
-                            lastDamageMs = wa.GetLong(EntityBehaviorBossCombatMarker.BossCombatLastDamageMsKey, 0);
-                        }
-                    }
-                }
-                catch
-                {
-                    lastDamageMs = 0;
+                    lastDamageMs = entity.WatchedAttributes.GetLong(EntityBehaviorBossCombatMarker.BossCombatLastDamageMsKey, 0);
                 }
 
                 if (lastDamageMs <= 0)
@@ -93,8 +71,7 @@ namespace VsQuest
                 }
                 else
                 {
-                    long now = capi.World.ElapsedMilliseconds;
-                    long dtMs = now - lastDamageMs;
+                    long dtMs = capi.World.ElapsedMilliseconds - lastDamageMs;
                     inCombat = dtMs >= 0 && dtMs <= combatTimeoutMs;
                 }
             }
@@ -110,16 +87,10 @@ namespace VsQuest
 
         private void SetBossMusic(bool shouldPlay)
         {
-            try
+            var bossBh = entity.GetBehavior<EntityBehaviorBoss>();
+            if (bossBh != null)
             {
-                var bossBh = entity.GetBehavior<EntityBehaviorBoss>();
-                if (bossBh != null)
-                {
-                    bossBh.ShouldPlayTrack = shouldPlay;
-                }
-            }
-            catch
-            {
+                bossBh.ShouldPlayTrack = shouldPlay;
             }
         }
     }

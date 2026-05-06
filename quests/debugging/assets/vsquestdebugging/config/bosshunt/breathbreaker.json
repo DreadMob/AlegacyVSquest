@@ -1,11 +1,6 @@
 {
   "bossKey": "vsquestdebugging:bosshunt:breathbreaker",
   "questId": "vsquestdebugging:bosshunt-breathbreaker",
-  "points": [
-    "0,0,0,0",
-    "0,0,0,0",
-    "0,0,0,0"
-  ],
   "relocateIntervalHours": 72,
   "respawnInGameHours": 24,
   "noRelocateAfterDamageMinutes": 10,

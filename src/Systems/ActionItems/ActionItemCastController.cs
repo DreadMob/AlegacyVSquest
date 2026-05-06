@@ -260,7 +260,7 @@ namespace VsQuest
                 playerEntity.Stats.Remove("walkspeed", castSpeedStatKey);
             }
 
-            BossBehaviorUtils.UpdatePlayerWalkSpeed(playerEntity);
+            playerEntity.UpdatePlayerWalkSpeed();
         }
 
         private void StartActionItemCastSound()

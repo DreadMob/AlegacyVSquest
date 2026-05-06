@@ -8,21 +8,33 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossIntoxicationAura : EntityBehavior
+    public class EntityBehaviorBossIntoxicationAura : BossAbilityBase
     {
-        private const string LastTickMsKey = "alegacyvsquest:bossintoxaura:lastTickMs";
         private const string IntoxUntilMsKey = "alegacyvsquest:bossintoxaura:until";
 
-        private class AuraStage
+        protected override string CooldownKey => "alegacyvsquest:bossintoxaura:lastTickMs";
+        protected override bool UsePeriodicTick() => true;
+        protected override int CheckIntervalMs => 500;
+
+        private class Stage : BossAbilityStage
         {
-            public float whenHealthRelBelow;
             public float range;
             public float intoxication;
             public int intervalMs;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                range = json["range"].AsFloat(24f);
+                intoxication = json["intoxication"].AsFloat(0f);
+                intervalMs = json["intervalMs"].AsInt(500);
+
+                if (range <= 0f) range = 24f;
+                if (intervalMs < 100) intervalMs = 100;
+            }
         }
 
-        private ICoreServerAPI sapi;
-        private readonly List<AuraStage> stages = new List<AuraStage>();
+        private List<Stage> stages = new List<Stage>();
         private float maxRange;
 
         private long lastCleanupMs;
@@ -33,75 +45,32 @@ namespace VsQuest
 
         public override string PropertyName() => "bossintoxaura";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-
-            stages.Clear();
+            stages = ParseStages<Stage>(attributes);
             maxRange = 0f;
-            try
-            {
-                foreach (var stageObj in attributes["stages"].AsArray())
-                {
-                    if (stageObj == null || !stageObj.Exists) continue;
-
-                    var stage = new AuraStage
-                    {
-                        whenHealthRelBelow = stageObj["whenHealthRelBelow"].AsFloat(1f),
-                        range = stageObj["range"].AsFloat(24f),
-                        intoxication = stageObj["intoxication"].AsFloat(0f),
-                        intervalMs = stageObj["intervalMs"].AsInt(500)
-                    };
-
-                    if (stage.range <= 0f) stage.range = 24f;
-                    if (stage.intervalMs < 100) stage.intervalMs = 100;
-
-                    stages.Add(stage);
-                    if (stage.range > maxRange) maxRange = stage.range;
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in parsing stages: {ex}");
-            }
+            foreach (var s in stages) if (s.range > maxRange) maxRange = s.range;
         }
 
-        public override void OnGameTick(float dt)
+        protected override void OnPeriodicTick(float dt)
         {
-            base.OnGameTick(dt);
-            if (sapi == null || entity == null) return;
-            if (stages.Count == 0) return;
-            if (!entity.Alive) return;
+            if (Sapi == null || entity == null || stages.Count == 0 || !entity.Alive) return;
 
             CleanupExpiredIntoxication();
 
-            if (!BossBehaviorUtils.TryGetHealthFraction(entity, out float frac)) return;
+            if (!TryGetHealthFraction(out float frac)) return;
 
-            int stageIndex = -1;
-            for (int i = 0; i < stages.Count; i++)
-            {
-                if (frac <= stages[i].whenHealthRelBelow)
-                {
-                    stageIndex = i;
-                }
-            }
+            (object stageObj, int stageIndex) = FindStageForHealth(frac);
+            if (stageObj is not Stage stage) return;
 
-            if (stageIndex < 0) return;
-
-            var stage = stages[stageIndex];
-            long nowMs = sapi.World.ElapsedMilliseconds;
-            long lastTickMs = entity.WatchedAttributes.GetLong(LastTickMsKey, 0);
-            if (nowMs - lastTickMs < stage.intervalMs) return;
-
-            entity.WatchedAttributes.SetLong(LastTickMsKey, nowMs);
-            entity.WatchedAttributes.MarkPathDirty(LastTickMsKey);
+            long nowMs = Sapi.World.ElapsedMilliseconds;
+            if (!ShouldRunInterval(CooldownKey, stage.intervalMs, nowMs)) return;
 
             // Avoid values > 1.0 as they can break client rendering/controls.
             float targetIntox = GameMath.Clamp(stage.intoxication, 0f, 1.0f);
             if (targetIntox <= 0f) return;
 
-            var players = sapi.World.AllOnlinePlayers;
+            var players = Sapi.World.AllOnlinePlayers;
             if (players == null || players.Length == 0) return;
 
             double range = stage.range > 0 ? stage.range : 24f;
@@ -112,8 +81,7 @@ namespace VsQuest
             {
                 var player = players[i] as IServerPlayer;
                 var playerEntity = player?.Entity;
-                if (playerEntity == null) continue;
-                if (playerEntity.Pos.Dimension != selfPos.Dimension) continue;
+                if (playerEntity == null || playerEntity.Pos.Dimension != selfPos.Dimension) continue;
 
                 double dx = playerEntity.Pos.X - selfPos.X;
                 double dy = playerEntity.Pos.Y - selfPos.Y;
@@ -135,13 +103,13 @@ namespace VsQuest
 
         private void CleanupExpiredIntoxication()
         {
-            if (sapi == null) return;
+            if (Sapi == null) return;
 
-            long nowMs = sapi.World.ElapsedMilliseconds;
+            long nowMs = Sapi.World.ElapsedMilliseconds;
             if (lastCleanupMs != 0 && nowMs - lastCleanupMs < 500) return;
             lastCleanupMs = nowMs;
 
-            var players = sapi.World.AllOnlinePlayers;
+            var players = Sapi.World.AllOnlinePlayers;
             if (players == null || players.Length == 0) return;
 
             for (int i = 0; i < players.Length; i++)
@@ -149,41 +117,25 @@ namespace VsQuest
                 if (players[i] is not IServerPlayer sp) continue;
                 if (sp.Entity is not EntityPlayer plr) continue;
 
-                long until = 0;
-                try
-                {
-                    until = plr.WatchedAttributes.GetLong(IntoxUntilMsKey, 0);
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in CleanupExpiredIntoxication GetLong: {ex}");
-                    until = 0;
-                }
+                long until = plr.WatchedAttributes.GetLong(IntoxUntilMsKey, 0);
 
                 if (until <= 0)
                 {
                     // Hard clamp in case something else pushed intoxication to invalid values.
-                    try
+                    float cur = plr.WatchedAttributes.GetFloat("intoxication", 0f);
+                    if (cur > 1.0f)
                     {
-                        float cur = plr.WatchedAttributes.GetFloat("intoxication", 0f);
-                        if (cur > 1.0f)
-                        {
-                            plr.WatchedAttributes.SetFloat("intoxication", 1.0f);
-                            plr.WatchedAttributes.MarkPathDirty("intoxication");
-                        }
-
-                        // Legacy fail-safe: if intoxication is stuck near max without our timer key,
-                        // clear it so players can recover (black screen / broken controls).
-                        // This should only trigger for extreme values.
-                        if (cur >= 0.95f)
-                        {
-                            plr.WatchedAttributes.SetFloat("intoxication", 0f);
-                            plr.WatchedAttributes.MarkPathDirty("intoxication");
-                        }
+                        plr.WatchedAttributes.SetFloat("intoxication", 1.0f);
+                        plr.WatchedAttributes.MarkPathDirty("intoxication");
                     }
-                    catch (Exception ex)
+
+                    // Legacy fail-safe: if intoxication is stuck near max without our timer key,
+                    // clear it so players can recover (black screen / broken controls).
+                    // This should only trigger for extreme values.
+                    if (cur >= 0.95f)
                     {
-                        entity?.Api?.Logger?.Error($"[vsquest] Exception in CleanupExpiredIntoxication GetFloat: {ex}");
+                        plr.WatchedAttributes.SetFloat("intoxication", 0f);
+                        plr.WatchedAttributes.MarkPathDirty("intoxication");
                     }
 
                     continue;
@@ -196,59 +148,28 @@ namespace VsQuest
                     const long MaxFutureMs = 10L * 60L * 1000L;
                     if (until - nowMs > MaxFutureMs)
                     {
-                        try
-                        {
-                            plr.WatchedAttributes.SetLong(IntoxUntilMsKey, 0);
-                            plr.WatchedAttributes.MarkPathDirty(IntoxUntilMsKey);
-                        }
-                        catch (Exception ex)
-                        {
-                            entity?.Api?.Logger?.Error($"[vsquest] Exception in CleanupExpiredIntoxication SetLong stale: {ex}");
-                        }
-
-                        try
-                        {
-                            plr.WatchedAttributes.SetFloat("intoxication", 0f);
-                            plr.WatchedAttributes.MarkPathDirty("intoxication");
-                        }
-                        catch (Exception ex)
-                        {
-                            entity?.Api?.Logger?.Error($"[vsquest] Exception in CleanupExpiredIntoxication SetFloat stale: {ex}");
-                        }
-
+                        plr.WatchedAttributes.SetLong(IntoxUntilMsKey, 0);
+                        plr.WatchedAttributes.MarkPathDirty(IntoxUntilMsKey);
+                        plr.WatchedAttributes.SetFloat("intoxication", 0f);
+                        plr.WatchedAttributes.MarkPathDirty("intoxication");
                         continue;
                     }
                 }
 
                 if (nowMs >= until)
                 {
-                    try
-                    {
-                        plr.WatchedAttributes.SetLong(IntoxUntilMsKey, 0);
-                        plr.WatchedAttributes.MarkPathDirty(IntoxUntilMsKey);
-                    }
-                    catch (Exception ex)
-                    {
-                        entity?.Api?.Logger?.Error($"[vsquest] Exception in CleanupExpiredIntoxication SetLong expired: {ex}");
-                    }
-
-                    try
-                    {
-                        plr.WatchedAttributes.SetFloat("intoxication", 0f);
-                        plr.WatchedAttributes.MarkPathDirty("intoxication");
-                    }
-                    catch (Exception ex)
-                    {
-                        entity?.Api?.Logger?.Error($"[vsquest] Exception in CleanupExpiredIntoxication SetFloat expired: {ex}");
-                    }
+                    plr.WatchedAttributes.SetLong(IntoxUntilMsKey, 0);
+                    plr.WatchedAttributes.MarkPathDirty(IntoxUntilMsKey);
+                    plr.WatchedAttributes.SetFloat("intoxication", 0f);
+                    plr.WatchedAttributes.MarkPathDirty("intoxication");
                 }
             }
         }
 
         public override void OnEntityDeath(DamageSource damageSourceForDeath)
         {
-            base.OnEntityDeath(damageSourceForDeath);
             ClearIntoxication();
+            base.OnEntityDeath(damageSourceForDeath);
         }
 
         public override void OnEntityDespawn(EntityDespawnData despawn)
@@ -259,10 +180,10 @@ namespace VsQuest
 
         private void ClearIntoxication()
         {
-            if (sapi == null || entity == null) return;
+            if (Sapi == null || entity == null) return;
             if (maxRange <= 0f) maxRange = 24f;
 
-            var players = sapi.World.AllOnlinePlayers;
+            var players = Sapi.World.AllOnlinePlayers;
             if (players == null || players.Length == 0) return;
 
             double range = maxRange * 1.1f;
@@ -288,5 +209,14 @@ namespace VsQuest
                 playerEntity.WatchedAttributes.MarkPathDirty("intoxication");
             }
         }
+
+        // Required abstract overrides for BossAbilityBase (not used in periodic tick mode)
+        protected override void ActivateAbility(object stage, int stageIndex, EntityPlayer target) { }
+        protected override void StopAbility() { }
+        protected override int GetStageCount() => stages.Count;
+        protected override object GetStage(int index) => index >= 0 && index < stages.Count ? stages[index] : null;
+        protected override float GetStageHealthThreshold(object stage) => stage is Stage s ? s.whenHealthRelBelow : 1f;
+        protected override float GetStageCooldown(object stage) => 0f;
+        protected override float GetMaxTargetRange(object stage) => 0f;
     }
 }

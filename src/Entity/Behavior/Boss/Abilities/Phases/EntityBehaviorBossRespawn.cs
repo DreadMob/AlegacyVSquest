@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
@@ -8,7 +9,7 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossRespawn : EntityBehavior
+    public class EntityBehaviorBossRespawn : BossAbilityBase
     {
         private const string AttrRespawnAtHours = "alegacyvsquest:bossrespawnAtTotalHours";
         private const string AttrRespawnX = "alegacyvsquest:bossrespawnX";
@@ -16,37 +17,46 @@ namespace VsQuest
         private const string AttrRespawnZ = "alegacyvsquest:bossrespawnZ";
         private const string AttrRespawnDim = "alegacyvsquest:bossrespawnDim";
 
-        private ICoreServerAPI sapi;
-        private double respawnInGameHours;
-        private bool spawnNewBoss;
-        private string respawnEntityCode;
-        private long tickListenerId;
+        private class Stage : BossAbilityStage
+        {
+            public double respawnInGameHours;
+            public bool spawnNewBoss;
+            public string respawnEntityCode;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                respawnInGameHours = json["respawnInGameHours"].AsDouble(24);
+                spawnNewBoss = json["spawnNewBoss"].AsBool(false);
+                respawnEntityCode = json["respawnEntityCode"].AsString(null);
+
+                if (respawnInGameHours < 0) respawnInGameHours = 24;
+            }
+        }
+
+        private List<Stage> stages = new List<Stage>();
+        protected override string CooldownKey => "alegacyvsquest:bossrespawn:lastCheckMs";
+        protected override bool UsePeriodicTick() => true;
+        protected override int CheckIntervalMs => 1000;
+        protected override bool UseHealthBasedStages() => false;
+        protected override bool RequiresTarget() => false;
+
         private bool scheduled;
 
         public EntityBehaviorBossRespawn(Entity entity) : base(entity)
         {
         }
 
+        public override string PropertyName() => "bossrespawn";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-
-            sapi = entity?.Api as ICoreServerAPI;
-            if (sapi == null) return;
-
-            respawnInGameHours = attributes["respawnInGameHours"].AsDouble(24);
-            if (respawnInGameHours < 0) respawnInGameHours = 24;
-
-            spawnNewBoss = attributes["spawnNewBoss"].AsBool(false);
-            respawnEntityCode = attributes["respawnEntityCode"].AsString(null);
-
-            tickListenerId = sapi.Event.RegisterGameTickListener(OnTick, 1000);
+            stages = ParseStages<Stage>(attributes);
         }
 
-        private void OnTick(float dt)
+        protected override void OnPeriodicTick(float dt)
         {
-            if (sapi == null || entity == null) return;
+            if (Sapi == null || entity == null || stages.Count == 0) return;
 
             if (entity.Alive)
             {
@@ -54,40 +64,42 @@ namespace VsQuest
                 return;
             }
 
+            var stage = stages[0];
+
             if (!scheduled)
             {
-                ScheduleRespawn();
+                ScheduleRespawn(stage);
             }
 
             double respawnAt = entity.WatchedAttributes.GetDouble(AttrRespawnAtHours, double.NaN);
             if (double.IsNaN(respawnAt)) return;
 
-            if (sapi.World.Calendar.TotalHours < respawnAt) return;
+            if (Sapi.World.Calendar.TotalHours < respawnAt) return;
 
-            if (spawnNewBoss)
+            if (stage.spawnNewBoss)
             {
-                TryRespawnNow();
+                TryRespawnNow(stage);
                 return;
             }
 
             // Default: only remove corpse after timer. Actual respawn can be handled by a separate spawner.
-            sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Expire });
+            Sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Expire });
         }
 
-        private void ScheduleRespawn()
+        private void ScheduleRespawn(Stage stage)
         {
-            if (sapi == null || entity == null) return;
+            if (Sapi == null || entity == null) return;
 
             double respawnAt = entity.WatchedAttributes.GetDouble(AttrRespawnAtHours, double.NaN);
             if (double.IsNaN(respawnAt))
             {
-                if (respawnInGameHours == 0)
+                if (stage.respawnInGameHours == 0)
                 {
-                    respawnAt = sapi.World.Calendar.TotalHours;
+                    respawnAt = Sapi.World.Calendar.TotalHours;
                 }
                 else
                 {
-                    respawnAt = sapi.World.Calendar.TotalHours + respawnInGameHours;
+                    respawnAt = Sapi.World.Calendar.TotalHours + stage.respawnInGameHours;
                 }
                 entity.WatchedAttributes.SetDouble(AttrRespawnAtHours, respawnAt);
 
@@ -106,16 +118,16 @@ namespace VsQuest
             scheduled = true;
         }
 
-        private void TryRespawnNow()
+        private void TryRespawnNow(Stage stage)
         {
-            if (sapi == null || entity == null) return;
+            if (Sapi == null || entity == null) return;
 
-            string code = string.IsNullOrWhiteSpace(respawnEntityCode)
+            string code = string.IsNullOrWhiteSpace(stage.respawnEntityCode)
                 ? entity.Code?.ToShortString()
-                : respawnEntityCode;
+                : stage.respawnEntityCode;
             if (string.IsNullOrWhiteSpace(code)) return;
 
-            var type = sapi.World.GetEntityType(new AssetLocation(code));
+            var type = Sapi.World.GetEntityType(new AssetLocation(code));
             if (type == null) return;
 
             double x = entity.WatchedAttributes.GetDouble(AttrRespawnX, entity.Pos.X);
@@ -125,9 +137,9 @@ namespace VsQuest
 
             float yaw = entity.Pos.Yaw;
 
-            sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Expire });
+            Sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Expire });
 
-            Entity newEntity = sapi.World.ClassRegistry.CreateEntity(type);
+            Entity newEntity = Sapi.World.ClassRegistry.CreateEntity(type);
             if (newEntity == null) return;
 
             // EntityPos.SetPosWithDimension(Vec3d) expects Y to include dimension offset (dim*32768)
@@ -135,20 +147,16 @@ namespace VsQuest
             newEntity.Pos.Yaw = yaw;
             newEntity.Pos.SetFrom(newEntity.Pos);
 
-            sapi.World.SpawnEntity(newEntity);
+            Sapi.World.SpawnEntity(newEntity);
         }
 
-        public override void OnEntityDespawn(EntityDespawnData despawn)
-        {
-            if (sapi != null && tickListenerId != 0)
-            {
-                sapi.Event.UnregisterGameTickListener(tickListenerId);
-                tickListenerId = 0;
-            }
+        protected override int GetStageCount() => stages.Count;
+        protected override object GetStage(int index) => stages[index];
+        protected override float GetStageHealthThreshold(object stage) => ((Stage)stage).whenHealthRelBelow;
+        protected override float GetStageCooldown(object stage) => ((Stage)stage).cooldownSeconds;
+        protected override float GetMaxTargetRange(object stage) => 0f;
 
-            base.OnEntityDespawn(despawn);
-        }
-
-        public override string PropertyName() => "bossrespawn";
+        protected override void ActivateAbility(object stage, int stageIndex, EntityPlayer target) { }
+        protected override void StopAbility() { }
     }
 }

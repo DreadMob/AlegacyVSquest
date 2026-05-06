@@ -9,14 +9,9 @@
 		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
 	</PropertyGroup>
 
-	<ItemGroup>
-		<Compile Remove="сурс код\**" />
-		<Compile Remove="сурс код copy\**" />
-		<EmbeddedResource Remove="сурс код\**" />
-		<EmbeddedResource Remove="сурс код copy\**" />
-		<None Remove="сурс код\**" />
-		<None Remove="сурс код copy\**" />
-	</ItemGroup>
+	<PropertyGroup>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
 
 	<ItemGroup>
 		<Reference Include="VintagestoryAPI">

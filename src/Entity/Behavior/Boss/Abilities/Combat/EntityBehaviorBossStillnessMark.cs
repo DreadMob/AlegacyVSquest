@@ -8,28 +8,44 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossStillnessMark : EntityBehavior
+    public class EntityBehaviorBossStillnessMark : BossAbilityBase
     {
+        protected override string CooldownKey => "alegacyvsquest:bossstillnessmark:lastCastMs";
+        protected override bool UseHealthBasedStages() => false;
+        protected override bool RequiresTarget() => false;
+        protected override int CheckIntervalMs => 500;
+
         private const string MarkUntilKey = "alegacyvsquest:bossstillnessmark:until";
         private const string MarkDamageKey = "alegacyvsquest:bossstillnessmark:damage";
 
         private const int DamageTickIntervalMs = 3000;
-        private const int ProcessTickIntervalMs = 500; // Only process every 500ms instead of every tick
 
-        private long lastProcessTickMs;
+        private class Stage : BossAbilityStage
+        {
+            public int durationMs;
+            public float damagePerSecond;
+            public int maxTargets;
 
-        private ICoreServerAPI sapi;
-        private int durationMs;
-        private float damagePerSecond;
-        private int cooldownMs;
-        private int maxTargets;
-        private float detectionRange;
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                durationMs = json["duration"].AsInt(8) * 1000;
+                damagePerSecond = json["damagePerSecond"].AsFloat(15f);
+                maxTargets = json["maxTargets"].AsInt(2);
+
+                // Validation
+                if (durationMs < 0) durationMs = 0;
+                if (damagePerSecond < 0f) damagePerSecond = 0f;
+                if (maxTargets < 1) maxTargets = 1;
+            }
+        }
+
+        private List<Stage> stages = new List<Stage>();
         private DamageSource damageSource;
 
-        private long lastCastMs;
         private Dictionary<long, long> markedPlayers = new Dictionary<long, long>();
         private Dictionary<long, long> lastDamageTickMsByPlayer = new Dictionary<long, long>();
-        private Dictionary<long, EntityPlayer> cachedPlayers = new Dictionary<long, EntityPlayer>(); // Cache player references
+        private Dictionary<long, EntityPlayer> cachedPlayers = new Dictionary<long, EntityPlayer>();
 
         public EntityBehaviorBossStillnessMark(Entity entity) : base(entity)
         {
@@ -37,82 +53,113 @@ namespace VsQuest
 
         public override string PropertyName() => "bossstillnessmark";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-            durationMs = attributes["duration"].AsInt(8) * 1000;
-            damagePerSecond = attributes["damagePerSecond"].AsFloat(15f);
-            cooldownMs = attributes["cooldownSeconds"].AsInt(14) * 1000;
-            maxTargets = attributes["maxTargets"].AsInt(2);
-            detectionRange = attributes["range"].AsFloat(30f);
-
+            stages = ParseStages<Stage>(attributes);
             damageSource = new DamageSource
             {
                 Source = EnumDamageSource.Entity,
                 SourceEntity = entity,
                 Type = EnumDamageType.PiercingAttack
             };
-
-            lastCastMs = 0;
         }
 
-        public override void OnGameTick(float dt)
+        protected override int GetStageCount() => stages.Count;
+
+        protected override object GetStage(int index) => stages[index];
+
+        protected override float GetStageHealthThreshold(object stage) => ((Stage)stage).whenHealthRelBelow;
+
+        protected override float GetStageCooldown(object stage) => ((Stage)stage).cooldownSeconds;
+
+        protected override float GetMaxTargetRange(object stage) => ((Stage)stage).maxTargetRange;
+
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
-            base.OnGameTick(dt);
+            if (stageObj is not Stage stage) return;
+            
+            MarkCooldownStart();
+            SetAbilityActive(true);
+            TryApplyMark(stage, Sapi.World.ElapsedMilliseconds);
+        }
 
-            if (sapi == null || !entity.Alive) return;
+        protected override bool ShouldCheckAbility() => markedPlayers.Count == 0;
 
-            long now = sapi.World.ElapsedMilliseconds;
+        protected override void StopAbility()
+        {
+            ClearAllMarks();
+        }
 
-            // Try to apply mark
-            if (now - lastCastMs >= cooldownMs)
+        protected override bool OnAbilityTick(float dt)
+        {
+            long now = Sapi.World.ElapsedMilliseconds;
+            ProcessMarkedPlayers(dt, now);
+            
+            bool anyMarked = markedPlayers.Count > 0;
+            if (!anyMarked)
             {
-                TryApplyMark(now);
+                SetAbilityActive(false);
             }
+            return anyMarked;
+        }
 
-            // Process marked players - only every 500ms instead of every tick
-            if (now - lastProcessTickMs >= ProcessTickIntervalMs)
+        private void ClearAllMarks()
+        {
+            markedPlayers.Clear();
+            lastDamageTickMsByPlayer.Clear();
+            cachedPlayers.Clear();
+            
+            // Clear marks from all players
+            var players = Sapi.World.AllOnlinePlayers;
+            for (int i = 0; i < players.Length; i++)
             {
-                lastProcessTickMs = now;
-                ProcessMarkedPlayers(dt, now);
+                var plrEntity = players[i].Entity;
+                if (plrEntity?.WatchedAttributes != null)
+                {
+                    plrEntity.WatchedAttributes.RemoveAttribute(MarkUntilKey);
+                    plrEntity.WatchedAttributes.RemoveAttribute(MarkDamageKey);
+                    plrEntity.WatchedAttributes.MarkPathDirty(MarkUntilKey);
+                }
             }
         }
 
-        private void TryApplyMark(long now)
+        private void TryApplyMark(Stage stage, long now)
         {
+            if (stage == null) return;
             List<EntityPlayer> targets = new List<EntityPlayer>();
 
-            foreach (var player in sapi.World.AllOnlinePlayers)
+            var players = Sapi.World.AllOnlinePlayers;
+            for (int i = 0; i < players.Length; i++)
             {
-                if (player.Entity?.Pos == null) continue;
-                if (player.Entity.Pos.Dimension != entity.Pos.Dimension) continue;
-                if (player.Entity.Pos.DistanceTo(entity.Pos) > detectionRange) continue;
+                var plrEntity = players[i].Entity;
+                if (plrEntity?.Pos == null) continue;
+                if (plrEntity.Pos.Dimension != entity.Pos.Dimension) continue;
+                if (plrEntity.Pos.DistanceTo(entity.Pos) > stage.maxTargetRange) continue;
 
                 // Check if already marked
-                if (markedPlayers.ContainsKey(player.Entity.EntityId)) continue;
+                if (markedPlayers.ContainsKey(plrEntity.EntityId)) continue;
 
-                targets.Add(player.Entity);
+                targets.Add(plrEntity);
             }
 
             if (targets.Count == 0) return;
 
             // Select random targets up to maxTargets
             Random rand = new Random((int)now);
-            int toMark = Math.Min(maxTargets, targets.Count);
+            int toMark = Math.Min(stage.maxTargets, targets.Count);
 
             for (int i = 0; i < toMark; i++)
             {
                 int idx = rand.Next(targets.Count);
-                var target = targets[idx];
+                var targetPlr = targets[idx];
                 targets.RemoveAt(idx);
 
-                long until = now + durationMs;
-                markedPlayers[target.EntityId] = until;
+                long until = now + stage.durationMs;
+                markedPlayers[targetPlr.EntityId] = until;
 
                 // Visual effect - red chains
-                var targetPos = target.Pos.XYZ;
-                sapi.World.SpawnParticles(
+                var targetPos = targetPlr.Pos.XYZ;
+                Sapi.World.SpawnParticles(
                     new SimpleParticleProperties(
                         20, 30,
                         ColorUtil.ToRgba(255, 200, 50, 50),
@@ -128,12 +175,13 @@ namespace VsQuest
                     )
                 );
             }
-
-            lastCastMs = now;
         }
 
         private void ProcessMarkedPlayers(float dt, long now)
         {
+            if (stages.Count == 0) return;
+            var stage = stages[0];
+
             List<long> toRemove = new List<long>();
 
             foreach (var kvp in markedPlayers)
@@ -149,7 +197,7 @@ namespace VsQuest
                 if (!cachedPlayers.TryGetValue(kvp.Key, out player) || player == null || !player.Alive)
                 {
                     // Cache miss or invalid - find player
-                    foreach (var onlinePlayer in sapi.World.AllOnlinePlayers)
+                    foreach (var onlinePlayer in Sapi.World.AllOnlinePlayers)
                     {
                         if (onlinePlayer.Entity?.EntityId == kvp.Key)
                         {
@@ -179,16 +227,16 @@ namespace VsQuest
 
                     if (lastDmgMs == 0 || now - lastDmgMs >= DamageTickIntervalMs)
                     {
-                        float damage = damagePerSecond * (DamageTickIntervalMs / 1000f);
+                        float damage = stage.damagePerSecond * (DamageTickIntervalMs / 1000f);
                         player.ReceiveDamage(damageSource, damage);
                         lastDamageTickMsByPlayer[kvp.Key] = now;
                     }
 
                     // Visual feedback
-                    if (sapi.World.ElapsedMilliseconds % DamageTickIntervalMs < 50)
+                    if (Sapi.World.ElapsedMilliseconds % DamageTickIntervalMs < 50)
                     {
                         var playerPos = player.Pos.XYZ;
-                        sapi.World.SpawnParticles(
+                        Sapi.World.SpawnParticles(
                             new SimpleParticleProperties(
                                 2, 4,
                                 ColorUtil.ToRgba(255, 255, 100, 100),

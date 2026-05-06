@@ -9,24 +9,37 @@ using Vintagestory.GameContent;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossRequiemChains : EntityBehavior
+    public class EntityBehaviorBossRequiemChains : BossAbilityBase
     {
-        private class Stage
+        protected override string CooldownKey => "alegacyvsquest:bossrequiemchains:lastCastMs";
+        protected override bool UseHealthBasedStages() => false;
+        protected override bool RequiresTarget() => false;
+        protected override int CheckIntervalMs => 500;
+
+        private class Stage : BossAbilityStage
         {
-            public float whenHealthRelBelow;
             public int cooldownMs;
             public float range;
             public int maxTargets;
             public int durationMs;
             public float pullSpeed;
             public float damagePerSecond;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                whenHealthRelBelow = json["whenHealthRelBelow"].AsFloat(1f);
+                cooldownMs = json["cooldownSeconds"].AsInt(10) * 1000;
+                range = json["range"].AsFloat(8f);
+                maxTargets = json["maxTargets"].AsInt(2);
+                durationMs = json["duration"].AsInt(5) * 1000;
+                pullSpeed = json["pullSpeed"].AsFloat(0.08f);
+                damagePerSecond = json["damagePerSecond"].AsFloat(5f);
+            }
         }
 
-        private ICoreServerAPI sapi;
         private List<Stage> stages = new List<Stage>();
-        private EntityBehaviorHealth healthBehavior;
 
-        private long lastCastMs;
         private int currentStageIndex;
         private Dictionary<long, long> chainedPlayers = new Dictionary<long, long>();
 
@@ -36,69 +49,30 @@ namespace VsQuest
 
         public override string PropertyName() => "bossrequiemchains";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-            healthBehavior = entity.GetBehavior<EntityBehaviorHealth>();
-
-            stages.Clear();
-            foreach (var stageObj in attributes["stages"].AsArray())
-            {
-                if (stageObj == null || !stageObj.Exists) continue;
-
-                stages.Add(new Stage
-                {
-                    whenHealthRelBelow = stageObj["whenHealthRelBelow"].AsFloat(1f),
-                    cooldownMs = stageObj["cooldownSeconds"].AsInt(10) * 1000,
-                    range = stageObj["range"].AsFloat(8f),
-                    maxTargets = stageObj["maxTargets"].AsInt(2),
-                    durationMs = stageObj["duration"].AsInt(5) * 1000,
-                    pullSpeed = stageObj["pullSpeed"].AsFloat(0.08f),
-                    damagePerSecond = stageObj["damagePerSecond"].AsFloat(5f)
-                });
-            }
-
-            lastCastMs = 0;
-            currentStageIndex = 0;
+            stages = ParseStages<Stage>(attributes);
         }
 
-        public override void OnGameTick(float dt)
+        protected override bool ShouldCheckAbility()
         {
-            base.OnGameTick(dt);
-
-            if (sapi == null || !entity.Alive || healthBehavior == null) return;
-
-            long now = sapi.World.ElapsedMilliseconds;
-
-            // Determine current stage based on HP
-            float hpPercent = healthBehavior.Health / healthBehavior.MaxHealth;
-            for (int i = stages.Count - 1; i >= 0; i--)
-            {
-                if (hpPercent <= stages[i].whenHealthRelBelow)
-                {
-                    currentStageIndex = i;
-                    break;
-                }
-            }
-
-            var stage = stages[currentStageIndex];
-
-            // Check cooldown
-            if (now - lastCastMs >= stage.cooldownMs)
-            {
-                TryApplyChains(stage, now);
-            }
-
-            // Process chained players
-            ProcessChainedPlayers(dt, now);
+            return !IsAbilityActive;
         }
 
-        private void TryApplyChains(Stage stage, long now)
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
+        {
+            if (stageObj is not Stage stage) return;
+            MarkCooldownStart();
+            SetAbilityActive(true);
+            currentStageIndex = stageIndex;
+            StartChains(stage, stageIndex, target);
+        }
+
+        private void StartChains(Stage stage, int index, EntityPlayer target)
         {
             List<EntityPlayer> targets = new List<EntityPlayer>();
 
-            foreach (var player in sapi.World.AllOnlinePlayers)
+            foreach (var player in Sapi.World.AllOnlinePlayers)
             {
                 if (player.Entity?.Pos == null) continue;
                 if (player.Entity.Pos.Dimension != entity.Pos.Dimension) continue;
@@ -111,21 +85,21 @@ namespace VsQuest
             if (targets.Count == 0) return;
 
             // Select random targets up to maxTargets
-            Random rand = new Random((int)now);
+            Random rand = new Random((int)Sapi.World.ElapsedMilliseconds);
             int toChain = Math.Min(stage.maxTargets, targets.Count);
 
             for (int i = 0; i < toChain; i++)
             {
                 int idx = rand.Next(targets.Count);
-                var target = targets[idx];
+                var targetPlayer = targets[idx];
                 targets.RemoveAt(idx);
 
-                long until = now + stage.durationMs;
-                chainedPlayers[target.EntityId] = until;
+                long until = Sapi.World.ElapsedMilliseconds + stage.durationMs;
+                chainedPlayers[targetPlayer.EntityId] = until;
 
                 // Visual - chains on player
-                var targetPos = target.Pos.XYZ;
-                sapi.World.SpawnParticles(
+                var targetPos = targetPlayer.Pos.XYZ;
+                Sapi.World.SpawnParticles(
                     new SimpleParticleProperties(
                         25, 35,
                         ColorUtil.ToRgba(255, 100, 100, 150),
@@ -141,8 +115,20 @@ namespace VsQuest
                     )
                 );
             }
+        }
 
-            lastCastMs = now;
+        protected override bool OnAbilityTick(float dt)
+        {
+            if (!IsAbilityActive) return false;
+
+            long now = Sapi.World.ElapsedMilliseconds;
+            ProcessChainedPlayers(dt, now);
+            return true;
+        }
+
+        private void TryApplyChains(Stage stage, long now)
+        {
+            StartChains(stage, currentStageIndex, null);
         }
 
         private void ProcessChainedPlayers(float dt, long now)
@@ -157,7 +143,7 @@ namespace VsQuest
                     continue;
                 }
 
-                var player = sapi.World.PlayerByUid(kvp.Key.ToString())?.Entity;
+                var player = Sapi.World.PlayerByUid(kvp.Key.ToString())?.Entity;
                 if (player == null)
                 {
                     toRemove.Add(kvp.Key);
@@ -190,10 +176,10 @@ namespace VsQuest
                 );
 
                 // Visual chain line
-                if (sapi.World.ElapsedMilliseconds % 200 < 50)
+                if (Sapi.World.ElapsedMilliseconds % 200 < 50)
                 {
                     Vec3d chainPos = player.Pos.XYZ.Add(0, 1, 0);
-                    sapi.World.SpawnParticles(
+                    Sapi.World.SpawnParticles(
                         new SimpleParticleProperties(
                             1, 2,
                             ColorUtil.ToRgba(200, 150, 100, 200),
@@ -215,7 +201,7 @@ namespace VsQuest
             foreach (var id in toRemove)
             {
                 chainedPlayers.Remove(id);
-                var player = sapi.World.PlayerByUid(id.ToString())?.Entity;
+                var player = Sapi.World.PlayerByUid(id.ToString())?.Entity;
                 if (player != null)
                 {
                     player.WatchedAttributes.SetBool("alegacyvsquest:canshift", true);
@@ -223,6 +209,17 @@ namespace VsQuest
                     player.WatchedAttributes.SetBool("alegacyvsquest:canuseitems", true);
                 }
             }
+        }
+
+        // Required abstract overrides for BossAbilityBase (event-driven mode)
+        protected override int GetStageCount() => stages.Count;
+        protected override object GetStage(int index) => stages[index];
+        protected override float GetStageHealthThreshold(object stage) => ((Stage)stage).whenHealthRelBelow;
+        protected override float GetStageCooldown(object stage) => ((Stage)stage).cooldownMs / 1000f;
+        protected override float GetMaxTargetRange(object stage) => ((Stage)stage).range;
+
+        protected override void StopAbility()
+        {
         }
     }
 }

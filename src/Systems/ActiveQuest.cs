@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Win32.SafeHandles;
 using ProtoBuf;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -11,103 +10,37 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    // Simple LRU cache with size limit to prevent memory leaks
-    internal class SimpleLRUCache<TKey, TValue>
-    {
-        private readonly Dictionary<TKey, TValue> cache;
-        private readonly LinkedList<TKey> lruList;
-        private readonly int maxSize;
-        private readonly object syncLock = new object();
-
-        public SimpleLRUCache(int maxSize, IEqualityComparer<TKey> comparer = null)
-        {
-            this.maxSize = maxSize;
-            this.cache = new Dictionary<TKey, TValue>(maxSize, comparer);
-            this.lruList = new LinkedList<TKey>();
-        }
-
-        public bool TryGetValue(TKey key, out TValue value)
-        {
-            lock (syncLock)
-            {
-                if (cache.TryGetValue(key, out value))
-                {
-                    // Move to front (most recently used)
-                    lruList.Remove(key);
-                    lruList.AddFirst(key);
-                    return true;
-                }
-                return false;
-            }
-        }
-
-        public void Add(TKey key, TValue value)
-        {
-            lock (syncLock)
-            {
-                if (cache.ContainsKey(key))
-                {
-                    // Update existing
-                    cache[key] = value;
-                    lruList.Remove(key);
-                    lruList.AddFirst(key);
-                }
-                else
-                {
-                    // Evict if at capacity
-                    if (cache.Count >= maxSize && lruList.Last != null)
-                    {
-                        var evictKey = lruList.Last.Value;
-                        lruList.RemoveLast();
-                        cache.Remove(evictKey);
-                    }
-                    
-                    cache.Add(key, value);
-                    lruList.AddFirst(key);
-                }
-            }
-        }
-
-        public bool Remove(TKey key)
-        {
-            lock (syncLock)
-            {
-                if (cache.Remove(key))
-                {
-                    lruList.Remove(key);
-                    return true;
-                }
-                return false;
-            }
-        }
-
-        public void Clear()
-        {
-            lock (syncLock)
-            {
-                cache.Clear();
-                lruList.Clear();
-            }
-        }
-
-        public int Count 
-        { 
-            get 
-            { 
-                lock (syncLock) return cache.Count; 
-            } 
-        }
-    }
-
     [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
     public class ActiveQuest
     {
         public long questGiverId { get; set; }
         public string questId { get; set; }
+        
+        // New objective tracker system (replaces separate EventTracker lists)
+        private List<IObjectiveTracker> objectiveTrackers = new List<IObjectiveTracker>();
+        
+        // Quest context for lookups - injected via InitializeTrackers
+        private IQuestContext questContext;
+
+        // Legacy gather cache for performance
+        private Dictionary<int, int> gatherCache = new Dictionary<int, int>();
+        private long gatherCacheTimestamp = 0;
+        
+        // TODO: Remove legacy tracker fields once all quest packs are migrated to the new IObjectiveTracker system.
+        // These are still used for ProtoBuf serialization and quest completion checking (CheckObjectivesCompletable, completeQuest).
+        [Obsolete("Legacy tracker – use IObjectiveTracker via GetTrackers() instead.")]
+        [ProtoMember(100)]
         public List<EventTracker> killTrackers { get; set; } = new List<EventTracker>();
+        [Obsolete("Legacy tracker – use IObjectiveTracker via GetTrackers() instead.")]
+        [ProtoMember(101)]
         public List<EventTracker> blockPlaceTrackers { get; set; } = new List<EventTracker>();
+        [Obsolete("Legacy tracker – use IObjectiveTracker via GetTrackers() instead.")]
+        [ProtoMember(102)]
         public List<EventTracker> blockBreakTrackers { get; set; } = new List<EventTracker>();
+        [Obsolete("Legacy tracker – use IObjectiveTracker via GetTrackers() instead.")]
+        [ProtoMember(103)]
         public List<EventTracker> interactTrackers { get; set; } = new List<EventTracker>();
+        
         public bool IsCompletableOnClient { get; set; }
         public bool IsCurrentStageCompleteOnClient { get; set; }
         public string ProgressText { get; set; }
@@ -129,129 +62,182 @@ namespace VsQuest
 
         private static readonly SimpleLRUCache<string, LastInteractCache> lastInteractCacheByPlayerUid = new SimpleLRUCache<string, LastInteractCache>(1000, StringComparer.OrdinalIgnoreCase);
 
-        private class ParsedPos
+        /// <summary>
+        /// Initialize trackers from quest objectives. Called when quest is accepted or stage advances.
+        /// </summary>
+        public void InitializeTrackers(IQuestContext context)
         {
-            public bool Ok;
-            public int X;
-            public int Y;
-            public int Z;
-        }
-
-        private static readonly SimpleLRUCache<string, ParsedPos> parsedPosCacheByString = new SimpleLRUCache<string, ParsedPos>(5000, StringComparer.Ordinal);
-
-        private Dictionary<int, int> gatherCache = new Dictionary<int, int>();
-        private long gatherCacheTimestamp = 0;
-        private const int GatherCacheValidMs = 5000; // 5 секунд
-
-        public void OnEntityKilled(string entityCode, IPlayer byPlayer)
-        {
-            var questSystem = QuestSystemCache.GetFromEntity(byPlayer.Entity);
-            if (questSystem?.QuestRegistry == null || string.IsNullOrWhiteSpace(questId)) return;
-            if (!questSystem.QuestRegistry.TryGetValue(questId, out var quest) || quest == null) return;
-
-            if (!QuestTimeGateUtil.AllowsProgress(byPlayer, quest, questSystem?.ActionObjectiveRegistry, currentStageIndex, "kill")) return;
-
-            // Use current stage objectives for multi-stage quests
-            var currentStage = quest.GetStage(currentStageIndex);
-            var killObjectives = currentStage?.killObjectives ?? quest.killObjectives;
-
-            if (killTrackers == null || killTrackers.Count == 0 || killObjectives == null || killObjectives.Count == 0)
+            this.questContext = context;
+            objectiveTrackers.Clear();
+            
+            var quest = context?.GetQuest(questId);
+            if (quest == null) return;
+            
+            var stage = quest.GetStage(currentStageIndex);
+            
+            // Create standard objective trackers
+            objectiveTrackers.AddRange(ObjectiveTrackerFactory.CreateTrackersForQuest(quest, currentStageIndex));
+            
+            // Create action objective trackers
+            if (context?.ActionObjectiveRegistry != null)
             {
-                return;
-            }
-
-            // Kill objectives: play sounds on progress and on completion (server-side only)
-            var serverPlayer = byPlayer as IServerPlayer;
-            var sapi = byPlayer?.Entity?.Api as ICoreServerAPI;
-
-            string progressSound = questSystem?.Config?.killObjectiveProgressSound;
-            float progressPitch = questSystem?.Config?.killObjectiveProgressSoundPitch ?? 1f;
-            float progressVolume = questSystem?.Config?.killObjectiveProgressSoundVolume ?? 0.25f;
-            string completeSound = !string.IsNullOrWhiteSpace(quest.killObjectiveCompleteSound)
-                ? quest.killObjectiveCompleteSound
-                : questSystem?.Config?.killObjectiveCompleteSound;
-            float completePitch = quest.killObjectiveCompleteSoundPitch
-                ?? (questSystem?.Config?.killObjectiveCompleteSoundPitch ?? 1f);
-            float completeVolume = quest.killObjectiveCompleteSoundVolume
-                ?? (questSystem?.Config?.killObjectiveCompleteSoundVolume ?? 0.7f);
-
-            int count = Math.Min(killTrackers.Count, killObjectives.Count);
-            for (int i = 0; i < count; i++)
-            {
-                var tracker = killTrackers[i];
-
-                var objective = killObjectives[i];
-                if (tracker == null || objective == null) continue;
-
-                if (!trackerMatches(tracker, entityCode)) continue;
-
-                // Only count up to demand (prevents sound spam beyond completion)
-                int demand = objective.demand;
-                if (demand <= 0) continue;
-
-                int before = tracker.count;
-                if (before >= demand) continue;
-
-                tracker.count++;
-
-                if (sapi != null && serverPlayer != null)
+                var actionObjectives = stage?.actionObjectives ?? quest.actionObjectives;
+                if (actionObjectives != null)
                 {
-                    if (!string.IsNullOrWhiteSpace(progressSound))
-                    {
-                        sapi.World.PlaySoundFor(new AssetLocation(progressSound), serverPlayer, progressPitch, 32f, progressVolume);
-                    }
-
-                    if (tracker.count >= demand)
-                    {
-                        if (!string.IsNullOrWhiteSpace(completeSound))
-                        {
-                            sapi.World.PlaySoundFor(new AssetLocation(completeSound), serverPlayer, completePitch, 32f, completeVolume);
-                        }
-                    }
+                    objectiveTrackers.AddRange(ObjectiveTrackerFactory.CreateActionTrackers(actionObjectives, context.ActionObjectiveRegistry));
+                }
+            }
+            
+            // Sync to legacy trackers for serialization compatibility
+            SyncToLegacyTrackers(quest);
+        }
+        
+        /// <summary>
+        /// Sync new tracker state to legacy EventTrackers for ProtoBuf serialization.
+        /// TODO: Remove once all quest packs are migrated and serialization no longer needs EventTracker format.
+        /// </summary>
+        #pragma warning disable CS0618 // Suppress Obsolete warnings for legacy tracker access
+        private void SyncToLegacyTrackers(Quest quest)
+        {
+            if (quest == null) return;
+            
+            var stage = quest.GetStage(currentStageIndex);
+            
+            killTrackers.Clear();
+            blockPlaceTrackers.Clear();
+            blockBreakTrackers.Clear();
+            interactTrackers.Clear();
+            
+            // Map new trackers to legacy format
+            int trackerIndex = 0;
+            
+            var killObjectives = stage?.killObjectives ?? quest.killObjectives;
+            for (int i = 0; i < killObjectives.Count && trackerIndex < objectiveTrackers.Count; i++, trackerIndex++)
+            {
+                if (objectiveTrackers[trackerIndex] is KillObjectiveTracker kt)
+                {
+                    killTrackers.Add(new EventTracker { count = kt.CurrentProgress, relevantCodes = killObjectives[i].validCodes });
+                }
+            }
+            
+            var blockPlaceObjectives = stage?.blockPlaceObjectives ?? quest.blockPlaceObjectives;
+            for (int i = 0; i < blockPlaceObjectives.Count && trackerIndex < objectiveTrackers.Count; i++, trackerIndex++)
+            {
+                if (objectiveTrackers[trackerIndex] is BlockObjectiveTracker bt && bt.ObjectiveType == "place")
+                {
+                    blockPlaceTrackers.Add(new EventTracker { count = bt.CurrentProgress, relevantCodes = blockPlaceObjectives[i].validCodes });
+                }
+            }
+            
+            var blockBreakObjectives = stage?.blockBreakObjectives ?? quest.blockBreakObjectives;
+            for (int i = 0; i < blockBreakObjectives.Count && trackerIndex < objectiveTrackers.Count; i++, trackerIndex++)
+            {
+                if (objectiveTrackers[trackerIndex] is BlockObjectiveTracker bt && bt.ObjectiveType == "break")
+                {
+                    blockBreakTrackers.Add(new EventTracker { count = bt.CurrentProgress, relevantCodes = blockBreakObjectives[i].validCodes });
+                }
+            }
+            
+            var interactObjectives = stage?.interactObjectives ?? quest.interactObjectives;
+            for (int i = 0; i < interactObjectives.Count && trackerIndex < objectiveTrackers.Count; i++, trackerIndex++)
+            {
+                if (objectiveTrackers[trackerIndex] is BlockObjectiveTracker bt && bt.ObjectiveType == "interact")
+                {
+                    interactTrackers.Add(new EventTracker { count = bt.CurrentProgress, relevantCodes = interactObjectives[i].validCodes });
                 }
             }
         }
+        #pragma warning restore CS0618
 
-        public void OnBlockPlaced(string blockCode, int[] position, IPlayer byPlayer)
+        /// <summary>
+        /// Get all objective trackers
+        /// </summary>
+        public IReadOnlyList<IObjectiveTracker> GetTrackers() => objectiveTrackers;
+        
+        private const int GatherCacheValidMs = 5000; // Legacy constant for GatherObjectiveTracker
+
+        private bool TryGetQuestAndStage(IPlayer byPlayer, out QuestSystem questSystem, out Quest quest, out QuestStage stage)
         {
-            if (blockPlaceTrackers == null || blockPlaceTrackers.Count == 0) return;
+            questSystem = QuestSystemCache.GetFromEntity(byPlayer?.Entity);
+            quest = null;
+            stage = null;
 
-            var questSystem = QuestSystemCache.GetFromEntity(byPlayer.Entity);
-            if (questSystem?.QuestRegistry == null || string.IsNullOrWhiteSpace(questId)) return;
-            if (!questSystem.QuestRegistry.TryGetValue(questId, out var quest) || quest == null) return;
+            if (questSystem?.QuestRegistry == null || string.IsNullOrWhiteSpace(questId)) return false;
+            if (!questSystem.QuestRegistry.TryGetValue(questId, out quest) || quest == null) return false;
 
-            if (!QuestTimeGateUtil.AllowsProgress(byPlayer, quest, questSystem?.ActionObjectiveRegistry, currentStageIndex, "blockplace")) return;
-
-            // Use current stage objectives for multi-stage quests
-            var currentStage = quest.GetStage(currentStageIndex);
-            var blockPlaceObjectives = currentStage?.blockPlaceObjectives ?? quest.blockPlaceObjectives;
-
-            checkEventTrackers(blockPlaceTrackers, blockCode, position, blockPlaceObjectives);
+            stage = quest.GetStage(currentStageIndex);
+            return true;
         }
 
-        public void OnBlockBroken(string blockCode, int[] position, IPlayer byPlayer)
+        public void OnEntityKilled(string entityCode, IPlayer byPlayer, IQuestContext context)
         {
-            if (blockBreakTrackers == null || blockBreakTrackers.Count == 0) return;
+            if (objectiveTrackers.Count == 0) return;
+            
+            var ctx = context ?? questContext;
+            if (ctx == null) return;
+            
+            var quest = ctx.GetQuest(questId);
+            if (quest == null) return;
+            if (!QuestTimeGateUtil.AllowsProgress(byPlayer, quest, ctx.ActionObjectiveRegistry, currentStageIndex, "kill")) return;
 
-            var questSystem = QuestSystemCache.GetFromEntity(byPlayer.Entity);
-            if (questSystem?.QuestRegistry == null || string.IsNullOrWhiteSpace(questId)) return;
-            if (!questSystem.QuestRegistry.TryGetValue(questId, out var quest) || quest == null) return;
-
-            if (!QuestTimeGateUtil.AllowsProgress(byPlayer, quest, questSystem?.ActionObjectiveRegistry, currentStageIndex, "blockbreak")) return;
-
-            // Use current stage objectives for multi-stage quests
-            var currentStage = quest.GetStage(currentStageIndex);
-            var blockBreakObjectives = currentStage?.blockBreakObjectives ?? quest.blockBreakObjectives;
-
-            checkEventTrackers(blockBreakTrackers, blockCode, position, blockBreakObjectives);
+            foreach (var tracker in objectiveTrackers)
+            {
+                if (tracker is KillObjectiveTracker)
+                    tracker.OnEntityKilled(entityCode, byPlayer);
+            }
+            
+            SyncToLegacyTrackers(quest);
         }
 
-        public void OnBlockUsed(string blockCode, int[] position, IPlayer byPlayer, ICoreServerAPI sapi)
+        public void OnBlockPlaced(string blockCode, int[] position, IPlayer byPlayer, IQuestContext context)
         {
-            var questSystem = QuestSystemCache.GetFromEntity(byPlayer.Entity);
-            if (questSystem?.QuestRegistry == null || string.IsNullOrWhiteSpace(questId)) return;
-            if (!questSystem.QuestRegistry.TryGetValue(questId, out var quest) || quest == null) return;
+            if (objectiveTrackers.Count == 0) return;
 
+            var ctx = context ?? questContext;
+            if (ctx == null) return;
+            
+            var quest = ctx.GetQuest(questId);
+            if (quest == null) return;
+            if (!QuestTimeGateUtil.AllowsProgress(byPlayer, quest, ctx.ActionObjectiveRegistry, currentStageIndex, "blockplace")) return;
+
+            foreach (var tracker in objectiveTrackers)
+            {
+                if (tracker is BlockObjectiveTracker bt && bt.ObjectiveType == "place")
+                    tracker.OnBlockPlaced(blockCode, position, byPlayer);
+            }
+            
+            SyncToLegacyTrackers(quest);
+        }
+
+        public void OnBlockBroken(string blockCode, int[] position, IPlayer byPlayer, IQuestContext context)
+        {
+            if (objectiveTrackers.Count == 0) return;
+
+            var ctx = context ?? questContext;
+            if (ctx == null) return;
+            
+            var quest = ctx.GetQuest(questId);
+            if (quest == null) return;
+            if (!QuestTimeGateUtil.AllowsProgress(byPlayer, quest, ctx.ActionObjectiveRegistry, currentStageIndex, "blockbreak")) return;
+
+            foreach (var tracker in objectiveTrackers)
+            {
+                if (tracker is BlockObjectiveTracker bt && bt.ObjectiveType == "break")
+                    tracker.OnBlockBroken(blockCode, position, byPlayer);
+            }
+            
+            SyncToLegacyTrackers(quest);
+        }
+
+        public void OnBlockUsed(string blockCode, int[] position, IPlayer byPlayer, ICoreServerAPI sapi, IQuestContext context)
+        {
+            var ctx = context ?? questContext;
+            if (ctx == null) return;
+            
+            var quest = ctx.GetQuest(questId);
+            if (quest == null) return;
+
+            // Debounce last interact position tracking
             if (byPlayer?.Entity?.WatchedAttributes != null && position != null && position.Length == 3)
             {
                 var wa = byPlayer.Entity.WatchedAttributes;
@@ -300,214 +286,53 @@ namespace VsQuest
                 if (shouldWrite)
                 {
                     if (wa.GetInt("alegacyvsquest:lastinteract:x", int.MinValue) != x)
-                    {
                         wa.SetInt("alegacyvsquest:lastinteract:x", x);
-                    }
                     if (wa.GetInt("alegacyvsquest:lastinteract:y", int.MinValue) != y)
-                    {
                         wa.SetInt("alegacyvsquest:lastinteract:y", y);
-                    }
                     if (wa.GetInt("alegacyvsquest:lastinteract:z", int.MinValue) != z)
-                    {
                         wa.SetInt("alegacyvsquest:lastinteract:z", z);
-                    }
                     if (wa.GetInt("alegacyvsquest:lastinteract:dim", int.MinValue) != dim)
-                    {
                         wa.SetInt("alegacyvsquest:lastinteract:dim", dim);
-                    }
-
-                    // Backfill legacy keys for compatibility with older code paths.
-                    if (wa.GetInt("vsquest:lastinteract:x", int.MinValue) != x)
-                    {
-                        wa.SetInt("vsquest:lastinteract:x", x);
-                    }
-                    if (wa.GetInt("vsquest:lastinteract:y", int.MinValue) != y)
-                    {
-                        wa.SetInt("vsquest:lastinteract:y", y);
-                    }
-                    if (wa.GetInt("vsquest:lastinteract:z", int.MinValue) != z)
-                    {
-                        wa.SetInt("vsquest:lastinteract:z", z);
-                    }
-                    if (wa.GetInt("vsquest:lastinteract:dim", int.MinValue) != dim)
-                    {
-                        wa.SetInt("vsquest:lastinteract:dim", dim);
-                    }
                 }
             }
 
-            if (!QuestTimeGateUtil.AllowsProgress(byPlayer, quest, questSystem?.ActionObjectiveRegistry, currentStageIndex, "interact")) return;
+            if (!QuestTimeGateUtil.AllowsProgress(byPlayer, quest, ctx.ActionObjectiveRegistry, currentStageIndex, "interact")) return;
 
-            // Use current stage objectives for multi-stage quests
+            // Dispatch to all block trackers (interact type)
+            foreach (var tracker in objectiveTrackers)
+            {
+                if (tracker is BlockObjectiveTracker bt && bt.ObjectiveType == "interact")
+                    tracker.OnBlockUsed(blockCode, position, byPlayer);
+            }
+            
+            // Handle action rewards for interact objectives
             var currentStage = quest.GetStage(currentStageIndex);
             var interactObjectives = currentStage?.interactObjectives ?? quest.interactObjectives;
-
             var serverPlayer = byPlayer as IServerPlayer;
+            
             if (serverPlayer != null)
             {
                 QuestInteractAtUtil.TryHandleInteractAtObjectives(quest, this, serverPlayer, position, sapi);
             }
-
-            checkEventTrackers(interactTrackers, blockCode, position, interactObjectives);
+            
             for (int i = 0; i < interactObjectives.Count; i++)
             {
                 var objective = interactObjectives[i];
-
-                bool matches = QuestObjectiveMatchUtil.InteractObjectiveMatches(objective, blockCode, position);
-                if (!matches) continue;
+                if (!QuestObjectiveMatchUtil.InteractObjectiveMatches(objective, blockCode, position)) continue;
 
                 if (serverPlayer != null)
                 {
                     var message = new QuestAcceptedMessage { questGiverId = questGiverId, questId = questId };
                     foreach (var actionReward in objective.actionRewards)
                     {
-                        if (questSystem.ActionRegistry.TryGetValue(actionReward.id, out var action))
-                        {
+                        var action = ctx.GetAction(actionReward.id);
+                        if (action != null)
                             action.Execute(sapi, message, serverPlayer, actionReward.args);
-                        }
                     }
                 }
             }
-        }
-
-        private void checkEventTrackers(List<EventTracker> trackers, string code, int[] position, List<Objective> objectives)
-        {
-            if (trackers == null || trackers.Count == 0) return;
-
-            if (position == null)
-            {
-                for (int i = 0; i < trackers.Count; i++)
-                {
-                    var tracker = trackers[i];
-                    if (trackerMatches(tracker, code))
-                    {
-                        tracker.count++;
-                    }
-                }
-                return;
-            }
-
-            if (objectives == null || objectives.Count == 0) return;
-
-            int count = Math.Min(trackers.Count, objectives.Count);
-            for (int i = 0; i < count; i++)
-            {
-                var tracker = trackers[i];
-                if (trackerMatches(objectives[i], tracker, code, position))
-                {
-                    tracker.count++;
-                }
-            }
-        }
-
-        private static bool trackerMatches(EventTracker tracker, string code)
-        {
-            foreach (var candidate in tracker.relevantCodes)
-            {
-                if (LocalizationUtils.MobCodeMatches(candidate, code))
-                {
-                    return true;
-                }
-
-                if (candidate.EndsWith("*") && code.StartsWith(candidate.Remove(candidate.Length - 1)))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        private static bool trackerMatches(Objective objective, EventTracker tracker, string code, int[] position)
-        {
-            if (objective.positions != null && objective.positions.Count > 0)
-            {
-                foreach (var candidate in objective.positions)
-                {
-                    if (!TryParsePosCached(candidate, out int cx, out int cy, out int cz)) continue;
-                    if (cx == position[0] && cy == position[1] && cz == position[2])
-                    {
-                        // If validCodes is missing, treat position match as sufficient.
-                        if (objective.validCodes == null || objective.validCodes.Count == 0)
-                        {
-                            if (tracker.placedPositions.Contains(candidate)) return false;
-                            tracker.placedPositions.Add(candidate);
-                            return true;
-                        }
-
-                        foreach (var codeCandidate in objective.validCodes)
-                        {
-                            if (LocalizationUtils.MobCodeMatches(codeCandidate, code))
-                            {
-                                if (tracker.placedPositions.Contains(candidate)) return false;
-                                tracker.placedPositions.Add(candidate);
-                                return true;
-                            }
-
-                            if (codeCandidate.EndsWith("*") && code.StartsWith(codeCandidate.Remove(codeCandidate.Length - 1)))
-                            {
-                                if (tracker.placedPositions.Contains(candidate)) return false;
-                                tracker.placedPositions.Add(candidate);
-                                return true;
-                            }
-                        }
-                    }
-                }
-                return false;
-            }
-            else
-            {
-                foreach (var candidate in tracker.relevantCodes)
-                {
-                    if (LocalizationUtils.MobCodeMatches(candidate, code))
-                    {
-                        return true;
-                    }
-
-                    if (candidate.EndsWith("*") && code.StartsWith(candidate.Remove(candidate.Length - 1)))
-                    {
-                        return true;
-                    }
-                }
-                return false;
-            }
-        }
-
-        private static bool TryParsePosCached(string coordString, out int x, out int y, out int z)
-        {
-            x = y = z = 0;
-            if (string.IsNullOrWhiteSpace(coordString)) return false;
-
-            try
-            {
-                if (parsedPosCacheByString.TryGetValue(coordString, out var cached) && cached != null)
-                {
-                    if (!cached.Ok) return false;
-                    x = cached.X;
-                    y = cached.Y;
-                    z = cached.Z;
-                    return true;
-                }
-
-                int comma1 = coordString.IndexOf(',');
-                if (comma1 < 0) { parsedPosCacheByString.Add(coordString, new ParsedPos { Ok = false }); return false; }
-                int comma2 = coordString.IndexOf(',', comma1 + 1);
-                if (comma2 < 0) { parsedPosCacheByString.Add(coordString, new ParsedPos { Ok = false }); return false; }
-
-                if (!int.TryParse(coordString.Substring(0, comma1), out x)
-                    || !int.TryParse(coordString.Substring(comma1 + 1, comma2 - comma1 - 1), out y)
-                    || !int.TryParse(coordString.Substring(comma2 + 1), out z))
-                {
-                    parsedPosCacheByString.Add(coordString, new ParsedPos { Ok = false });
-                    return false;
-                }
-
-                parsedPosCacheByString.Add(coordString, new ParsedPos { Ok = true, X = x, Y = y, Z = z });
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            
+            SyncToLegacyTrackers(quest);
         }
 
         /// <summary>
@@ -517,6 +342,16 @@ namespace VsQuest
         {
             if (quest == null) return null;
             return quest.GetStage(currentStageIndex);
+        }
+
+        private static void EnsureTrackerListSize(List<EventTracker> list, int size)
+        {
+            if (list == null) return;
+
+            while (list.Count < size)
+            {
+                list.Add(new EventTracker());
+            }
         }
 
         /// <summary>
@@ -534,74 +369,7 @@ namespace VsQuest
                 objective => questSystem.ActionObjectiveRegistry.TryGetValue(objective.id, out var impl) ? impl : null
             ) ?? new List<ActionObjectiveBase>();
 
-            bool completable = true;
-
-            // Ensure trackers exist for current stage objectives
-            while (blockPlaceTrackers.Count < stage.blockPlaceObjectives.Count)
-            {
-                blockPlaceTrackers.Add(new EventTracker());
-            }
-            while (blockBreakTrackers.Count < stage.blockBreakObjectives.Count)
-            {
-                blockBreakTrackers.Add(new EventTracker());
-            }
-            while (killTrackers.Count < stage.killObjectives.Count)
-            {
-                killTrackers.Add(new EventTracker());
-            }
-            while (interactTrackers.Count < stage.interactObjectives.Count)
-            {
-                interactTrackers.Add(new EventTracker());
-            }
-
-            for (int i = 0; i < stage.blockPlaceObjectives.Count; i++)
-            {
-                if (stage.blockPlaceObjectives[i].positions != null && stage.blockPlaceObjectives[i].positions.Count > 0)
-                {
-                    completable &= stage.blockPlaceObjectives[i].positions.Count <= blockPlaceTrackers[i].placedPositions.Count;
-                }
-                else
-                {
-                    completable &= stage.blockPlaceObjectives[i].demand <= blockPlaceTrackers[i].count;
-                }
-            }
-            for (int i = 0; i < stage.blockBreakObjectives.Count; i++)
-            {
-                completable &= stage.blockBreakObjectives[i].demand <= blockBreakTrackers[i].count;
-            }
-            for (int i = 0; i < stage.interactObjectives.Count; i++)
-            {
-                if (stage.interactObjectives[i].positions != null && stage.interactObjectives[i].positions.Count > 0)
-                {
-                    int demand = stage.interactObjectives[i].demand > 0 ? stage.interactObjectives[i].demand : stage.interactObjectives[i].positions.Count;
-                    completable &= demand <= interactTrackers[i].count;
-                }
-                else
-                {
-                    completable &= stage.interactObjectives[i].demand <= interactTrackers[i].count;
-                }
-            }
-            for (int i = 0; i < stage.killObjectives.Count; i++)
-            {
-                completable &= stage.killObjectives[i].demand <= killTrackers[i].count;
-            }
-            foreach (var gatherObjective in stage.gatherObjectives)
-            {
-                int itemsFound = itemsGathered(byPlayer, gatherObjective, stage.gatherObjectives.IndexOf(gatherObjective));
-                completable &= itemsFound >= gatherObjective.demand;
-            }
-            for (int i = 0; i < activeActionObjectives.Count; i++)
-            {
-                if (activeActionObjectives[i] != null)
-                {
-                    // Skip gate objectives - they restrict progress timing, not quest completion
-                    string aoId = stage.actionObjectives[i]?.id;
-                    if (aoId == "timeofday" || aoId == "landgate") continue;
-
-                    completable &= activeActionObjectives[i].IsCompletable(byPlayer, stage.actionObjectives[i].args);
-                }
-            }
-            return completable;
+            return CheckObjectivesCompletable(byPlayer, quest, stage, activeActionObjectives);
         }
 
         /// <summary>
@@ -624,73 +392,84 @@ namespace VsQuest
                 return IsCurrentStageCompletable(byPlayer, quest);
             }
 
-            // Legacy quest (no stages) - use original logic
+            // Legacy quest (no stages) - check objectives directly
             var activeActionObjectives = quest.actionObjectives.ConvertAll<ActionObjectiveBase>(objective => questSystem.ActionObjectiveRegistry[objective.id]);
+            return CheckObjectivesCompletable(byPlayer, quest, null, activeActionObjectives);
+        }
+
+        /// <summary>
+        /// Common logic for checking if objectives are completable. Works with both stages and legacy quests.
+        /// </summary>
+        #pragma warning disable CS0618 // Legacy tracker access
+        private bool CheckObjectivesCompletable(IPlayer byPlayer, Quest quest, QuestStage stage, List<ActionObjectiveBase> activeActionObjectives)
+        {
             bool completable = true;
 
-            while (blockPlaceTrackers.Count < quest.blockPlaceObjectives.Count)
-            {
-                blockPlaceTrackers.Add(new EventTracker());
-            }
-            while (blockBreakTrackers.Count < quest.blockBreakObjectives.Count)
-            {
-                blockBreakTrackers.Add(new EventTracker());
-            }
-            while (killTrackers.Count < quest.killObjectives.Count)
-            {
-                killTrackers.Add(new EventTracker());
-            }
-            while (interactTrackers.Count < quest.interactObjectives.Count)
-            {
-                interactTrackers.Add(new EventTracker());
-            }
+            var blockPlaceObjectives = stage?.blockPlaceObjectives ?? quest.blockPlaceObjectives;
+            var blockBreakObjectives = stage?.blockBreakObjectives ?? quest.blockBreakObjectives;
+            var interactObjectives = stage?.interactObjectives ?? quest.interactObjectives;
+            var killObjectives = stage?.killObjectives ?? quest.killObjectives;
+            var gatherObjectives = stage?.gatherObjectives ?? quest.gatherObjectives;
+            var actionObjectiveDefs = stage?.actionObjectives ?? quest.actionObjectives;
 
-            for (int i = 0; i < quest.blockPlaceObjectives.Count; i++)
+            // Ensure trackers exist for objectives
+            EnsureTrackerListSize(blockPlaceTrackers, blockPlaceObjectives.Count);
+            EnsureTrackerListSize(blockBreakTrackers, blockBreakObjectives.Count);
+            EnsureTrackerListSize(killTrackers, killObjectives.Count);
+            EnsureTrackerListSize(interactTrackers, interactObjectives.Count);
+
+            for (int i = 0; i < blockPlaceObjectives.Count; i++)
             {
-                if (quest.blockPlaceObjectives[i].positions != null && quest.blockPlaceObjectives[i].positions.Count > 0)
+                if (blockPlaceObjectives[i].positions != null && blockPlaceObjectives[i].positions.Count > 0)
                 {
-                    completable &= quest.blockPlaceObjectives[i].positions.Count <= blockPlaceTrackers[i].placedPositions.Count;
+                    completable &= blockPlaceObjectives[i].positions.Count <= blockPlaceTrackers[i].placedPositions.Count;
                 }
                 else
                 {
-                    completable &= quest.blockPlaceObjectives[i].demand <= blockPlaceTrackers[i].count;
+                    completable &= blockPlaceObjectives[i].demand <= blockPlaceTrackers[i].count;
                 }
             }
-            for (int i = 0; i < quest.blockBreakObjectives.Count; i++)
+            for (int i = 0; i < blockBreakObjectives.Count; i++)
             {
-                completable &= quest.blockBreakObjectives[i].demand <= blockBreakTrackers[i].count;
+                completable &= blockBreakObjectives[i].demand <= blockBreakTrackers[i].count;
             }
-            for (int i = 0; i < quest.interactObjectives.Count; i++)
+            for (int i = 0; i < interactObjectives.Count; i++)
             {
-                if (quest.interactObjectives[i].positions != null && quest.interactObjectives[i].positions.Count > 0)
+                if (interactObjectives[i].positions != null && interactObjectives[i].positions.Count > 0)
                 {
-                    int demand = quest.interactObjectives[i].demand > 0 ? quest.interactObjectives[i].demand : quest.interactObjectives[i].positions.Count;
+                    int demand = interactObjectives[i].demand > 0 ? interactObjectives[i].demand : interactObjectives[i].positions.Count;
                     completable &= demand <= interactTrackers[i].count;
                 }
                 else
                 {
-                    completable &= quest.interactObjectives[i].demand <= interactTrackers[i].count;
+                    completable &= interactObjectives[i].demand <= interactTrackers[i].count;
                 }
             }
-            for (int i = 0; i < quest.killObjectives.Count; i++)
+            for (int i = 0; i < killObjectives.Count; i++)
             {
-                completable &= quest.killObjectives[i].demand <= killTrackers[i].count;
+                completable &= killObjectives[i].demand <= killTrackers[i].count;
             }
-            foreach (var gatherObjective in quest.gatherObjectives)
+            for (int i = 0; i < gatherObjectives.Count; i++)
             {
-                int itemsFound = itemsGathered(byPlayer, gatherObjective, quest.gatherObjectives.IndexOf(gatherObjective));
+                var gatherObjective = gatherObjectives[i];
+                int itemsFound = itemsGathered(byPlayer, gatherObjective, i);
                 completable &= itemsFound >= gatherObjective.demand;
             }
             for (int i = 0; i < activeActionObjectives.Count; i++)
             {
                 // Skip gate objectives - they restrict progress timing, not quest completion
-                string aoId = quest.actionObjectives[i]?.id;
+                string aoId = actionObjectiveDefs != null && i < actionObjectiveDefs.Count ? actionObjectiveDefs[i]?.id : null;
                 if (aoId == "timeofday" || aoId == "landgate") continue;
 
-                completable &= activeActionObjectives[i].IsCompletable(byPlayer, quest.actionObjectives[i].args);
+                var impl = activeActionObjectives[i];
+                if (impl == null) continue;
+
+                var defArgs = actionObjectiveDefs != null && i < actionObjectiveDefs.Count ? actionObjectiveDefs[i].args : null;
+                completable &= impl.IsCompletable(byPlayer, defArgs);
             }
             return completable;
         }
+        #pragma warning restore CS0618
 
         /// <summary>
         /// Advances to the next stage. Returns true if advanced, false if already on final stage.
@@ -715,10 +494,10 @@ namespace VsQuest
             currentStageIndex++;
 
             // Reset trackers for new stage
-            killTrackers.Clear();
-            blockPlaceTrackers.Clear();
-            blockBreakTrackers.Clear();
-            interactTrackers.Clear();
+            foreach (var tracker in objectiveTrackers)
+            {
+                tracker.Reset();
+            }
             gatherCache.Clear();
 
             return true;
@@ -736,6 +515,7 @@ namespace VsQuest
             return currentStageIndex >= quest.stages.Count - 1 && IsCurrentStageCompletable(byPlayer, quest);
         }
 
+        #pragma warning disable CS0618 // Legacy tracker access
         public void completeQuest(IPlayer byPlayer)
         {
             var questSystem = QuestSystemCache.GetFromEntity(byPlayer.Entity);
@@ -760,7 +540,7 @@ namespace VsQuest
                     foreach (var posStr in blockPlaceTrackers[i].placedPositions)
                     {
                         if (++removed > maxRemovals) break;
-                        if (!TryParsePosCached(posStr, out int x, out int y, out int z)) continue;
+                        if (!QuestObjectiveMatchUtil.TryParsePosCached(posStr, out int x, out int y, out int z)) continue;
                         var ba = byPlayer.Entity.World.BlockAccessor;
                         var pos = new Vintagestory.API.MathTools.BlockPos(x, y, z, 0);
                         ba.RemoveBlockEntity(pos);
@@ -769,28 +549,24 @@ namespace VsQuest
                 }
             }
         }
+        #pragma warning restore CS0618
 
         public List<int> trackerProgress()
         {
             var result = new List<int>();
-            foreach (var trackerList in new List<EventTracker>[] { killTrackers, blockPlaceTrackers, blockBreakTrackers, interactTrackers })
+            foreach (var tracker in objectiveTrackers)
             {
-                if (trackerList != null)
-                {
-                    result.AddRange(trackerList.ConvertAll<int>(tracker => tracker.count));
-                }
+                if (tracker is ActionObjectiveTracker)
+                    continue;
+                result.Add(tracker.CurrentProgress);
             }
             return result;
         }
 
         public List<int> gatherProgress(IPlayer byPlayer)
         {
-            var questSystem = QuestSystemCache.GetFromEntity(byPlayer.Entity);
-            if (questSystem?.QuestRegistry == null || string.IsNullOrWhiteSpace(questId)) return new List<int>();
-            if (!questSystem.QuestRegistry.TryGetValue(questId, out var quest) || quest == null) return new List<int>();
+            if (!TryGetQuestAndStage(byPlayer, out _, out var quest, out var currentStage)) return new List<int>();
 
-            // Use current stage objectives for multi-stage quests
-            var currentStage = quest.GetStage(currentStageIndex);
             var gatherObjectives = currentStage?.gatherObjectives ?? quest.gatherObjectives;
 
             var result = new List<int>();
@@ -803,17 +579,21 @@ namespace VsQuest
 
         public List<int> GetProgress(IPlayer byPlayer)
         {
-            var questSystem = QuestSystemCache.GetFromEntity(byPlayer.Entity);
-            if (questSystem?.QuestRegistry == null || string.IsNullOrWhiteSpace(questId)) return new List<int>();
-            if (!questSystem.QuestRegistry.TryGetValue(questId, out var quest) || quest == null) return new List<int>();
+            if (!TryGetQuestAndStage(byPlayer, out var questSystem, out var quest, out var currentStage)) return new List<int>();
 
-            // Use current stage objectives for multi-stage quests
-            var currentStage = quest.GetStage(currentStageIndex);
             var actionObjectives = currentStage?.actionObjectives ?? quest.actionObjectives;
 
             var activeActionObjectives = actionObjectives.ConvertAll<ActionObjectiveBase>(objective => questSystem.ActionObjectiveRegistry[objective.id]);
 
-            var result = gatherProgress(byPlayer);
+            var gatherObjectives = currentStage?.gatherObjectives ?? quest.gatherObjectives;
+
+            var result = new List<int>();
+
+            for (int i = 0; i < gatherObjectives.Count; i++)
+            {
+                result.Add(itemsGathered(byPlayer, gatherObjectives[i], i));
+            }
+
             result.AddRange(trackerProgress());
 
             for (int i = 0; i < activeActionObjectives.Count; i++)

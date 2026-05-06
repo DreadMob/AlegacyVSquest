@@ -19,7 +19,6 @@ namespace VsQuest
         private bool showOnlyWhenTargeted;
         private string nameLangKey;
         private string rawName;
-        private string backgroundHex;
 
         private string lastRenderedText;
         private long lastUpdateMs;
@@ -47,7 +46,7 @@ namespace VsQuest
             string hex = attributes["color"].AsString("#ff0000");
             color = TryHexToRgbaDouble(hex, out var parsed) ? parsed : ColorUtil.WhiteArgbDouble;
 
-            backgroundHex = attributes["backgroundColor"].AsString("#000000");
+            string backgroundHex = attributes["backgroundColor"].AsString("#000000");
             double backgroundOpacity = attributes["backgroundOpacity"].AsDouble(0.35);
             var fill = ColorUtil.Hex2Doubles(backgroundHex, backgroundOpacity);
 
@@ -67,6 +66,8 @@ namespace VsQuest
 
         public void OnRenderFrame(float deltaTime, EnumRenderStage stage)
         {
+            if (capi == null) return;
+
             long nowMs = capi.World.ElapsedMilliseconds;
             if (nowMs - lastUpdateMs >= 1000)
             {
@@ -74,17 +75,16 @@ namespace VsQuest
                 RegenTexture();
             }
 
-            if (capi == null || nameTagTexture == null) return;
+            if (nameTagTexture == null) return;
 
             if (showOnlyWhenTargeted && capi.World.Player.CurrentEntitySelection?.Entity != entity)
             {
                 return;
             }
 
-            double distSq = capi.World.Player.Entity.Pos.SquareDistanceTo(entity.Pos);
-            if ((double)(renderRange * renderRange) < distSq) return;
+            if (capi.World.Player.Entity.Pos.SquareDistanceTo(entity.Pos) > renderRange * renderRange) return;
 
-            if (!(entity.Properties.Client.Renderer is EntityShapeRenderer esr)) return;
+            if (entity.Properties.Client.Renderer is not EntityShapeRenderer esr) return;
 
             IRenderAPI rapi = capi.Render;
             Vec3d pos = MatrixToolsd.Project(esr.getAboveHeadPosition(capi.World.Player.Entity), rapi.PerspectiveProjectionMat, rapi.PerspectiveViewMat, rapi.FrameWidth, rapi.FrameHeight);
@@ -110,7 +110,6 @@ namespace VsQuest
 
         public override void OnEntityDeath(DamageSource damageSourceForDeath)
         {
-            // Force refresh so the corpse immediately shows the respawn timer
             lastRenderedText = null;
             RegenTexture();
         }
@@ -135,7 +134,7 @@ namespace VsQuest
             string text = null;
             if (!string.IsNullOrWhiteSpace(nameLangKey))
             {
-                if (nameLangKey.IndexOf(':') >= 0)
+                if (nameLangKey.Contains(":"))
                 {
                     text = LocalizationUtils.GetSafe(nameLangKey);
                 }
@@ -147,9 +146,7 @@ namespace VsQuest
                         text = LocalizationUtils.GetSafe(domain + ":" + nameLangKey);
                     }
 
-                    text = text
-                        ?? LocalizationUtils.GetSafe(nameLangKey)
-                        ?? LocalizationUtils.GetSafe("game:" + nameLangKey);
+                    text ??= LocalizationUtils.GetSafe(nameLangKey) ?? LocalizationUtils.GetSafe("game:" + nameLangKey);
                 }
 
                 if (string.IsNullOrWhiteSpace(text) || string.Equals(text, nameLangKey, StringComparison.OrdinalIgnoreCase))
@@ -164,22 +161,16 @@ namespace VsQuest
 
             if (!string.IsNullOrWhiteSpace(text) && entity != null && !entity.Alive)
             {
-                try
+                double respawnAt = entity.WatchedAttributes.GetDouble("alegacyvsquest:bossrespawnAtTotalHours", double.NaN);
+                if (double.IsNaN(respawnAt))
                 {
-                    double respawnAt = entity.WatchedAttributes.GetDouble("alegacyvsquest:bossrespawnAtTotalHours", double.NaN);
-                    if (double.IsNaN(respawnAt))
-                    {
-                        respawnAt = entity.WatchedAttributes.GetDouble("vsquest:bossrespawnAtTotalHours", double.NaN);
-                    }
-
-                    if (!double.IsNaN(respawnAt) && respawnAt > capi.World.Calendar.TotalHours)
-                    {
-                        double hoursLeft = Math.Max(0, respawnAt - capi.World.Calendar.TotalHours);
-                        text = LocalizationUtils.GetSafe("alegacyvsquest:boss-respawn-suffix", text, hoursLeft);
-                    }
+                    respawnAt = entity.WatchedAttributes.GetDouble("vsquest:bossrespawnAtTotalHours", double.NaN);
                 }
-                catch
+
+                if (!double.IsNaN(respawnAt) && respawnAt > capi.World.Calendar.TotalHours)
                 {
+                    double hoursLeft = Math.Max(0, respawnAt - capi.World.Calendar.TotalHours);
+                    text = LocalizationUtils.GetSafe("alegacyvsquest:boss-respawn-suffix", text, hoursLeft);
                 }
             }
 
@@ -212,13 +203,12 @@ namespace VsQuest
 
             if (s.Length == 8)
             {
-                // Expect #RRGGBBAA
-                if (!int.TryParse(s.Substring(0, 2), System.Globalization.NumberStyles.HexNumber, null, out int r2)) return false;
-                if (!int.TryParse(s.Substring(2, 2), System.Globalization.NumberStyles.HexNumber, null, out int g2)) return false;
-                if (!int.TryParse(s.Substring(4, 2), System.Globalization.NumberStyles.HexNumber, null, out int b2)) return false;
+                if (!int.TryParse(s.Substring(0, 2), System.Globalization.NumberStyles.HexNumber, null, out int r)) return false;
+                if (!int.TryParse(s.Substring(2, 2), System.Globalization.NumberStyles.HexNumber, null, out int g)) return false;
+                if (!int.TryParse(s.Substring(4, 2), System.Globalization.NumberStyles.HexNumber, null, out int b)) return false;
                 if (!int.TryParse(s.Substring(6, 2), System.Globalization.NumberStyles.HexNumber, null, out int a)) return false;
 
-                rgba = new[] { r2 / 255.0, g2 / 255.0, b2 / 255.0, a / 255.0 };
+                rgba = new[] { r / 255.0, g / 255.0, b / 255.0, a / 255.0 };
                 return true;
             }
 

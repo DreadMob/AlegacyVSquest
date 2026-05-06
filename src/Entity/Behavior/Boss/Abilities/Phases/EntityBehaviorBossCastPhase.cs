@@ -8,17 +8,19 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossCastPhase : EntityBehavior
+    public class EntityBehaviorBossCastPhase : BossAbilityBase
     {
         private const string CastStageKey = "alegacyvsquest:bosscastphase:stage";
-        private const string LastCastStartMsKey = "alegacyvsquest:bosscastphase:lastStartMs";
 
-        private class CastStage
+        protected override string CooldownKey => "alegacyvsquest:bosscastphase:lastStartMs";
+        protected override bool UseHealthBasedStages() => false;
+        protected override bool RequiresTarget() => false;
+        protected override int CheckIntervalMs => 500;
+
+        private class Stage : BossAbilityStage
         {
-            public float whenHealthRelBelow;
             public int castMs;
             public int windupMs;
-            public float cooldownSeconds;
 
             public float healPerSecond;
             public float healRelPerSecond;
@@ -32,12 +34,32 @@ namespace VsQuest
             public string loopSound;
             public float loopSoundRange;
             public int loopSoundIntervalMs;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                castMs = json["castMs"].AsInt(2500);
+                windupMs = json["windupMs"].AsInt(0);
+                healPerSecond = json["healPerSecond"].AsFloat(0f);
+                healRelPerSecond = json["healRelPerSecond"].AsFloat(0f);
+                incomingDamageMultiplier = json["incomingDamageMultiplier"].AsFloat(1f);
+                animation = json["animation"].AsString(null);
+                sound = json["sound"].AsString(null);
+                soundRange = json["soundRange"].AsFloat(24f);
+                soundStartMs = json["soundStartMs"].AsInt(0);
+                loopSound = json["loopSound"].AsString(null);
+                loopSoundRange = json["loopSoundRange"].AsFloat(24f);
+                loopSoundIntervalMs = json["loopSoundIntervalMs"].AsInt(900);
+
+                if (castMs <= 0) castMs = 500;
+                if (windupMs < 0) windupMs = 0;
+                if (incomingDamageMultiplier < 0f) incomingDamageMultiplier = 0f;
+                if (incomingDamageMultiplier > 1f) incomingDamageMultiplier = 1f;
+            }
         }
 
-        private ICoreServerAPI sapi;
-        private readonly List<CastStage> stages = new List<CastStage>();
+        private List<Stage> stages = new List<Stage>();
 
-        private bool castActive;
         private long castEndsAtMs;
         private long castStartedAtMs;
         private float lockedYaw;
@@ -52,104 +74,113 @@ namespace VsQuest
 
         public override string PropertyName() => "bosscastphase";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
+            stages = ParseStages<Stage>(attributes);
+        }
 
-            stages.Clear();
-            try
+        protected override bool ShouldCheckAbility() => !IsAbilityActive;
+
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
+        {
+            if (stageObj is not Stage stage) return;
+
+            MarkCooldownStart();
+            entity.WatchedAttributes.SetInt(CastStageKey, stageIndex + 1);
+            entity.WatchedAttributes.MarkPathDirty(CastStageKey);
+            StartCast(stage, stageIndex);
+        }
+
+        protected override void StopAbility()
+        {
+            StopCast();
+        }
+
+        protected override bool OnAbilityTick(float dt)
+        {
+            if (!IsAbilityActive) return false;
+
+            if (Sapi.World.ElapsedMilliseconds >= castEndsAtMs)
             {
-                foreach (var stageObj in attributes["stages"].AsArray())
-                {
-                    if (stageObj == null || !stageObj.Exists) continue;
-
-                    var stage = new CastStage
-                    {
-                        whenHealthRelBelow = stageObj["whenHealthRelBelow"].AsFloat(1f),
-                        castMs = stageObj["castMs"].AsInt(2500),
-                        windupMs = stageObj["windupMs"].AsInt(0),
-                        cooldownSeconds = stageObj["cooldownSeconds"].AsFloat(0f),
-
-                        healPerSecond = stageObj["healPerSecond"].AsFloat(0f),
-                        healRelPerSecond = stageObj["healRelPerSecond"].AsFloat(0f),
-                        incomingDamageMultiplier = stageObj["incomingDamageMultiplier"].AsFloat(1f),
-
-                        animation = stageObj["animation"].AsString(null),
-                        sound = stageObj["sound"].AsString(null),
-                        soundRange = stageObj["soundRange"].AsFloat(24f),
-                        soundStartMs = stageObj["soundStartMs"].AsInt(0),
-
-                        loopSound = stageObj["loopSound"].AsString(null),
-                        loopSoundRange = stageObj["loopSoundRange"].AsFloat(24f),
-                        loopSoundIntervalMs = stageObj["loopSoundIntervalMs"].AsInt(900),
-                    };
-
-                    if (stage.castMs <= 0) stage.castMs = 500;
-                    if (stage.windupMs < 0) stage.windupMs = 0;
-                    if (stage.cooldownSeconds < 0f) stage.cooldownSeconds = 0f;
-
-                    if (stage.incomingDamageMultiplier < 0f) stage.incomingDamageMultiplier = 0f;
-                    if (stage.incomingDamageMultiplier > 1f) stage.incomingDamageMultiplier = 1f;
-
-                    stages.Add(stage);
-                }
+                return false;
             }
-            catch (Exception ex)
+
+            entity.ApplyRotationLock(ref yawLocked, ref lockedYaw);
+            TickCast(dt);
+
+            return true;
+        }
+
+        private void StartCast(Stage stage, int stageIndex)
+        {
+            if (IsAbilityActive) return;
+
+            SetAbilityActive(true);
+            activeStageIndex = stageIndex;
+            castStartedAtMs = Sapi.World.ElapsedMilliseconds;
+            castEndsAtMs = castStartedAtMs + Math.Max(200, stage.windupMs + stage.castMs);
+
+            yawLocked = false;
+            entity.StopAiAndFreeze();
+            entity.ApplyRotationLock(ref yawLocked, ref lockedYaw);
+
+            TryPlaySound(stage);
+            TryStartLoopSound(stage);
+
+            if (stage.windupMs > 0)
             {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in parsing stages: {ex}");
+                Sapi.Event.RegisterCallback(_ =>
+                {
+                    if (IsAbilityActive) TryPlayAnimation(stage.animation);
+                }, stage.windupMs);
+            }
+            else
+            {
+                TryPlayAnimation(stage.animation);
             }
         }
 
-        public override void OnGameTick(float dt)
+        private void TickCast(float dt)
         {
-            base.OnGameTick(dt);
-            if (sapi == null || entity == null) return;
-            if (stages.Count == 0) return;
+            if (activeStageIndex < 0 || activeStageIndex >= stages.Count) return;
+            var stage = stages[activeStageIndex];
 
-            if (!entity.Alive)
+            // Heal boss
+            if (!entity.TryGetHealth(out var healthTree, out float curHealth, out float maxHealth)) return;
+
+            float healAbs = stage.healPerSecond * dt;
+            float healRel = stage.healRelPerSecond * maxHealth * dt;
+            float heal = healAbs + healRel;
+
+            if (heal > 0f)
             {
-                StopCast();
-                return;
+                float newHealth = Math.Min(maxHealth, curHealth + heal);
+                healthTree.SetFloat("currenthealth", newHealth);
+                entity.WatchedAttributes.MarkPathDirty("health");
+            }
+        }
+
+        private void StopCast()
+        {
+            SetAbilityActive(false);
+            yawLocked = false;
+            loopSoundPlayer.Stop();
+
+            if (activeStageIndex >= 0 && activeStageIndex < stages.Count)
+            {
+                TryStopAnimation(stages[activeStageIndex].animation);
             }
 
-            if (castActive)
-            {
-                BossBehaviorUtils.ApplyRotationLock(entity, ref yawLocked, ref lockedYaw);
-                ApplyHealing(dt);
-
-                if (sapi.World.ElapsedMilliseconds >= castEndsAtMs)
-                {
-                    StopCast();
-                }
-
-                return;
-            }
-
-            if (!BossBehaviorUtils.TryGetHealthFraction(entity, out float frac)) return;
-
-            int stageProgress = entity.WatchedAttributes?.GetInt(CastStageKey, 0) ?? 0;
-            for (int i = stageProgress; i < stages.Count; i++)
-            {
-                var stage = stages[i];
-                if (frac <= stage.whenHealthRelBelow)
-                {
-                    if (!BossBehaviorUtils.IsCooldownReady(sapi, entity, LastCastStartMsKey, stage.cooldownSeconds)) return;
-
-                    entity.WatchedAttributes.SetInt(CastStageKey, i + 1);
-                    entity.WatchedAttributes.MarkPathDirty(CastStageKey);
-
-                    StartCast(stage, i);
-                    break;
-                }
-            }
+            activeStageIndex = -1;
+            castStartedAtMs = 0;
+            castEndsAtMs = 0;
         }
 
         public override void OnEntityReceiveDamage(DamageSource damageSource, ref float damage)
         {
             base.OnEntityReceiveDamage(damageSource, ref damage);
 
-            if (!castActive) return;
+            if (!IsAbilityActive) return;
             if (activeStageIndex < 0 || activeStageIndex >= stages.Count) return;
 
             float mult = stages[activeStageIndex].incomingDamageMultiplier;
@@ -161,114 +192,19 @@ namespace VsQuest
 
         public override void OnEntityDeath(DamageSource damageSourceForDeath)
         {
-            StopCast();
+            StopAbility();
             base.OnEntityDeath(damageSourceForDeath);
         }
 
         public override void OnEntityDespawn(EntityDespawnData despawn)
         {
-            StopCast();
+            StopAbility();
             base.OnEntityDespawn(despawn);
         }
 
-        private void StartCast(CastStage stage, int stageIndex)
+        private void TryPlaySound(Stage stage)
         {
-            if (sapi == null || entity == null || stage == null) return;
-
-            BossBehaviorUtils.MarkCooldownStart(sapi, entity, LastCastStartMsKey);
-
-            castActive = true;
-            activeStageIndex = stageIndex;
-            castStartedAtMs = sapi.World.ElapsedMilliseconds;
-
-            BossBehaviorUtils.StopAiAndFreeze(entity);
-            BossBehaviorUtils.ApplyRotationLock(entity, ref yawLocked, ref lockedYaw);
-
-            TryPlaySound(stage);
-            TryStartLoopSound(stage);
-
-            if (stage.windupMs > 0)
-            {
-                castEndsAtMs = castStartedAtMs + stage.windupMs + stage.castMs;
-                sapi.Event.RegisterCallback(_ =>
-                {
-                    TryPlayAnimation(stage.animation);
-                }, stage.windupMs);
-            }
-            else
-            {
-                castEndsAtMs = castStartedAtMs + stage.castMs;
-                TryPlayAnimation(stage.animation);
-            }
-        }
-
-        private void StopCast()
-        {
-            if (!castActive && activeStageIndex < 0) return;
-
-            castActive = false;
-            yawLocked = false;
-
-            castStartedAtMs = 0;
-            castEndsAtMs = 0;
-
-            loopSoundPlayer.Stop();
-
-            if (activeStageIndex >= 0 && activeStageIndex < stages.Count)
-            {
-                var anim = stages[activeStageIndex].animation;
-                if (!string.IsNullOrWhiteSpace(anim))
-                {
-                    try
-                    {
-                        entity?.AnimManager?.StopAnimation(anim);
-                    }
-                    catch (Exception ex)
-                    {
-                        entity?.Api?.Logger?.Error($"[vsquest] Exception in StopCast StopAnimation: {ex}");
-                    }
-                }
-            }
-
-            activeStageIndex = -1;
-        }
-
-        private void ApplyHealing(float dt)
-        {
-            if (activeStageIndex < 0 || activeStageIndex >= stages.Count) return;
-            var stage = stages[activeStageIndex];
-
-            if (stage.healPerSecond <= 0f && stage.healRelPerSecond <= 0f) return;
-            if (!BossBehaviorUtils.TryGetHealth(entity, out var healthTree, out float curHealth, out float maxHealth)) return;
-
-            float absHeal = stage.healPerSecond > 0f ? stage.healPerSecond * dt : 0f;
-            float relHeal = stage.healRelPerSecond > 0f ? stage.healRelPerSecond * maxHealth * dt : 0f;
-            float heal = absHeal + relHeal;
-            if (heal <= 0f) return;
-
-            float newHealth = Math.Min(maxHealth, curHealth + heal);
-            healthTree.SetFloat("currenthealth", newHealth);
-            entity.WatchedAttributes.MarkPathDirty("health");
-        }
-
-        private void TryPlayAnimation(string animation)
-        {
-            if (string.IsNullOrWhiteSpace(animation)) return;
-
-            try
-            {
-                entity?.AnimManager?.StartAnimation(animation);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlayAnimation Start: {ex}");
-            }
-        }
-
-        private void TryPlaySound(CastStage stage)
-        {
-            if (sapi == null || stage == null) return;
-            if (string.IsNullOrWhiteSpace(stage.sound)) return;
+            if (Sapi == null || stage == null || string.IsNullOrWhiteSpace(stage.sound)) return;
             float range = stage.soundRange > 0f ? stage.soundRange : 24f;
 
             AssetLocation soundLoc = AssetLocation.Create(stage.sound, "game").WithPathPrefixOnce("sounds/");
@@ -276,41 +212,34 @@ namespace VsQuest
 
             if (stage.soundStartMs > 0)
             {
-                sapi.Event.RegisterCallback(_ =>
+                Sapi.Event.RegisterCallback(_ =>
                 {
-                    try
-                    {
-                        if (!castActive || entity == null || !entity.Alive) return;
-                        float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                        sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, 1f);
-                    }
-                    catch (Exception ex)
-                    {
-                        entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlaySound callback: {ex}");
-                    }
+                    if (!IsAbilityActive || entity == null || !entity.Alive) return;
+                    float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
+                    Sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, 1f);
                 }, stage.soundStartMs);
             }
             else
             {
-                try
-                {
-                    if (!castActive || entity == null || !entity.Alive) return;
-                    float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                    sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, 1f);
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlaySound immediate: {ex}");
-                }
+                if (!IsAbilityActive || entity == null || !entity.Alive) return;
+                float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
+                Sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, 1f);
             }
         }
 
-        private void TryStartLoopSound(CastStage stage)
+        private void TryStartLoopSound(Stage stage)
         {
-            if (sapi == null || stage == null) return;
+            if (Sapi == null || stage == null) return;
             if (string.IsNullOrWhiteSpace(stage.loopSound)) return;
 
-            loopSoundPlayer.Start(sapi, entity, stage.loopSound, stage.loopSoundRange, stage.loopSoundIntervalMs);
+            loopSoundPlayer.Start(Sapi, entity, stage.loopSound, stage.loopSoundRange, stage.loopSoundIntervalMs);
         }
+
+        // Required abstract overrides for BossAbilityBase
+        protected override int GetStageCount() => stages.Count;
+        protected override object GetStage(int index) => index >= 0 && index < stages.Count ? stages[index] : null;
+        protected override float GetStageHealthThreshold(object stage) => stage is Stage s ? s.whenHealthRelBelow : 1f;
+        protected override float GetStageCooldown(object stage) => stage is Stage s ? s.cooldownSeconds : 0f;
+        protected override float GetMaxTargetRange(object stage) => 0f;
     }
 }

@@ -57,7 +57,7 @@ namespace VsQuest.Harmony
                 {
                 }
 
-                quest.OnBlockUsed(__instance.Code.ToString(), position, player, sapi);
+                quest.OnBlockUsed(__instance.Code.ToString(), position, player, sapi, null);
             }
         }
     }

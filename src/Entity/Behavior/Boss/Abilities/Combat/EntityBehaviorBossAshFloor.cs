@@ -8,18 +8,12 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossAshFloor : EntityBehavior
+    public class EntityBehaviorBossAshFloor : BossAbilityBase
     {
-        private const string LastStartMsKey = "alegacyvsquest:bossashfloor:lastStartMs";
+        protected override string CooldownKey => "alegacyvsquest:bossashfloor:lastStartMs";
 
-        private class Stage
+        private class Stage : BossAbilityStage
         {
-            public float whenHealthRelBelow;
-            public float cooldownSeconds;
-
-            public float minTargetRange;
-            public float maxTargetRange;
-
             public float minRadius;
             public float maxRadius;
             public int tries;
@@ -43,143 +37,79 @@ namespace VsQuest
             public float soundRange;
             public int soundStartMs;
             public float soundVolume;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                minRadius = json["minRadius"].AsFloat(0f);
+                maxRadius = json["maxRadius"].AsFloat(6f);
+                tries = json["tries"].AsInt(14);
+                blockCount = json["blockCount"].AsInt(8);
+                durationMs = json["durationMs"].AsInt(12000);
+                tickIntervalMs = json["tickIntervalMs"].AsInt(1000);
+                damage = json["damage"].AsFloat(0f);
+                damageTier = json["damageTier"].AsInt(0);
+                damageType = json["damageType"].AsString("Acid");
+                victimWalkSpeedMult = json["victimWalkSpeedMult"].AsFloat(0.35f);
+                disableJump = json["disableJump"].AsBool(true);
+                disableShift = json["disableShift"].AsBool(true);
+                windupMs = json["windupMs"].AsInt(0);
+                windupAnimation = json["windupAnimation"].AsString(null);
+                sound = json["sound"].AsString(null);
+                soundRange = json["soundRange"].AsFloat(24f);
+                soundStartMs = json["soundStartMs"].AsInt(0);
+                soundVolume = json["soundVolume"].AsFloat(1f);
+
+                // Validation
+                if (minRadius < 0f) minRadius = 0f;
+                if (maxRadius < minRadius) maxRadius = minRadius;
+                if (tries <= 0) tries = 1;
+                if (blockCount <= 0) blockCount = 1;
+                if (durationMs <= 0) durationMs = 500;
+                if (tickIntervalMs < 50) tickIntervalMs = 50;
+                if (damage < 0f) damage = 0f;
+                if (damageTier < 0) damageTier = 0;
+                victimWalkSpeedMult = GameMath.Clamp(victimWalkSpeedMult, 0f, 1f);
+                if (windupMs < 0) windupMs = 0;
+                if (soundVolume <= 0f) soundVolume = 1f;
+            }
         }
 
-        private ICoreServerAPI sapi;
-        private readonly List<Stage> stages = new List<Stage>();
+        private List<Stage> stages = new List<Stage>();
 
         private long callbackId;
-        private bool pending;
-
+        
         public EntityBehaviorBossAshFloor(Entity entity) : base(entity)
         {
         }
 
         public override string PropertyName() => "bossashfloor";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-
-            stages.Clear();
-            try
-            {
-                foreach (var stageObj in attributes["stages"].AsArray())
-                {
-                    if (stageObj == null || !stageObj.Exists) continue;
-
-                    var stage = new Stage
-                    {
-                        whenHealthRelBelow = stageObj["whenHealthRelBelow"].AsFloat(1f),
-                        cooldownSeconds = stageObj["cooldownSeconds"].AsFloat(0f),
-
-                        minTargetRange = stageObj["minTargetRange"].AsFloat(0f),
-                        maxTargetRange = stageObj["maxTargetRange"].AsFloat(40f),
-
-                        minRadius = stageObj["minRadius"].AsFloat(0f),
-                        maxRadius = stageObj["maxRadius"].AsFloat(6f),
-                        tries = stageObj["tries"].AsInt(14),
-
-                        blockCount = stageObj["blockCount"].AsInt(8),
-                        durationMs = stageObj["durationMs"].AsInt(12000),
-
-                        tickIntervalMs = stageObj["tickIntervalMs"].AsInt(1000),
-                        damage = stageObj["damage"].AsFloat(0f),
-                        damageTier = stageObj["damageTier"].AsInt(0),
-                        damageType = stageObj["damageType"].AsString("Acid"),
-
-                        victimWalkSpeedMult = stageObj["victimWalkSpeedMult"].AsFloat(0.35f),
-                        disableJump = stageObj["disableJump"].AsBool(true),
-                        disableShift = stageObj["disableShift"].AsBool(true),
-
-                        windupMs = stageObj["windupMs"].AsInt(0),
-                        windupAnimation = stageObj["windupAnimation"].AsString(null),
-
-                        sound = stageObj["sound"].AsString(null),
-                        soundRange = stageObj["soundRange"].AsFloat(24f),
-                        soundStartMs = stageObj["soundStartMs"].AsInt(0),
-                        soundVolume = stageObj["soundVolume"].AsFloat(1f)
-                    };
-
-                    if (stage.cooldownSeconds < 0f) stage.cooldownSeconds = 0f;
-                    if (stage.minTargetRange < 0f) stage.minTargetRange = 0f;
-                    if (stage.maxTargetRange < stage.minTargetRange) stage.maxTargetRange = stage.minTargetRange;
-
-                    if (stage.minRadius < 0f) stage.minRadius = 0f;
-                    if (stage.maxRadius < stage.minRadius) stage.maxRadius = stage.minRadius;
-                    if (stage.tries <= 0) stage.tries = 1;
-
-                    if (stage.blockCount <= 0) stage.blockCount = 1;
-                    if (stage.durationMs <= 0) stage.durationMs = 500;
-
-                    if (stage.tickIntervalMs < 50) stage.tickIntervalMs = 50;
-                    if (stage.damage < 0f) stage.damage = 0f;
-                    if (stage.damageTier < 0) stage.damageTier = 0;
-
-                    stage.victimWalkSpeedMult = GameMath.Clamp(stage.victimWalkSpeedMult, 0f, 1f);
-
-                    if (stage.windupMs < 0) stage.windupMs = 0;
-                    if (stage.soundVolume <= 0f) stage.soundVolume = 1f;
-
-                    stages.Add(stage);
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in parsing stages: {ex}");
-            }
+            stages = ParseStages<Stage>(attributes);
         }
 
-        public override void OnGameTick(float dt)
+        protected override int GetStageCount() => stages.Count;
+
+        protected override object GetStage(int index) => stages[index];
+
+        protected override float GetStageHealthThreshold(object stage) => ((Stage)stage).whenHealthRelBelow;
+
+        protected override float GetStageCooldown(object stage) => ((Stage)stage).cooldownSeconds;
+
+        protected override float GetMaxTargetRange(object stage) => ((Stage)stage).maxTargetRange;
+
+        protected override float MinTargetRange => 0.75f;
+
+        protected override void StopAbility()
         {
-            var sw = global::VsQuest.QuestProfiler.StartMeasurement("EntityBehaviorBossAshFloor.OnGameTick");
-            try
-            {
-                OnGameTickInternal(dt);
-            }
-            finally
-            {
-                global::VsQuest.QuestProfiler.EndMeasurement("EntityBehaviorBossAshFloor.OnGameTick", sw);
-            }
+            CancelPending();
         }
 
-        private void OnGameTickInternal(float dt)
+        protected override bool OnAbilityTick(float dt)
         {
-            base.OnGameTick(dt);
-            if (sapi == null || entity == null) return;
-            if (stages.Count == 0) return;
-            if (entity.Api?.Side != EnumAppSide.Server) return;
-
-            if (!entity.Alive)
-            {
-                CancelPending();
-                return;
-            }
-
-            if (pending) return;
-
-            if (!BossBehaviorUtils.TryGetHealthFraction(entity, out float frac)) return;
-
-            int stageIndex = -1;
-            for (int i = 0; i < stages.Count; i++)
-            {
-                if (frac <= stages[i].whenHealthRelBelow)
-                {
-                    stageIndex = i;
-                }
-            }
-
-            if (stageIndex < 0 || stageIndex >= stages.Count) return;
-            var stage = stages[stageIndex];
-
-            if (!BossBehaviorUtils.IsCooldownReady(sapi, entity, LastStartMsKey, stage.cooldownSeconds)) return;
-
-            if (!TryFindTarget(stage, out var target, out float dist)) return;
-            if (dist < stage.minTargetRange) return;
-            if (dist > stage.maxTargetRange) return;
-
-            Start(stage, target);
+            return IsAbilityActive;
         }
 
         public override void OnEntityDeath(DamageSource damageSourceForDeath)
@@ -194,51 +124,46 @@ namespace VsQuest
             base.OnEntityDespawn(despawn);
         }
 
-        private void Start(Stage stage, EntityPlayer target)
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
-            if (sapi == null || entity == null || stage == null || target == null) return;
+            if (stageObj is not Stage stage) return;
+            StartAshFloor(stage, stageIndex, target);
+        }
 
-            BossBehaviorUtils.MarkCooldownStart(sapi, entity, LastStartMsKey);
+        private void StartAshFloor(Stage stage, int stageIndex, EntityPlayer target)
+        {
+            if (Sapi == null || entity == null || stage == null || target == null) return;
 
-            pending = true;
+            MarkCooldownStart();
 
             BossBehaviorUtils.StopAiAndFreeze(entity);
             TryPlaySound(stage);
             TryPlayAnimation(stage.windupAnimation);
 
             int delay = Math.Max(0, stage.windupMs);
-            BossBehaviorUtils.UnregisterCallbackSafe(sapi, ref callbackId);
-            callbackId = sapi.Event.RegisterCallback(_ =>
+            UnregisterCallbackSafe(ref callbackId);
+            callbackId = Sapi.Event.RegisterCallback(_ =>
             {
-                try
-                {
-                    PlaceAsh(stage, target);
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in PlaceAsh: {ex}");
-                }
-
-                pending = false;
+                PlaceAsh(stage, target);
+                SetAbilityActive(false);
                 callbackId = 0;
-
             }, delay);
         }
 
         private void PlaceAsh(Stage stage, EntityPlayer target)
         {
-            if (sapi == null || entity == null || stage == null || target == null) return;
+            if (Sapi == null || entity == null || stage == null || target == null) return;
 
-            var ba = sapi.World?.BlockAccessor;
+            var ba = Sapi.World?.BlockAccessor;
             if (ba == null) return;
 
-            Block ashBlock = sapi.World.GetBlock(new AssetLocation("alegacyvsquest:ashfloor"));
+            Block ashBlock = Sapi.World.GetBlock(new AssetLocation("alegacyvsquest:ashfloor"));
             if (ashBlock == null || ashBlock.IsMissing) return;
 
             int dim = entity.Pos.Dimension;
             var center = target.Pos.XYZ;
 
-            long now = sapi.World.ElapsedMilliseconds;
+            long now = Sapi.World.ElapsedMilliseconds;
             long despawnAt = now + Math.Max(250, stage.durationMs);
 
             var used = new HashSet<string>(StringComparer.Ordinal);
@@ -260,71 +185,32 @@ namespace VsQuest
 
         private void TryPlaceOne(IBlockAccessor ba, Block ashBlock, BlockPos pos, long despawnAtMs, Stage stage)
         {
-            if (sapi == null || ba == null || ashBlock == null || pos == null || stage == null) return;
+            if (Sapi == null || ba == null || ashBlock == null || pos == null || stage == null) return;
 
-            try
-            {
-                if (!ba.IsValidPos(pos)) return;
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in IsValidPos: {ex}");
-                return;
-            }
+            if (!ba.IsValidPos(pos)) return;
 
-            try
-            {
-                var at = ba.GetBlock(pos);
-                var below = ba.GetBlock(pos.DownCopy());
+            var at = ba.GetBlock(pos);
+            var below = ba.GetBlock(pos.DownCopy());
 
-                if (at == null || below == null) return;
-                if (at.Replaceable < 6000) return;
-                if (!below.SideSolid[BlockFacing.UP.Index]) return;
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in checking block properties: {ex}");
-                return;
-            }
+            if (at == null || below == null) return;
+            if (at.Replaceable < 6000) return;
+            if (!below.SideSolid[BlockFacing.UP.Index]) return;
 
-            try
-            {
-                ba.RemoveBlockEntity(pos);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in RemoveBlockEntity: {ex}");
-            }
-
-            try
-            {
-                ba.SetBlock(ashBlock.BlockId, pos);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in SetBlock: {ex}");
-                return;
-            }
+            ba.RemoveBlockEntity(pos);
+            ba.SetBlock(ashBlock.BlockId, pos);
 
             if (ashBlock.EntityClass != null)
             {
-                try
-                {
-                    ba.SpawnBlockEntity(ashBlock.EntityClass, pos);
-                    var be = ba.GetBlockEntity(pos) as BlockEntityAshFloor;
-                    be?.Arm(entity.EntityId, despawnAtMs, stage.tickIntervalMs, stage.victimWalkSpeedMult);
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in SpawnBlockEntity: {ex}");
-                }
+                ba.SpawnBlockEntity(ashBlock.EntityClass, pos);
+                var be = ba.GetBlockEntity(pos) as BlockEntityAshFloor;
+                be?.Arm(entity.EntityId, despawnAtMs, stage.tickIntervalMs, stage.victimWalkSpeedMult);
             }
         }
 
         private bool TryFindPlacePos(IBlockAccessor ba, Vec3d center, int dim, float minRadius, float maxRadius, int tries, HashSet<string> used, out BlockPos pos)
         {
             pos = null;
-            if (sapi == null || ba == null || center == null) return false;
+            if (Sapi == null || ba == null || center == null) return false;
 
             double minR = Math.Max(0.0, minRadius);
             double maxR = Math.Max(minR, maxRadius);
@@ -334,8 +220,8 @@ namespace VsQuest
 
             for (int attempt = 0; attempt < tries; attempt++)
             {
-                double ang = sapi.World.Rand.NextDouble() * Math.PI * 2.0;
-                double dist = minR + sapi.World.Rand.NextDouble() * (maxR - minR);
+                double ang = Sapi.World.Rand.NextDouble() * Math.PI * 2.0;
+                double dist = minR + Sapi.World.Rand.NextDouble() * (maxR - minR);
 
                 int x = (int)Math.Floor(center.X + Math.Cos(ang) * dist);
                 int z = (int)Math.Floor(center.Z + Math.Sin(ang) * dist);
@@ -348,17 +234,8 @@ namespace VsQuest
                     var p = new BlockPos(x, y, z, dim);
                     if (!ba.IsValidPos(p)) continue;
 
-                    Block at;
-                    Block below;
-                    try
-                    {
-                        at = ba.GetBlock(p);
-                        below = ba.GetBlock(new BlockPos(x, y - 1, z, dim));
-                    }
-                    catch
-                    {
-                        continue;
-                    }
+                    Block at = ba.GetBlock(p);
+                    Block below = ba.GetBlock(new BlockPos(x, y - 1, z, dim));
 
                     if (at == null || below == null) continue;
                     if (at.Replaceable < 6000) continue;
@@ -376,95 +253,16 @@ namespace VsQuest
             return false;
         }
 
-        private bool TryFindTarget(Stage stage, out EntityPlayer target, out float dist)
-        {
-            target = null;
-            dist = 0f;
-
-            if (sapi == null || entity == null || stage == null) return false;
-
-            double range = Math.Max(2.0, stage.maxTargetRange > 0 ? stage.maxTargetRange : 40f);
-            try
-            {
-                var own = entity.Pos.XYZ;
-                float frange = (float)range;
-                var found = sapi.World.GetNearestEntity(own, frange, frange, e => e is EntityPlayer) as EntityPlayer;
-                if (found == null || !found.Alive) return false;
-                if (found.Pos.Dimension != entity.Pos.Dimension) return false;
-
-                target = found;
-                dist = (float)found.Pos.DistanceTo(entity.Pos);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
         private void CancelPending()
         {
-            if (sapi != null)
-            {
-                BossBehaviorUtils.UnregisterCallbackSafe(sapi, ref callbackId);
-            }
-
-            pending = false;
+            UnregisterCallbackSafe(ref callbackId);
             callbackId = 0;
-        }
-
-        private void TryPlayAnimation(string animation)
-        {
-            if (string.IsNullOrWhiteSpace(animation)) return;
-
-            try
-            {
-                entity?.AnimManager?.StartAnimation(animation);
-            }
-            catch
-            {
-            }
         }
 
         private void TryPlaySound(Stage stage)
         {
-            if (sapi == null || stage == null) return;
-            if (string.IsNullOrWhiteSpace(stage.sound)) return;
-
-            if (!BossBehaviorUtils.ShouldPlaySoundLimited(entity, stage.sound, 500)) return;
-
-            AssetLocation soundLoc = AssetLocation.Create(stage.sound, "game").WithPathPrefixOnce("sounds/");
-            if (soundLoc == null) return;
-
-            float volume = stage.soundVolume;
-            if (volume <= 0f) volume = 1f;
-            float range = stage.soundRange > 0f ? stage.soundRange : 32f;
-
-            if (stage.soundStartMs > 0)
-            {
-                sapi.Event.RegisterCallback(_ =>
-                {
-                    try
-                    {
-                        float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                        sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, volume);
-                    }
-                    catch
-                    {
-                    }
-                }, stage.soundStartMs);
-            }
-            else
-            {
-                try
-                {
-                    float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                    sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, volume);
-                }
-                catch
-                {
-                }
-            }
+            if (Sapi == null || stage == null) return;
+            TryPlaySound(stage.sound, stage.soundRange, stage.soundStartMs, stage.soundVolume);
         }
     }
 }

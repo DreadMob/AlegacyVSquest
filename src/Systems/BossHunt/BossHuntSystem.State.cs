@@ -135,7 +135,7 @@ namespace VsQuest
                 {
                     try
                     {
-                        var bossEntity = FindBossEntityImmediate(previousCfg.bossKey);
+                        var bossEntity = entityTracker?.GetTrackedEntity(previousCfg.bossKey);
                         if (bossEntity != null && bossEntity.Alive)
                         {
                             double lastDamage = bossEntity.WatchedAttributes.GetDouble(LastBossDamageTotalHoursKey, double.NaN);

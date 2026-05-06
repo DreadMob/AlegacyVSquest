@@ -8,32 +8,44 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossCloning : EntityBehavior
+    public class EntityBehaviorBossCloning : BossAbilityBase
     {
         private const string CloneStageKey = "alegacyvsquest:bossclonestage";
-        private const string LastCloneStartMsKey = "alegacyvsquest:bossclone:lastStartMs";
         private const string CloneOwnerIdKey = "alegacyvsquest:bossclone:ownerid";
 
         private const string TargetIdKey = "alegacyvsquest:killaction:targetid";
         private const string AnchorKeyPrefix = "alegacyvsquest:spawner:";
 
-        private class CloneStage
+        protected override string CooldownKey => "alegacyvsquest:bossclone:lastStartMs";
+        protected override bool UseHealthBasedStages() => false;
+        protected override bool RequiresTarget() => false;
+        protected override int CheckIntervalMs => 500;
+
+        private class Stage : BossAbilityStage
         {
-            public float whenHealthRelBelow;
             public int cloneCount;
             public int durationMs;
-            public float cooldownSeconds;
             public float spawnRange;
             public float cloneDamageMult;
             public float cloneWalkSpeedMult;
             public bool cloneInvulnerable;
             public bool cloneFollowOwner;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                cloneCount = json["cloneCount"].AsInt(2);
+                durationMs = json["durationMs"].AsInt(12000);
+                spawnRange = json["spawnRange"].AsFloat(6f);
+                cloneDamageMult = json["cloneDamageMult"].AsFloat(0.35f);
+                cloneWalkSpeedMult = json["cloneWalkSpeedMult"].AsFloat(0.85f);
+                cloneInvulnerable = json["cloneInvulnerable"].AsBool(true);
+                cloneFollowOwner = json["cloneFollowOwner"].AsBool(false);
+            }
         }
 
-        private ICoreServerAPI sapi;
-        private readonly List<CloneStage> stages = new List<CloneStage>();
+        private List<Stage> stages = new List<Stage>();
 
-        private bool cloningActive;
         private long cloningEndsAtMs;
         private readonly List<long> activeCloneEntityIds = new List<long>();
 
@@ -43,108 +55,99 @@ namespace VsQuest
 
         public override string PropertyName() => "bosscloning";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
+            stages = ParseStages<Stage>(attributes);
+        }
 
-            stages.Clear();
-            try
+        protected override bool ShouldCheckAbility()
+        {
+            return !IsAbilityActive && !IsCloneEntity();
+        }
+
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
+        {
+            if (stageObj is not Stage stage) return;
+
+            MarkCooldownStart();
+
+            entity.WatchedAttributes.SetInt(CloneStageKey, stageIndex + 1);
+            entity.WatchedAttributes.MarkPathDirty(CloneStageKey);
+
+            StartCloning(stage, stageIndex);
+        }
+
+        protected override void StopAbility()
+        {
+            StopCloning();
+        }
+
+        protected override bool OnAbilityTick(float dt)
+        {
+            if (!IsAbilityActive) return false;
+
+            if (Sapi.World.ElapsedMilliseconds >= cloningEndsAtMs)
             {
-                foreach (var stageObj in attributes["stages"].AsArray())
-                {
-                    if (stageObj == null || !stageObj.Exists) continue;
-
-                    var stage = new CloneStage
-                    {
-                        whenHealthRelBelow = stageObj["whenHealthRelBelow"].AsFloat(1f),
-                        cloneCount = stageObj["cloneCount"].AsInt(2),
-                        durationMs = stageObj["durationMs"].AsInt(12000),
-                        cooldownSeconds = stageObj["cooldownSeconds"].AsFloat(0f),
-                        spawnRange = stageObj["spawnRange"].AsFloat(6f),
-                        cloneDamageMult = stageObj["cloneDamageMult"].AsFloat(0.35f),
-                        cloneWalkSpeedMult = stageObj["cloneWalkSpeedMult"].AsFloat(0.85f),
-                        cloneInvulnerable = stageObj["cloneInvulnerable"].AsBool(true),
-                        cloneFollowOwner = stageObj["cloneFollowOwner"].AsBool(false)
-                    };
-
-                    if (stage.cloneCount > 0)
-                    {
-                        stages.Add(stage);
-                    }
-                }
+                StopCloning();
+                return false;
             }
-            catch
-            {
-            }
+            return true;
         }
 
         public override void OnGameTick(float dt)
         {
             base.OnGameTick(dt);
 
-            if (sapi == null || entity == null) return;
-            if (stages.Count == 0) return;
-
+            // Clone entity special handling (not part of ability activation cycle)
             if (IsCloneEntity())
             {
                 DespawnIfOwnerMissing();
                 return;
             }
-
-            if (!entity.Alive)
-            {
-                CleanupClones();
-                return;
-            }
-
-            if (cloningActive)
-            {
-                if (sapi.World.ElapsedMilliseconds >= cloningEndsAtMs)
-                {
-                    CleanupClones();
-                }
-                return;
-            }
-
-            if (!BossBehaviorUtils.TryGetHealthFraction(entity, out float frac)) return;
-
-            int stageProgress = entity.WatchedAttributes?.GetInt(CloneStageKey, 0) ?? 0;
-            for (int i = stageProgress; i < stages.Count; i++)
-            {
-                var stage = stages[i];
-                if (frac <= stage.whenHealthRelBelow)
-                {
-                    if (!BossBehaviorUtils.IsCooldownReady(sapi, entity, LastCloneStartMsKey, stage.cooldownSeconds)) return;
-
-                    entity.WatchedAttributes.SetInt(CloneStageKey, i + 1);
-                    entity.WatchedAttributes.MarkPathDirty(CloneStageKey);
-
-                    StartCloning(stage);
-                    break;
-                }
-            }
         }
 
-        private void StartCloning(CloneStage stage)
+        private void StartCloning(Stage stage, int index)
         {
-            cloningActive = true;
-            cloningEndsAtMs = sapi.World.ElapsedMilliseconds + Math.Max(500, stage.durationMs);
+            if (IsAbilityActive) return;
 
-            BossBehaviorUtils.MarkCooldownStart(sapi, entity, LastCloneStartMsKey);
+            SetAbilityActive(true);
+            cloningEndsAtMs = Sapi.World.ElapsedMilliseconds + Math.Max(500, stage.durationMs);
 
             CleanupClones();
             SpawnClones(stage);
         }
 
-        private void SpawnClones(CloneStage stage)
+        private void StopCloning()
         {
-            if (sapi == null || entity == null) return;
+            if (!IsAbilityActive) return;
+
+            SetAbilityActive(false);
+
+            if (Sapi == null) return;
+
+            for (int i = 0; i < activeCloneEntityIds.Count; i++)
+            {
+                long id = activeCloneEntityIds[i];
+                if (id <= 0) continue;
+
+                var e = Sapi.World.GetEntityById(id);
+                if (e != null)
+                {
+                    Sapi.World.DespawnEntity(e, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
+                }
+            }
+
+            activeCloneEntityIds.Clear();
+        }
+
+        private void SpawnClones(Stage stage)
+        {
+            if (Sapi == null || entity == null) return;
 
             string code = entity.Code?.ToShortString();
             if (string.IsNullOrWhiteSpace(code)) return;
 
-            var type = sapi.World.GetEntityType(new AssetLocation(code));
+            var type = Sapi.World.GetEntityType(new AssetLocation(code));
             if (type == null) return;
 
             Vec3d basePos = new Vec3d(entity.Pos.X, entity.Pos.Y, entity.Pos.Z);
@@ -154,27 +157,21 @@ namespace VsQuest
             int count = Math.Max(1, stage.cloneCount);
             for (int i = 0; i < count; i++)
             {
-                try
-                {
-                    Entity clone = sapi.World.ClassRegistry.CreateEntity(type);
-                    if (clone == null) continue;
+                Entity clone = Sapi.World.ClassRegistry.CreateEntity(type);
+                if (clone == null) continue;
 
-                    CopyTargetId(clone);
-                    CopyAnchor(clone);
-                    ApplyCloneAttributes(clone, stage);
+                CopyTargetId(clone);
+                CopyAnchor(clone);
+                ApplyCloneAttributes(clone, stage);
 
-                    Vec3d offset = RandomOffset(stage.spawnRange);
-                    clone.Pos.SetPosWithDimension(new Vec3d(basePos.X + offset.X, basePos.Y + dim * 32768.0, basePos.Z + offset.Z));
-                    clone.Pos.Yaw = yaw + (float)((sapi.World.Rand.NextDouble() - 0.5) * 0.4);
-                    clone.Pos.SetFrom(clone.Pos);
+                Vec3d offset = RandomOffset(stage.spawnRange);
+                clone.Pos.SetPosWithDimension(new Vec3d(basePos.X + offset.X, basePos.Y + dim * 32768.0, basePos.Z + offset.Z));
+                clone.Pos.Yaw = yaw + (float)((Sapi.World.Rand.NextDouble() - 0.5) * 0.4);
+                clone.Pos.SetFrom(clone.Pos);
 
-                    sapi.World.SpawnEntity(clone);
+                Sapi.World.SpawnEntity(clone);
 
-                    activeCloneEntityIds.Add(clone.EntityId);
-                }
-                catch
-                {
-                }
+                activeCloneEntityIds.Add(clone.EntityId);
             }
         }
 
@@ -183,106 +180,56 @@ namespace VsQuest
             double r = range;
             if (r < 0.5) r = 0.5;
 
-            double angle = sapi.World.Rand.NextDouble() * Math.PI * 2.0;
-            double dist = sapi.World.Rand.NextDouble() * r;
+            double angle = Sapi.World.Rand.NextDouble() * Math.PI * 2.0;
+            double dist = Sapi.World.Rand.NextDouble() * r;
             return new Vec3d(Math.Cos(angle) * dist, 0, Math.Sin(angle) * dist);
         }
 
-        private void ApplyCloneAttributes(Entity clone, CloneStage stage)
+        private void ApplyCloneAttributes(Entity clone, Stage stage)
         {
             if (clone?.WatchedAttributes == null) return;
 
-            try
+            clone.WatchedAttributes.SetBool("showHealthbar", false);
+            clone.WatchedAttributes.MarkPathDirty("showHealthbar");
+
+            clone.WatchedAttributes.SetBool("alegacyvsquest:bossclone", true);
+            clone.WatchedAttributes.MarkPathDirty("alegacyvsquest:bossclone");
+
+            clone.WatchedAttributes.SetLong(CloneOwnerIdKey, entity.EntityId);
+            clone.WatchedAttributes.MarkPathDirty(CloneOwnerIdKey);
+
+            clone.WatchedAttributes.SetBool("alegacyvsquest:bossclone:invulnerable", stage.cloneInvulnerable);
+            clone.WatchedAttributes.MarkPathDirty("alegacyvsquest:bossclone:invulnerable");
+
+            if (stage.cloneDamageMult > 0f)
             {
-                clone.WatchedAttributes.SetBool("showHealthbar", false);
-                clone.WatchedAttributes.MarkPathDirty("showHealthbar");
-            }
-            catch
-            {
+                clone.WatchedAttributes.SetFloat("alegacyvsquest:bossclone:damagemult", stage.cloneDamageMult);
+                clone.WatchedAttributes.MarkPathDirty("alegacyvsquest:bossclone:damagemult");
             }
 
-            try
+            if (stage.cloneWalkSpeedMult > 0f)
             {
-                clone.WatchedAttributes.SetBool("alegacyvsquest:bossclone", true);
-                clone.WatchedAttributes.MarkPathDirty("alegacyvsquest:bossclone");
-            }
-            catch
-            {
+                clone.WatchedAttributes.SetFloat("alegacyvsquest:bossclone:walkspeedmult", stage.cloneWalkSpeedMult);
+                clone.WatchedAttributes.MarkPathDirty("alegacyvsquest:bossclone:walkspeedmult");
             }
 
-            try
-            {
-                clone.WatchedAttributes.SetLong(CloneOwnerIdKey, entity.EntityId);
-                clone.WatchedAttributes.MarkPathDirty(CloneOwnerIdKey);
-            }
-            catch
-            {
-            }
-
-            try
-            {
-                clone.WatchedAttributes.SetBool("alegacyvsquest:bossclone:invulnerable", stage.cloneInvulnerable);
-                clone.WatchedAttributes.MarkPathDirty("alegacyvsquest:bossclone:invulnerable");
-            }
-            catch
-            {
-            }
-
-            try
-            {
-                if (stage.cloneDamageMult > 0f)
-                {
-                    clone.WatchedAttributes.SetFloat("alegacyvsquest:bossclone:damagemult", stage.cloneDamageMult);
-                    clone.WatchedAttributes.MarkPathDirty("alegacyvsquest:bossclone:damagemult");
-                }
-            }
-            catch
-            {
-            }
-
-            try
-            {
-                if (stage.cloneWalkSpeedMult > 0f)
-                {
-                    clone.WatchedAttributes.SetFloat("alegacyvsquest:bossclone:walkspeedmult", stage.cloneWalkSpeedMult);
-                    clone.WatchedAttributes.MarkPathDirty("alegacyvsquest:bossclone:walkspeedmult");
-                }
-            }
-            catch
-            {
-            }
-
-            try
-            {
-                clone.WatchedAttributes.SetBool("alegacyvsquest:bossclone:followowner", stage.cloneFollowOwner);
-                clone.WatchedAttributes.MarkPathDirty("alegacyvsquest:bossclone:followowner");
-            }
-            catch
-            {
-            }
+            clone.WatchedAttributes.SetBool("alegacyvsquest:bossclone:followowner", stage.cloneFollowOwner);
+            clone.WatchedAttributes.MarkPathDirty("alegacyvsquest:bossclone:followowner");
         }
 
         private void CleanupClones()
         {
-            cloningActive = false;
-
-            if (sapi == null) return;
+            if (Sapi == null) return;
 
             for (int i = 0; i < activeCloneEntityIds.Count; i++)
             {
                 long id = activeCloneEntityIds[i];
                 if (id <= 0) continue;
 
-                try
+                var e = Sapi.World.GetEntityById(id);
+                if (e != null)
                 {
-                    var e = sapi.World.GetEntityById(id);
-                    if (e != null)
-                    {
-                        sapi.World.DespawnEntity(e, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
-                    }
-                }
-                catch
-                {
+                    Sapi.World.DespawnEntity(e, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
                 }
             }
 
@@ -291,8 +238,8 @@ namespace VsQuest
 
         public override void OnEntityDeath(DamageSource damageSourceForDeath)
         {
-            base.OnEntityDeath(damageSourceForDeath);
             CleanupClones();
+            base.OnEntityDeath(damageSourceForDeath);
         }
 
         public override void OnEntityDespawn(EntityDespawnData despawn)
@@ -303,94 +250,61 @@ namespace VsQuest
 
         private void CopyTargetId(Entity newEntity)
         {
-            try
-            {
-                string targetId = entity?.WatchedAttributes?.GetString(TargetIdKey, null);
-                if (string.IsNullOrWhiteSpace(targetId) || newEntity?.WatchedAttributes == null) return;
+            string targetId = entity?.WatchedAttributes?.GetString(TargetIdKey, null);
+            if (string.IsNullOrWhiteSpace(targetId) || newEntity?.WatchedAttributes == null) return;
 
-                newEntity.WatchedAttributes.SetString(TargetIdKey, targetId);
-                newEntity.WatchedAttributes.MarkPathDirty(TargetIdKey);
-            }
-            catch
-            {
-            }
+            newEntity.WatchedAttributes.SetString(TargetIdKey, targetId);
+            newEntity.WatchedAttributes.MarkPathDirty(TargetIdKey);
         }
 
         private void CopyAnchor(Entity newEntity)
         {
-            try
-            {
-                if (newEntity?.WatchedAttributes == null || entity?.WatchedAttributes == null) return;
+            if (newEntity?.WatchedAttributes == null || entity?.WatchedAttributes == null) return;
 
-                int dim = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "dim", int.MinValue);
-                int x = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "x", int.MinValue);
-                int y = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "y", int.MinValue);
-                int z = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "z", int.MinValue);
+            int dim = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "dim", int.MinValue);
+            int x = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "x", int.MinValue);
+            int y = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "y", int.MinValue);
+            int z = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "z", int.MinValue);
 
-                if (dim == int.MinValue || x == int.MinValue || y == int.MinValue || z == int.MinValue) return;
+            if (dim == int.MinValue || x == int.MinValue || y == int.MinValue || z == int.MinValue) return;
 
-                newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "x", x);
-                newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "y", y);
-                newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "z", z);
-                newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "dim", dim);
+            newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "x", x);
+            newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "y", y);
+            newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "z", z);
+            newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "dim", dim);
 
-                newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "x");
-                newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "y");
-                newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "z");
-                newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "dim");
-            }
-            catch
-            {
-            }
+            newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "x");
+            newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "y");
+            newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "z");
+            newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "dim");
         }
 
         private bool IsCloneEntity()
         {
-            try
-            {
-                return entity?.WatchedAttributes?.GetBool("alegacyvsquest:bossclone", false) ?? false;
-            }
-            catch
-            {
-                return false;
-            }
+            return entity?.WatchedAttributes?.GetBool("alegacyvsquest:bossclone", false) ?? false;
         }
 
         private void DespawnIfOwnerMissing()
         {
-            if (sapi == null || entity == null) return;
+            if (Sapi == null || entity == null) return;
 
-            long ownerId = 0;
-            try
-            {
-                ownerId = entity.WatchedAttributes.GetLong(CloneOwnerIdKey, 0);
-            }
-            catch
-            {
-            }
+            long ownerId = entity.WatchedAttributes.GetLong(CloneOwnerIdKey, 0);
 
             if (ownerId <= 0)
             {
-                sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
+                Sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
                 return;
             }
 
-            var owner = sapi.World.GetEntityById(ownerId);
+            var owner = Sapi.World.GetEntityById(ownerId);
             if (owner == null || !owner.Alive)
             {
-                sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
+                Sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
                 return;
             }
 
             // Check if this clone should follow owner
-            bool followOwner = false;
-            try
-            {
-                followOwner = entity.WatchedAttributes.GetBool("alegacyvsquest:bossclone:followowner", false);
-            }
-            catch
-            {
-            }
+            bool followOwner = entity.WatchedAttributes.GetBool("alegacyvsquest:bossclone:followowner", false);
 
             if (!followOwner) return;
 
@@ -403,8 +317,8 @@ namespace VsQuest
             if (distSq > maxDist * maxDist)
             {
                 // Teleport clone near the owner
-                double angle = sapi.World.Rand.NextDouble() * Math.PI * 2.0;
-                double offsetDist = 3.0 + sapi.World.Rand.NextDouble() * 4.0;
+                double angle = Sapi.World.Rand.NextDouble() * Math.PI * 2.0;
+                double offsetDist = 3.0 + Sapi.World.Rand.NextDouble() * 4.0;
                 double newX = owner.Pos.X + Math.Cos(angle) * offsetDist;
                 double newZ = owner.Pos.Z + Math.Sin(angle) * offsetDist;
 
@@ -412,5 +326,12 @@ namespace VsQuest
                 entity.Pos.SetFrom(entity.Pos);
             }
         }
+
+        // Required abstract overrides for BossAbilityBase (event-driven mode)
+        protected override int GetStageCount() => stages.Count;
+        protected override object GetStage(int index) => index >= 0 && index < stages.Count ? stages[index] : null;
+        protected override float GetStageHealthThreshold(object stage) => stage is Stage s ? s.whenHealthRelBelow : 1f;
+        protected override float GetStageCooldown(object stage) => stage is Stage s ? s.cooldownSeconds : 0f;
+        protected override float GetMaxTargetRange(object stage) => 0f;
     }
 }

@@ -356,7 +356,7 @@ namespace VsQuest.Harmony.Items
                 if (!LastWalkSpeedUpdateByEntityId.TryGetValue(entityId, out long lastUpdate) || 
                     (nowMs - lastUpdate) >= WalkSpeedUpdateThrottleMs)
                 {
-                    BossBehaviorUtils.UpdatePlayerWalkSpeed(player.Entity);
+                    player.Entity.UpdatePlayerWalkSpeed();
                     LastWalkSpeedUpdateByEntityId[entityId] = nowMs;
 
                     // Cleanup only occasionally to prevent memory bloat

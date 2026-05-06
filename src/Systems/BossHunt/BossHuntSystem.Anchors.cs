@@ -55,53 +55,6 @@ namespace VsQuest
             return list.ToArray();
         }
 
-        public void SetAnchorPoint(string bossKey, string anchorId, int pointOrder, BlockPos pos)
-        {
-            if (sapi == null) return;
-            if (string.IsNullOrWhiteSpace(bossKey)) return;
-            if (pos == null) return;
-            if (string.IsNullOrWhiteSpace(anchorId)) return;
-
-            var cfg = FindConfig(bossKey);
-            if (cfg == null) return;
-
-            bossKey = cfg.bossKey;
-
-            var st = GetOrCreateState(bossKey);
-            NormalizeState(cfg, st);
-
-            st.anchorPoints ??= new List<BossHuntAnchorPoint>();
-
-            BossHuntAnchorPoint existing = null;
-            for (int i = 0; i < st.anchorPoints.Count; i++)
-            {
-                var ap = st.anchorPoints[i];
-                if (ap == null) continue;
-                if (string.Equals(ap.anchorId, anchorId, StringComparison.OrdinalIgnoreCase))
-                {
-                    existing = ap;
-                    break;
-                }
-            }
-
-            if (existing == null)
-            {
-                existing = new BossHuntAnchorPoint();
-                st.anchorPoints.Add(existing);
-            }
-
-            existing.anchorId = anchorId;
-            existing.order = pointOrder;
-            existing.x = pos.X;
-            existing.y = pos.Y;
-            existing.z = pos.Z;
-            existing.dim = pos.dimension;
-
-            stateDirty = true;
-            orderedAnchorsDirty.Add(bossKey);
-            DebugLog($"Anchor registered: bossKey={bossKey} id={anchorId} order={pointOrder} pos={pos.X},{pos.Y},{pos.Z} dim={pos.dimension}", force: true);
-        }
-
         public void SetAnchorPoint(string bossKey, string anchorId, int pointOrder, BlockPos pos, float leashRange, float outOfCombatLeashRange, float yOffset)
         {
             if (sapi == null) return;
@@ -218,12 +171,7 @@ namespace VsQuest
 
         private int GetPointCount(BossHuntConfig cfg, BossHuntStateEntry st)
         {
-            if (st?.anchorPoints != null && st.anchorPoints.Count > 0)
-            {
-                return st.anchorPoints.Count;
-            }
-
-            return cfg?.points?.Count ?? 0;
+            return st?.anchorPoints?.Count ?? 0;
         }
 
         private bool TryGetPoint(BossHuntConfig cfg, BossHuntStateEntry st, int index, out Vec3d point, out int dim)
@@ -237,32 +185,17 @@ namespace VsQuest
             dim = 0;
             anchorPoint = null;
 
-            if (st?.anchorPoints != null && st.anchorPoints.Count > 0)
-            {
-                var ordered = GetOrderedAnchorsCached(st);
-                if (index >= 0 && index < ordered.Count)
-                {
-                    var ap = ordered[index];
-                    if (ap == null) return false;
+            if (st?.anchorPoints == null || st.anchorPoints.Count == 0) return false;
 
-                    anchorPoint = ap;
-                    dim = ap.dim;
-                    point = GetAnchorPointPosition(ap);
-                    return true;
-                }
-            }
+            var ordered = GetOrderedAnchorsCached(st);
+            if (index < 0 || index >= ordered.Count) return false;
 
-            EnsureParsedPoints(cfg);
-            if (cfg?._parsedPoints == null) return false;
-            if (index < 0 || index >= cfg._parsedPoints.Count) return false;
+            var ap = ordered[index];
+            if (ap == null) return false;
 
-            var p = cfg._parsedPoints[index];
-            if (p == null || !p.ok) return false;
-
-            if (p.x == 0 && p.y == 0 && p.z == 0 && p.dim == 0) return false;
-
-            dim = p.dim;
-            point = new Vec3d(p.x, p.y, p.z);
+            anchorPoint = ap;
+            dim = ap.dim;
+            point = GetAnchorPointPosition(ap);
             return true;
         }
 
@@ -302,74 +235,6 @@ namespace VsQuest
             }
 
             return ordered;
-        }
-
-        private void EnsureParsedPoints(BossHuntConfig cfg)
-        {
-            if (cfg == null) return;
-            if (cfg.points == null)
-            {
-                cfg._parsedPoints = null;
-                return;
-            }
-
-            if (cfg._parsedPoints != null && cfg._parsedPoints.Count == cfg.points.Count)
-            {
-                return;
-            }
-
-            var list = new List<ParsedPoint>(cfg.points.Count);
-            for (int i = 0; i < cfg.points.Count; i++)
-            {
-                var raw = cfg.points[i];
-                if (string.IsNullOrWhiteSpace(raw))
-                {
-                    list.Add(new ParsedPoint { ok = false });
-                    continue;
-                }
-
-                try
-                {
-                    var parts = raw.Split(',');
-                    if (parts.Length < 3)
-                    {
-                        list.Add(new ParsedPoint { ok = false });
-                        continue;
-                    }
-
-                    if (!double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double x))
-                    {
-                        list.Add(new ParsedPoint { ok = false });
-                        continue;
-                    }
-
-                    if (!double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double y))
-                    {
-                        list.Add(new ParsedPoint { ok = false });
-                        continue;
-                    }
-
-                    if (!double.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out double z))
-                    {
-                        list.Add(new ParsedPoint { ok = false });
-                        continue;
-                    }
-
-                    int dim = 0;
-                    if (parts.Length >= 4)
-                    {
-                        int.TryParse(parts[3], out dim);
-                    }
-
-                    list.Add(new ParsedPoint { ok = true, x = x, y = y, z = z, dim = dim });
-                }
-                catch
-                {
-                    list.Add(new ParsedPoint { ok = false });
-                }
-            }
-
-            cfg._parsedPoints = list;
         }
 
         private List<BossHuntAnchorPoint> GetOrderedAnchors(List<BossHuntAnchorPoint> anchors)

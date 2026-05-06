@@ -8,30 +8,42 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossFormSwapList : EntityBehavior
+    public class EntityBehaviorBossFormSwapList : BossAbilityBase
     {
         private const string StageKey = "alegacyvsquest:bossformswaplist:stage";
-        private const string LastSwapStartMsKey = "alegacyvsquest:bossformswaplist:lastStartMs";
         private const string AnchorKeyPrefix = "alegacyvsquest:spawner:";
         private const string TargetIdKey = "alegacyvsquest:killaction:targetid";
+
+        protected override string CooldownKey => "alegacyvsquest:bossformswaplist:lastStartMs";
+        protected override bool UseHealthBasedStages() => false;
+        protected override bool RequiresTarget() => true; // Can be configured per stage
+        protected override int CheckIntervalMs => 500;
 
         private const string CloneFlagKey = "alegacyvsquest:bossplayerclone";
         private const string CloneOwnerIdKey = "alegacyvsquest:bossplayerclone:ownerid";
 
-        private class SwapStage
+        private class Stage : BossAbilityStage
         {
-            public float whenHealthRelBelow;
             public string entityCode;
-            public float cooldownSeconds;
             public bool requireTarget;
             public bool keepHealthFraction;
             public string sound;
             public float soundRange;
             public int soundStartMs;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                entityCode = json["entityCode"].AsString(null);
+                requireTarget = json["requireTarget"].AsBool(true);
+                keepHealthFraction = json["keepHealthFraction"].AsBool(true);
+                sound = json["sound"].AsString(null);
+                soundRange = json["soundRange"].AsFloat(24f);
+                soundStartMs = json["soundStartMs"].AsInt(0);
+            }
         }
 
-        private ICoreServerAPI sapi;
-        private readonly List<SwapStage> stages = new List<SwapStage>();
+        private List<Stage> stages = new List<Stage>();
 
         public EntityBehaviorBossFormSwapList(Entity entity) : base(entity)
         {
@@ -39,172 +51,110 @@ namespace VsQuest
 
         public override string PropertyName() => "bossformswaplist";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
+            stages = ParseStages<Stage>(attributes);
+        }
 
-            stages.Clear();
-            try
-            {
-                foreach (var stageObj in attributes["stages"].AsArray())
-                {
-                    if (stageObj == null || !stageObj.Exists) continue;
+        protected override bool ShouldCheckAbility()
+        {
+            return !IsAbilityActive;
+        }
 
-                    var stage = new SwapStage
-                    {
-                        whenHealthRelBelow = stageObj["whenHealthRelBelow"].AsFloat(1f),
-                        entityCode = stageObj["entityCode"].AsString(null),
-                        cooldownSeconds = stageObj["cooldownSeconds"].AsFloat(0f),
-                        requireTarget = stageObj["requireTarget"].AsBool(true),
-                        keepHealthFraction = stageObj["keepHealthFraction"].AsBool(true),
-                        sound = stageObj["sound"].AsString(null),
-                        soundRange = stageObj["soundRange"].AsFloat(24f),
-                        soundStartMs = stageObj["soundStartMs"].AsInt(0)
-                    };
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
+        {
+            if (stageObj is not Stage stage) return;
 
-                    if (stage.whenHealthRelBelow <= 0f) stage.whenHealthRelBelow = 1f;
-                    if (stage.whenHealthRelBelow > 1f) stage.whenHealthRelBelow = 1f;
-                    if (stage.cooldownSeconds < 0f) stage.cooldownSeconds = 0f;
+            if (stage.requireTarget && !entity.WatchedAttributes.GetBool(BossBehaviorUtils.HasTargetKey, false))
+                return;
 
-                    if (!string.IsNullOrWhiteSpace(stage.entityCode))
-                    {
-                        stages.Add(stage);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in parsing stages: {ex}");
-            }
+            MarkCooldownStart();
+            entity.WatchedAttributes.SetInt(StageKey, stageIndex + 1);
+            entity.WatchedAttributes.MarkPathDirty(StageKey);
+
+            if (!TryGetHealthFraction(out float frac)) frac = 1f;
+            TrySwapForm(stage, frac);
+        }
+
+        protected override void StopAbility()
+        {
+            // No-op: form swap is instant, no cleanup needed
+        }
+
+        protected override bool OnAbilityTick(float dt)
+        {
+            return false; // Instant activation, no ongoing state
         }
 
         private void TryRebindPlayerClones(long oldOwnerId, long newOwnerId)
         {
-            if (sapi == null) return;
-            if (oldOwnerId <= 0 || newOwnerId <= 0) return;
+            if (Sapi == null || oldOwnerId <= 0 || newOwnerId <= 0) return;
 
-            var loaded = sapi.World?.LoadedEntities;
+            var loaded = Sapi.World?.LoadedEntities;
             if (loaded == null) return;
 
-            try
+            foreach (var e in loaded.Values)
             {
-                foreach (var e in loaded.Values)
-                {
-                    if (e == null || !e.Alive) continue;
+                if (e == null || !e.Alive) continue;
 
-                    var wa = e.WatchedAttributes;
-                    if (wa == null) continue;
+                var wa = e.WatchedAttributes;
+                if (wa == null) continue;
 
-                    if (!wa.GetBool(CloneFlagKey, false)) continue;
+                if (!wa.GetBool(CloneFlagKey, false)) continue;
 
-                    long owner = wa.GetLong(CloneOwnerIdKey, 0);
-                    if (owner != oldOwnerId) continue;
+                long owner = wa.GetLong(CloneOwnerIdKey, 0);
+                if (owner != oldOwnerId) continue;
 
-                    wa.SetLong(CloneOwnerIdKey, newOwnerId);
-                    wa.MarkPathDirty(CloneOwnerIdKey);
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TryRebindPlayerClones: {ex}");
+                wa.SetLong(CloneOwnerIdKey, newOwnerId);
+                wa.MarkPathDirty(CloneOwnerIdKey);
             }
         }
 
-        public override void OnGameTick(float dt)
-        {
-            base.OnGameTick(dt);
 
-            if (sapi == null || entity == null) return;
-            if (!entity.Alive) return;
-            if (stages.Count == 0) return;
-
-            if (!BossBehaviorUtils.TryGetHealthFraction(entity, out float frac)) return;
-
-            int stageProgress = entity.WatchedAttributes?.GetInt(StageKey, 0) ?? 0;
-            for (int i = stageProgress; i < stages.Count; i++)
-            {
-                var stage = stages[i];
-                if (stage == null) continue;
-                if (frac > stage.whenHealthRelBelow) continue;
-
-                if (stage.requireTarget && !entity.WatchedAttributes.GetBool(BossBehaviorUtils.HasTargetKey, false)) return;
-                if (!BossBehaviorUtils.IsCooldownReady(sapi, entity, LastSwapStartMsKey, stage.cooldownSeconds)) return;
-
-                entity.WatchedAttributes.SetInt(StageKey, i + 1);
-                entity.WatchedAttributes.MarkPathDirty(StageKey);
-
-                TrySwapForm(stage, frac);
-                break;
-            }
-        }
-
-        private void TrySwapForm(SwapStage stage, float healthFraction)
+        private void TrySwapForm(Stage stage, float healthFraction)
         {
             if (stage == null || string.IsNullOrWhiteSpace(stage.entityCode)) return;
 
-            Entity newEntity = null;
-            try
+            long oldEntityId = entity?.EntityId ?? 0;
+            var type = Sapi.World.GetEntityType(new AssetLocation(stage.entityCode));
+            if (type == null) return;
+
+            Entity newEntity = Sapi.World.ClassRegistry.CreateEntity(type);
+            if (newEntity == null) return;
+
+            CopyTargetId(newEntity);
+            CopyAnchor(newEntity);
+
+            Vec3d pos = new Vec3d(entity.Pos.X, entity.Pos.Y, entity.Pos.Z);
+            int dim = entity.Pos.Dimension;
+            float yaw = entity.Pos.Yaw;
+
+            newEntity.Pos.SetPosWithDimension(new Vec3d(pos.X, pos.Y + dim * 32768.0, pos.Z));
+            newEntity.Pos.Yaw = yaw;
+            newEntity.Pos.SetFrom(newEntity.Pos);
+
+            TryPlaySwapSound(stage);
+
+            Sapi.World.SpawnEntity(newEntity);
+
+            // Keep any existing player clones alive by rebinding them to the newly spawned boss entity.
+            TryRebindPlayerClones(oldEntityId, newEntity.EntityId);
+
+            if (stage.keepHealthFraction)
             {
-                long oldEntityId = entity?.EntityId ?? 0;
-                var type = sapi.World.GetEntityType(new AssetLocation(stage.entityCode));
-                if (type == null) return;
-
-                newEntity = sapi.World.ClassRegistry.CreateEntity(type);
-                if (newEntity == null) return;
-
-                CopyTargetId(newEntity);
-                CopyAnchor(newEntity);
-
-                Vec3d pos = new Vec3d(entity.Pos.X, entity.Pos.Y, entity.Pos.Z);
-                int dim = entity.Pos.Dimension;
-                float yaw = entity.Pos.Yaw;
-
-                newEntity.Pos.SetPosWithDimension(new Vec3d(pos.X, pos.Y + dim * 32768.0, pos.Z));
-                newEntity.Pos.Yaw = yaw;
-                newEntity.Pos.SetFrom(newEntity.Pos);
-
-                TryPlaySwapSound(stage);
-
-                sapi.World.SpawnEntity(newEntity);
-
-                // Keep any existing player clones alive by rebinding them to the newly spawned boss entity.
-                TryRebindPlayerClones(oldEntityId, newEntity.EntityId);
-
-                if (stage.keepHealthFraction)
+                float fraction = GameMath.Clamp(healthFraction, 0.05f, 1f);
+                Sapi.Event.RegisterCallback(_ =>
                 {
-                    float fraction = GameMath.Clamp(healthFraction, 0.05f, 1f);
-                    sapi.Event.RegisterCallback(_ =>
-                    {
-                        TryApplyHealthFraction(newEntity, fraction);
-                    }, 1);
-                }
-
-                BossBehaviorUtils.MarkCooldownStart(sapi, entity, LastSwapStartMsKey);
-
-                sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
+                    TryApplyHealthFraction(newEntity, fraction);
+                }, 1);
             }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TrySwapForm: {ex}");
-                if (newEntity != null)
-                {
-                    try
-                    {
-                        sapi.World.DespawnEntity(newEntity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
-                    }
-                    catch (Exception innerEx)
-                    {
-                        entity?.Api?.Logger?.Error($"[vsquest] Exception in TrySwapForm DespawnEntity: {innerEx}");
-                    }
-                }
-            }
+
+            Sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
         }
 
-        private void TryPlaySwapSound(SwapStage stage)
+        private void TryPlaySwapSound(Stage stage)
         {
-            if (sapi == null || stage == null) return;
-            if (string.IsNullOrWhiteSpace(stage.sound)) return;
+            if (Sapi == null || stage == null || string.IsNullOrWhiteSpace(stage.sound)) return;
             float range = stage.soundRange > 0f ? stage.soundRange : 24f;
 
             AssetLocation soundLoc = AssetLocation.Create(stage.sound, "game").WithPathPrefixOnce("sounds/");
@@ -212,39 +162,25 @@ namespace VsQuest
 
             if (stage.soundStartMs > 0)
             {
-                sapi.Event.RegisterCallback(_ =>
+                Sapi.Event.RegisterCallback(_ =>
                 {
-                    try
-                    {
-                        if (entity == null || !entity.Alive) return;
-                        float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                        sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, 1f);
-                    }
-                    catch (Exception ex)
-                    {
-                        entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlaySwapSound callback: {ex}");
-                    }
+                    if (entity == null || !entity.Alive) return;
+                    float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
+                    Sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, 1f);
                 }, stage.soundStartMs);
             }
             else
             {
-                try
-                {
-                    if (entity == null || !entity.Alive) return;
-                    float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                    sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, 1f);
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlaySwapSound immediate: {ex}");
-                }
+                if (entity == null || !entity.Alive) return;
+                float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
+                Sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, 1f);
             }
         }
 
         private void TryApplyHealthFraction(Entity target, float fraction)
         {
             if (target == null) return;
-            if (!BossBehaviorUtils.TryGetHealth(target, out var healthTree, out float cur, out float maxHealth)) return;
+            if (!target.TryGetHealth(out var healthTree, out float cur, out float maxHealth)) return;
 
             float newHealth = Math.Max(1f, maxHealth * fraction);
             if (healthTree != null)
@@ -256,47 +192,40 @@ namespace VsQuest
 
         private void CopyTargetId(Entity newEntity)
         {
-            try
-            {
-                string targetId = entity?.WatchedAttributes?.GetString(TargetIdKey, null);
-                if (string.IsNullOrWhiteSpace(targetId) || newEntity?.WatchedAttributes == null) return;
+            string targetId = entity?.WatchedAttributes?.GetString(TargetIdKey, null);
+            if (string.IsNullOrWhiteSpace(targetId) || newEntity?.WatchedAttributes == null) return;
 
-                newEntity.WatchedAttributes.SetString(TargetIdKey, targetId);
-                newEntity.WatchedAttributes.MarkPathDirty(TargetIdKey);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in CopyTargetId: {ex}");
-            }
+            newEntity.WatchedAttributes.SetString(TargetIdKey, targetId);
+            newEntity.WatchedAttributes.MarkPathDirty(TargetIdKey);
         }
 
         private void CopyAnchor(Entity newEntity)
         {
-            try
-            {
-                if (newEntity?.WatchedAttributes == null || entity?.WatchedAttributes == null) return;
+            if (newEntity?.WatchedAttributes == null || entity?.WatchedAttributes == null) return;
 
-                int dim = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "dim", int.MinValue);
-                int x = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "x", int.MinValue);
-                int y = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "y", int.MinValue);
-                int z = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "z", int.MinValue);
+            int dim = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "dim", int.MinValue);
+            int x = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "x", int.MinValue);
+            int y = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "y", int.MinValue);
+            int z = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "z", int.MinValue);
 
-                if (dim == int.MinValue || x == int.MinValue || y == int.MinValue || z == int.MinValue) return;
+            if (dim == int.MinValue || x == int.MinValue || y == int.MinValue || z == int.MinValue) return;
 
-                newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "x", x);
-                newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "y", y);
-                newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "z", z);
-                newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "dim", dim);
+            newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "x", x);
+            newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "y", y);
+            newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "z", z);
+            newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "dim", dim);
 
-                newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "x");
-                newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "y");
-                newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "z");
-                newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "dim");
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in CopyAnchor: {ex}");
-            }
+            newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "x");
+            newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "y");
+            newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "z");
+            newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "dim");
         }
+
+        // Required abstract overrides for BossAbilityBase (event-driven mode)
+        protected override int GetStageCount() => stages.Count;
+        protected override object GetStage(int index) => index >= 0 && index < stages.Count ? stages[index] : null;
+        protected override float GetStageHealthThreshold(object stage) => stage is Stage s ? s.whenHealthRelBelow : 1f;
+        protected override float GetStageCooldown(object stage) => stage is Stage s ? s.cooldownSeconds : 0f;
+        protected override float GetMaxTargetRange(object stage) => 0f;
     }
 }

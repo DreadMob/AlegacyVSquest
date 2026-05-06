@@ -10,12 +10,16 @@ using Vintagestory.GameContent;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossSummonRitual : EntityBehavior
+    public class EntityBehaviorBossSummonRitual : BossAbilityBase
     {
         private const string SummonStageKey = "alegacyvsquest:bosssummonstage";
-        private const string LastRitualStartMsKey = "alegacyvsquest:bosssummonritual:lastStartMs";
         private const string SummonedByEntityIdKey = "alegacyvsquest:bosssummonritual:summonedByEntityId";
         private const string SummonedByEntityCodeKey = "alegacyvsquest:bosssummonritual:summonedByEntityCode";
+
+        protected override string CooldownKey => "alegacyvsquest:bosssummonritual:lastStartMs";
+        protected override bool UseHealthBasedStages() => false;
+        protected override bool RequiresTarget() => false;
+        protected override int CheckIntervalMs => 500;
 
         private class SummonSpawn
         {
@@ -28,9 +32,8 @@ namespace VsQuest
             public int spawnDelayMs;
         }
 
-        private class SummonStage
+        private class Stage : BossAbilityStage
         {
-            public float whenHealthRelBelow;
             public string entityCode;
             public int maxNearby;
             public float nearbyRange;
@@ -40,7 +43,6 @@ namespace VsQuest
             public int ritualMs;
             public float healPerSecond;
             public float healRelPerSecond;
-            public float cooldownSeconds;
             public float spawnRange;
             public float circleRadius;
             public float circleMoveSpeed;
@@ -55,11 +57,61 @@ namespace VsQuest
             public int loopSoundIntervalMs;
             public float loopSoundVolume;
             public int spawnDelayMs;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                entityCode = json["entityCode"].AsString(null);
+                maxNearby = json["maxNearby"].AsInt(0);
+                nearbyRange = json["nearbyRange"].AsFloat(0f);
+                minCount = json["minCount"].AsInt(1);
+                maxCount = json["maxCount"].AsInt(1);
+                ritualMs = json["ritualMs"].AsInt(4000);
+                healPerSecond = json["healPerSecond"].AsFloat(0f);
+                healRelPerSecond = json["healRelPerSecond"].AsFloat(0f);
+                spawnRange = json["spawnRange"].AsFloat(6f);
+                circleRadius = json["circleRadius"].AsFloat(0f);
+                circleMoveSpeed = json["circleMoveSpeed"].AsFloat(0f);
+                circleStartDelayMs = json["circleStartDelayMs"].AsInt(0);
+                animation = json["animation"].AsString(null);
+                sound = json["sound"].AsString(null);
+                soundRange = json["soundRange"].AsFloat(16f);
+                soundStartMs = json["soundStartMs"].AsInt(0);
+                soundVolume = json["soundVolume"].AsFloat(1f);
+                loopSound = json["loopSound"].AsString(null);
+                loopSoundRange = json["loopSoundRange"].AsFloat(16f);
+                loopSoundIntervalMs = json["loopSoundIntervalMs"].AsInt(900);
+                loopSoundVolume = json["loopSoundVolume"].AsFloat(1f);
+                spawnDelayMs = json["spawnDelayMs"].AsInt(600);
+
+                spawns = new List<SummonSpawn>();
+                if (json["spawns"]?.Exists == true)
+                {
+                    foreach (var spawnObj in json["spawns"].AsArray())
+                    {
+                        if (spawnObj == null || !spawnObj.Exists) continue;
+
+                        var spawn = new SummonSpawn
+                        {
+                            entityCode = spawnObj["entityCode"].AsString(null),
+                            maxNearby = spawnObj["maxNearby"].AsInt(maxNearby),
+                            nearbyRange = spawnObj["nearbyRange"].AsFloat(nearbyRange),
+                            minCount = spawnObj["minCount"].AsInt(minCount),
+                            maxCount = spawnObj["maxCount"].AsInt(maxCount),
+                            chance = spawnObj["chance"].AsFloat(1f),
+                            spawnDelayMs = spawnObj["spawnDelayMs"].AsInt(spawnDelayMs),
+                        };
+
+                        if (!string.IsNullOrWhiteSpace(spawn.entityCode))
+                        {
+                            spawns.Add(spawn);
+                        }
+                    }
+                }
+            }
         }
 
-        private ICoreServerAPI sapi;
-        private readonly List<SummonStage> stages = new List<SummonStage>();
-        private bool ritualActive;
+        private List<Stage> stages = new List<Stage>();
         private long ritualEndsAtMs;
         private long ritualStartedAtMs;
         private readonly BossBehaviorUtils.LoopSound soundLoop = new BossBehaviorUtils.LoopSound();
@@ -76,172 +128,67 @@ namespace VsQuest
 
         public override string PropertyName() => "bosssummonritual";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-
-            stages.Clear();
-            try
-            {
-                foreach (var stageObj in attributes["stages"].AsArray())
-                {
-                    if (stageObj == null || !stageObj.Exists) continue;
-
-                    var stage = new SummonStage
-                    {
-                        whenHealthRelBelow = stageObj["whenHealthRelBelow"].AsFloat(1f),
-                        entityCode = stageObj["entityCode"].AsString(null),
-                        maxNearby = stageObj["maxNearby"].AsInt(0),
-                        nearbyRange = stageObj["nearbyRange"].AsFloat(0f),
-                        minCount = stageObj["minCount"].AsInt(1),
-                        maxCount = stageObj["maxCount"].AsInt(1),
-                        ritualMs = stageObj["ritualMs"].AsInt(4000),
-                        healPerSecond = stageObj["healPerSecond"].AsFloat(0f),
-                        healRelPerSecond = stageObj["healRelPerSecond"].AsFloat(0f),
-                        cooldownSeconds = stageObj["cooldownSeconds"].AsFloat(0f),
-                        spawnRange = stageObj["spawnRange"].AsFloat(6f),
-                        circleRadius = stageObj["circleRadius"].AsFloat(0f),
-                        circleMoveSpeed = stageObj["circleMoveSpeed"].AsFloat(0f),
-                        circleStartDelayMs = stageObj["circleStartDelayMs"].AsInt(0),
-                        animation = stageObj["animation"].AsString(null),
-                        sound = stageObj["sound"].AsString(null),
-                        soundRange = stageObj["soundRange"].AsFloat(16f),
-                        soundStartMs = stageObj["soundStartMs"].AsInt(0),
-                        soundVolume = stageObj["soundVolume"].AsFloat(1f),
-                        loopSound = stageObj["loopSound"].AsString(null),
-                        loopSoundRange = stageObj["loopSoundRange"].AsFloat(16f),
-                        loopSoundIntervalMs = stageObj["loopSoundIntervalMs"].AsInt(900),
-                        loopSoundVolume = stageObj["loopSoundVolume"].AsFloat(1f),
-                        spawnDelayMs = stageObj["spawnDelayMs"].AsInt(600),
-                    };
-
-                    stage.spawns = new List<SummonSpawn>();
-                    try
-                    {
-                        if (stageObj["spawns"]?.Exists == true)
-                        {
-                            foreach (var spawnObj in stageObj["spawns"].AsArray())
-                            {
-                                if (spawnObj == null || !spawnObj.Exists) continue;
-
-                                var spawn = new SummonSpawn
-                                {
-                                    entityCode = spawnObj["entityCode"].AsString(null),
-                                    maxNearby = spawnObj["maxNearby"].AsInt(stage.maxNearby),
-                                    nearbyRange = spawnObj["nearbyRange"].AsFloat(stage.nearbyRange),
-                                    minCount = spawnObj["minCount"].AsInt(stage.minCount),
-                                    maxCount = spawnObj["maxCount"].AsInt(stage.maxCount),
-                                    chance = spawnObj["chance"].AsFloat(1f),
-                                    spawnDelayMs = spawnObj["spawnDelayMs"].AsInt(stage.spawnDelayMs),
-                                };
-
-                                if (!string.IsNullOrWhiteSpace(spawn.entityCode))
-                                {
-                                    stage.spawns.Add(spawn);
-                                }
-                            }
-                        }
-                    }
-                    catch
-                    {
-                    }
-
-                    if (stage.spawns.Count > 0 || !string.IsNullOrWhiteSpace(stage.entityCode))
-                    {
-                        stages.Add(stage);
-                    }
-                }
-
-            }
-            catch
-            {
-            }
+            stages = ParseStages<Stage>(attributes);
         }
 
-        public override void OnGameTick(float dt)
+        protected override bool ShouldCheckAbility()
         {
-            base.OnGameTick(dt);
-            if (sapi == null || entity == null) return;
-            if (stages.Count == 0) return;
-            if (!entity.Alive)
-            {
-                StopRitual();
-                return;
-            }
+            return !IsAbilityActive;
+        }
 
-            if (ritualActive)
-            {
-                BossBehaviorUtils.ApplyRotationLock(entity, ref yawLocked, ref lockedYaw);
-                if (stages.Count > activeStageIndex && activeStageIndex >= 0)
-                {
-                    var activeStage = stages[activeStageIndex];
-                    HealDuringRitual(activeStage, dt);
-                    ApplyCircleMovement(activeStage, dt);
-                }
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
+        {
+            if (stageObj is not Stage stage) return;
 
-                if (sapi.World.ElapsedMilliseconds >= ritualEndsAtMs)
-                {
-                    StopRitual();
-                }
-
-                return;
-            }
-
-            if (!BossBehaviorUtils.TryGetHealthFraction(entity, out float frac)) return;
-
-            int stageIndex = SelectStageIndex(frac);
-            if (stageIndex < 0 || stageIndex >= stages.Count) return;
-
-            var selectedStage = stages[stageIndex];
-            if (!BossBehaviorUtils.IsCooldownReady(sapi, entity, LastRitualStartMsKey, selectedStage.cooldownSeconds)) return;
-
+            MarkCooldownStart();
             entity.WatchedAttributes.SetInt(SummonStageKey, stageIndex + 1);
             entity.WatchedAttributes.MarkPathDirty(SummonStageKey);
-
-            StartRitual(selectedStage, stageIndex);
+            StartRitual(stage, stageIndex);
         }
 
-        private int SelectStageIndex(float healthFraction)
+        protected override void StopAbility()
         {
-            if (stages == null || stages.Count == 0) return -1;
+            StopRitual();
+        }
 
-            int chosen = -1;
-            float chosenThreshold = float.MaxValue;
-            for (int i = 0; i < stages.Count; i++)
+        protected override bool OnAbilityTick(float dt)
+        {
+            if (!IsAbilityActive) return false;
+
+            entity.ApplyRotationLock(ref yawLocked, ref lockedYaw);
+            if (stages.Count > activeStageIndex && activeStageIndex >= 0)
             {
-                var candidateStage = stages[i];
-                if (candidateStage == null) continue;
-
-                if (healthFraction <= candidateStage.whenHealthRelBelow)
-                {
-                    if (candidateStage.whenHealthRelBelow < chosenThreshold)
-                    {
-                        chosenThreshold = candidateStage.whenHealthRelBelow;
-                        chosen = i;
-                    }
-                }
+                var activeStage = stages[activeStageIndex];
+                HealDuringRitual(activeStage, dt);
+                ApplyCircleMovement(activeStage, dt);
             }
 
-            return chosen;
+            if (Sapi.World.ElapsedMilliseconds >= ritualEndsAtMs)
+            {
+                StopRitual();
+                return false;
+            }
+            return true;
         }
 
-        private void TryStartLoopSound(SummonStage stage)
+        private void TryStartLoopSound(Stage stage)
         {
             if (string.IsNullOrWhiteSpace(stage.loopSound)) return;
             float volume = stage.loopSoundVolume;
             if (volume <= 0f) volume = 1f;
-            soundLoop.Start(sapi, entity, stage.loopSound, stage.loopSoundRange, stage.loopSoundIntervalMs, volume);
+            soundLoop.Start(Sapi, entity, stage.loopSound, stage.loopSoundRange, stage.loopSoundIntervalMs, volume);
         }
 
-        private void StartRitual(SummonStage stage, int index)
+        private void StartRitual(Stage stage, int index)
         {
-            ritualActive = true;
+            SetAbilityActive(true);
             activeStageIndex = index;
-            ritualStartedAtMs = sapi.World.ElapsedMilliseconds;
+            ritualStartedAtMs = Sapi.World.ElapsedMilliseconds;
             ritualEndsAtMs = ritualStartedAtMs + Math.Max(500, stage.ritualMs);
 
-            ritualCircleAngle = (float)(sapi.World.Rand.NextDouble() * Math.PI * 2.0);
+            ritualCircleAngle = (float)(Sapi.World.Rand.NextDouble() * Math.PI * 2.0);
             ritualCenter = new Vec3d(entity.Pos.X, entity.Pos.Y, entity.Pos.Z);
             if (stage.circleRadius > 0f)
             {
@@ -250,10 +197,8 @@ namespace VsQuest
                 ritualCenter.Z = entity.Pos.Z - Math.Sin(ritualCircleAngle) * radius;
             }
 
-            BossBehaviorUtils.MarkCooldownStart(sapi, entity, LastRitualStartMsKey);
-
-            BossBehaviorUtils.StopAiAndFreeze(entity);
-            BossBehaviorUtils.ApplyRotationLock(entity, ref yawLocked, ref lockedYaw);
+            entity.StopAiAndFreeze();
+            entity.ApplyRotationLock(ref yawLocked, ref lockedYaw);
             SpawnMinions(stage);
             TryPlaySound(stage);
             TryStartLoopSound(stage);
@@ -262,7 +207,7 @@ namespace VsQuest
 
         private void StopRitual()
         {
-            ritualActive = false;
+            SetAbilityActive(false);
             yawLocked = false;
 
             ritualStartedAtMs = 0;
@@ -276,57 +221,42 @@ namespace VsQuest
                 var animation = stages[activeStageIndex].animation;
                 if (!string.IsNullOrWhiteSpace(animation))
                 {
-                    try
-                    {
-                        entity?.AnimManager?.StopAnimation(animation);
-                    }
-                    catch
-                    {
-                    }
+                    entity?.AnimManager?.StopAnimation(animation);
                 }
             }
 
             activeStageIndex = -1;
         }
 
-        private void ApplyCircleMovement(SummonStage stage, float dt)
+        private void ApplyCircleMovement(Stage stage, float dt)
         {
-            if (stage == null) return;
-            if (ritualCenter == null) return;
-            if (stage.circleRadius <= 0f) return;
-            if (stage.circleMoveSpeed <= 0f) return;
+            if (stage == null || ritualCenter == null || stage.circleRadius <= 0f || stage.circleMoveSpeed <= 0f) return;
 
-            if (stage.circleStartDelayMs > 0 && sapi != null && ritualStartedAtMs > 0)
+            if (stage.circleStartDelayMs > 0 && Sapi != null && ritualStartedAtMs > 0)
             {
-                if (sapi.World.ElapsedMilliseconds - ritualStartedAtMs < stage.circleStartDelayMs) return;
+                if (Sapi.World.ElapsedMilliseconds - ritualStartedAtMs < stage.circleStartDelayMs) return;
             }
 
-            try
-            {
-                float radius = Math.Max(0.25f, stage.circleRadius);
-                float moveSpeed = Math.Max(0.001f, stage.circleMoveSpeed);
-                float angSpeed = moveSpeed / radius;
+            float radius = Math.Max(0.25f, stage.circleRadius);
+            float moveSpeed = Math.Max(0.001f, stage.circleMoveSpeed);
+            float angSpeed = moveSpeed / radius;
 
-                ritualCircleAngle += angSpeed * dt;
+            ritualCircleAngle += angSpeed * dt;
 
-                double x = ritualCenter.X + Math.Cos(ritualCircleAngle) * radius;
-                double z = ritualCenter.Z + Math.Sin(ritualCircleAngle) * radius;
+            double x = ritualCenter.X + Math.Cos(ritualCircleAngle) * radius;
+            double z = ritualCenter.Z + Math.Sin(ritualCircleAngle) * radius;
 
-                int dim = entity.Pos.Dimension;
-                double y = entity.Pos.Y;
-                entity.Pos.SetPosWithDimension(new Vec3d(x, y + dim * 32768.0, z));
-                entity.Pos.SetFrom(entity.Pos);
-            }
-            catch
-            {
-            }
+            int dim = entity.Pos.Dimension;
+            double y = entity.Pos.Y;
+            entity.Pos.SetPosWithDimension(new Vec3d(x, y + dim * 32768.0, z));
+            entity.Pos.SetFrom(entity.Pos);
         }
 
-        private void HealDuringRitual(SummonStage stage, float dt)
+        private void HealDuringRitual(Stage stage, float dt)
         {
             if (stage.healPerSecond <= 0f && stage.healRelPerSecond <= 0f) return;
 
-            if (!BossBehaviorUtils.TryGetHealth(entity, out var healthTree, out float curHealth, out float maxHealth)) return;
+            if (!entity.TryGetHealth(out var healthTree, out float curHealth, out float maxHealth)) return;
 
             float absHeal = stage.healPerSecond > 0f ? stage.healPerSecond * dt : 0f;
             float relHeal = stage.healRelPerSecond > 0f ? stage.healRelPerSecond * maxHealth * dt : 0f;
@@ -338,9 +268,9 @@ namespace VsQuest
             entity.WatchedAttributes.MarkPathDirty("health");
         }
 
-        private void SpawnMinions(SummonStage stage)
+        private void SpawnMinions(Stage stage)
         {
-            if (sapi == null) return;
+            if (Sapi == null) return;
             if (stage == null) return;
 
             if (stage.spawns != null && stage.spawns.Count > 0)
@@ -365,22 +295,22 @@ namespace VsQuest
             });
         }
 
-        private void SpawnMinions(SummonStage stage, SummonSpawn spawn)
+        private void SpawnMinions(Stage stage, SummonSpawn spawn)
         {
-            if (sapi == null || entity == null) return;
+            if (Sapi == null || entity == null) return;
             if (stage == null || spawn == null) return;
             if (string.IsNullOrWhiteSpace(spawn.entityCode)) return;
 
             float chance = spawn.chance;
             if (chance <= 0f) return;
-            if (chance < 1f && sapi.World.Rand.NextDouble() > chance) return;
+            if (chance < 1f && Sapi.World.Rand.NextDouble() > chance) return;
 
             int min = Math.Max(1, spawn.minCount);
             int max = Math.Max(min, spawn.maxCount);
             int count = min;
             if (max > min)
             {
-                count = min + sapi.World.Rand.Next(max - min + 1);
+                count = min + Sapi.World.Rand.Next(max - min + 1);
             }
 
             if (spawn.maxNearby > 0)
@@ -393,61 +323,37 @@ namespace VsQuest
             }
 
             EntityProperties type = null;
-            AssetLocation codeLoc = null;
-            try
-            {
-                codeLoc = new AssetLocation(spawn.entityCode);
-                type = sapi.World.GetEntityType(codeLoc);
-            }
-            catch
-            {
-                type = null;
-            }
+            AssetLocation codeLoc = new AssetLocation(spawn.entityCode);
+            type = Sapi.World.GetEntityType(codeLoc);
 
             // Fallback: some vanilla entities live in the 'survival' asset domain.
-            if (type == null)
+            if (type == null && string.Equals(codeLoc.Domain, "game", StringComparison.OrdinalIgnoreCase))
             {
-                try
-                {
-                    if (codeLoc != null && string.Equals(codeLoc.Domain, "game", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var survivalLoc = new AssetLocation("survival", codeLoc.Path);
-                        type = sapi.World.GetEntityType(survivalLoc);
-                    }
-                }
-                catch
-                {
-                    type = null;
-                }
+                var survivalLoc = new AssetLocation("survival", codeLoc.Path);
+                type = Sapi.World.GetEntityType(survivalLoc);
             }
 
             if (type == null)
             {
-                try
-                {
-                    sapi.Logger.Warning("[VsQuest] bosssummonritual: entity type not found for code '{0}'", spawn.entityCode);
-                }
-                catch
-                {
-                }
+                Sapi.Logger.Warning("[VsQuest] bosssummonritual: entity type not found for code '{0}'", spawn.entityCode);
                 return;
             }
 
             int dim = entity.Pos.Dimension;
             for (int i = 0; i < count; i++)
             {
-                double angle = sapi.World.Rand.NextDouble() * Math.PI * 2.0;
-                double dist = stage.spawnRange * (0.5 + sapi.World.Rand.NextDouble() * 0.5);
+                double angle = Sapi.World.Rand.NextDouble() * Math.PI * 2.0;
+                double dist = stage.spawnRange * (0.5 + Sapi.World.Rand.NextDouble() * 0.5);
                 double x = entity.Pos.X + Math.Cos(angle) * dist;
                 double z = entity.Pos.Z + Math.Sin(angle) * dist;
                 double y = entity.Pos.Y;
 
-                float yaw = (float)(sapi.World.Rand.NextDouble() * Math.PI * 2.0);
+                float yaw = (float)(Sapi.World.Rand.NextDouble() * Math.PI * 2.0);
                 var spawnPos = new Vec3d(x, y + dim * 32768.0, z);
 
                 if (spawn.spawnDelayMs > 0)
                 {
-                    sapi.Event.RegisterCallback(_ =>
+                    Sapi.Event.RegisterCallback(_ =>
                     {
                         SpawnEntityAt(type, spawnPos, yaw);
                     }, spawn.spawnDelayMs);
@@ -461,226 +367,147 @@ namespace VsQuest
 
         private int CountAliveNearby(string entityCode, float range)
         {
-            if (sapi == null || entity == null) return 0;
-            if (string.IsNullOrWhiteSpace(entityCode)) return 0;
-            if (range <= 0f) return 0;
+            if (Sapi == null || entity == null || string.IsNullOrWhiteSpace(entityCode) || range <= 0f) return 0;
 
-            try
+            int dim = entity.Pos.Dimension;
+            var center = new Vec3d(entity.Pos.X, entity.Pos.Y + dim * 32768.0, entity.Pos.Z);
+            var entities = Sapi.World.GetEntitiesAround(center, range, range, e => e != null && e.Alive);
+            if (entities == null) return 0;
+
+            int alive = 0;
+            for (int i = 0; i < entities.Length; i++)
             {
-                int dim = entity.Pos.Dimension;
-                var center = new Vec3d(entity.Pos.X, entity.Pos.Y + dim * 32768.0, entity.Pos.Z);
-                var entities = sapi.World.GetEntitiesAround(center, range, range, e => e != null && e.Alive);
-                if (entities == null) return 0;
+                var e = entities[i];
+                var code = e?.Code?.ToString();
+                if (string.IsNullOrWhiteSpace(code)) continue;
 
-                int alive = 0;
-                for (int i = 0; i < entities.Length; i++)
+                if (string.Equals(code, entityCode, StringComparison.OrdinalIgnoreCase))
                 {
-                    var e = entities[i];
-                    var code = e?.Code?.ToString();
-                    if (string.IsNullOrWhiteSpace(code)) continue;
-
-                    if (string.Equals(code, entityCode, StringComparison.OrdinalIgnoreCase))
-                    {
-                        alive++;
-                    }
+                    alive++;
                 }
+            }
 
-                return alive;
-            }
-            catch
-            {
-                return 0;
-            }
+            return alive;
         }
 
         private void SpawnEntityAt(EntityProperties type, Vec3d spawnPos, float yaw)
         {
-            if (sapi == null || type == null) return;
+            if (Sapi == null || type == null) return;
 
-            Entity spawned = sapi.World.ClassRegistry.CreateEntity(type);
+            Entity spawned = Sapi.World.ClassRegistry.CreateEntity(type);
             if (spawned == null) return;
 
-            try
+            if (entity != null && entity.EntityId != 0)
             {
-                if (entity != null && entity.EntityId != 0)
-                {
-                    spawned.WatchedAttributes.SetLong(SummonedByEntityIdKey, entity.EntityId);
-                    spawned.WatchedAttributes.MarkPathDirty(SummonedByEntityIdKey);
-                }
-            }
-            catch
-            {
+                spawned.WatchedAttributes.SetLong(SummonedByEntityIdKey, entity.EntityId);
+                spawned.WatchedAttributes.MarkPathDirty(SummonedByEntityIdKey);
             }
 
-            try
+            var summonerCode = entity?.Code?.ToString();
+            if (!string.IsNullOrWhiteSpace(summonerCode))
             {
-                var summonerCode = entity?.Code?.ToString();
-                if (!string.IsNullOrWhiteSpace(summonerCode))
-                {
-                    spawned.WatchedAttributes.SetString(SummonedByEntityCodeKey, summonerCode);
-                    spawned.WatchedAttributes.MarkPathDirty(SummonedByEntityCodeKey);
-                }
-            }
-            catch
-            {
+                spawned.WatchedAttributes.SetString(SummonedByEntityCodeKey, summonerCode);
+                spawned.WatchedAttributes.MarkPathDirty(SummonedByEntityCodeKey);
             }
 
             spawned.Pos.SetPosWithDimension(spawnPos);
             spawned.Pos.SetFrom(spawned.Pos);
             spawned.Pos.Yaw = yaw;
 
-            sapi.World.SpawnEntity(spawned);
+            Sapi.World.SpawnEntity(spawned);
 
             TryDisableFleeForSummonedWolves(spawned);
         }
 
         private void TryDisableFleeForSummonedWolves(Entity spawned)
         {
-            if (sapi == null || spawned == null) return;
+            if (Sapi == null || spawned == null) return;
 
-            try
+            var code = spawned.Code?.ToString() ?? "";
+            if (code.IndexOf("wolf", StringComparison.OrdinalIgnoreCase) < 0) return;
+
+            long summonerId = spawned.WatchedAttributes?.GetLong(SummonedByEntityIdKey, 0) ?? 0;
+            if (summonerId <= 0) return;
+
+            Sapi.Event.RegisterCallback(_ =>
             {
-                var code = spawned.Code?.ToString() ?? "";
-                if (code.IndexOf("wolf", StringComparison.OrdinalIgnoreCase) < 0) return;
+                if (spawned == null || !spawned.Alive) return;
 
-                long summonerId = spawned.WatchedAttributes?.GetLong(SummonedByEntityIdKey, 0) ?? 0;
-                if (summonerId <= 0) return;
+                var taskAi = spawned.GetBehavior<EntityBehaviorTaskAI>();
+                if (taskAi?.TaskManager == null) return;
 
-                sapi.Event.RegisterCallback(_ =>
+                taskAi.TaskManager.StopTasks();
+
+                var tasks = taskAi.TaskManager.AllTasks;
+                for (int i = tasks.Count - 1; i >= 0; i--)
                 {
-                    try
+                    var t = tasks[i];
+                    var tn = t?.GetType()?.Name ?? "";
+                    if (tn.IndexOf("AiTaskFlee", StringComparison.OrdinalIgnoreCase) >= 0)
                     {
-                        if (spawned == null || !spawned.Alive) return;
-
-                        var taskAi = spawned.GetBehavior<EntityBehaviorTaskAI>();
-                        if (taskAi?.TaskManager == null) return;
-
-                        taskAi.TaskManager.StopTasks();
-
-                        var tasks = taskAi.TaskManager.AllTasks;
-                        for (int i = tasks.Count - 1; i >= 0; i--)
-                        {
-                            var t = tasks[i];
-                            var tn = t?.GetType()?.Name ?? "";
-                            if (tn.IndexOf("AiTaskFlee", StringComparison.OrdinalIgnoreCase) >= 0)
-                            {
-                                taskAi.TaskManager.RemoveTask(t);
-                            }
-                        }
+                        taskAi.TaskManager.RemoveTask(t);
                     }
-                    catch
-                    {
-                    }
-                }, 1);
-            }
-            catch
-            {
-            }
+                }
+            }, 1);
         }
 
         private void DespawnSummonedMinions()
         {
-            if (sapi == null || entity == null) return;
+            if (Sapi == null || entity == null) return;
 
-            try
+            int dim = entity.Pos.Dimension;
+            var center = new Vec3d(entity.Pos.X, entity.Pos.Y + dim * 32768.0, entity.Pos.Z);
+
+            const float range = 64f;
+            var entities = Sapi.World.GetEntitiesAround(center, range, range, e => e != null && e.Alive);
+            if (entities == null) return;
+
+            long ownerId = entity.EntityId;
+            for (int i = 0; i < entities.Length; i++)
             {
-                int dim = entity.Pos.Dimension;
-                var center = new Vec3d(entity.Pos.X, entity.Pos.Y + dim * 32768.0, entity.Pos.Z);
+                var e = entities[i];
+                if (e == null) continue;
+                if (e.EntityId == ownerId) continue;
 
-                const float range = 64f;
-                var entities = sapi.World.GetEntitiesAround(center, range, range, e => e != null && e.Alive);
-                if (entities == null) return;
+                long summonedBy = e.WatchedAttributes.GetLong(SummonedByEntityIdKey, 0);
+                if (summonedBy != ownerId) continue;
 
-                long ownerId = entity.EntityId;
-                for (int i = 0; i < entities.Length; i++)
-                {
-                    var e = entities[i];
-                    if (e == null) continue;
-                    if (e.EntityId == ownerId) continue;
-
-                    try
-                    {
-                        long summonedBy = e.WatchedAttributes.GetLong(SummonedByEntityIdKey, 0);
-                        if (summonedBy != ownerId) continue;
-
-                        sapi.World.DespawnEntity(e, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
-                    }
-                    catch
-                    {
-                    }
-                }
-            }
-            catch
-            {
+                Sapi.World.DespawnEntity(e, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
             }
         }
 
-        private void TryPlayAnimation(string animation)
-        {
-            if (string.IsNullOrWhiteSpace(animation)) return;
-
-            try
-            {
-                entity?.AnimManager?.StartAnimation(animation);
-            }
-            catch
-            {
-            }
-        }
-
-        private void TryPlaySound(SummonStage stage)
+        private void TryPlaySound(Stage stage)
         {
             if (string.IsNullOrWhiteSpace(stage.sound)) return;
 
             AssetLocation soundLoc = AssetLocation.Create(stage.sound, "game").WithPathPrefixOnce("sounds/");
             if (soundLoc == null) return;
 
-            float pitchMul = 1f;
-            try
-            {
-                pitchMul = entity?.Properties?.Attributes?["vsquestSoundPitchMul"].AsFloat(1f) ?? 1f;
-            }
-            catch
-            {
-                pitchMul = 1f;
-            }
-
+            float pitchMul = entity?.Properties?.Attributes?["vsquestSoundPitchMul"].AsFloat(1f) ?? 1f;
             if (pitchMul <= 0f) pitchMul = 1f;
 
             float range = stage.soundRange > 0f ? stage.soundRange : 32f;
 
             if (stage.soundStartMs > 0)
             {
-                sapi.Event.RegisterCallback(_ =>
-                {
-                    try
-                    {
-                        float volume = stage.soundVolume;
-                        if (volume <= 0f) volume = 1f;
-
-                        float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                        pitch *= pitchMul;
-                        sapi.World.PlaySoundAt(soundLoc, entity.Pos.X, entity.Pos.Y, entity.Pos.Z, null, pitch, range, volume);
-                    }
-                    catch
-                    {
-                    }
-                }, stage.soundStartMs);
-            }
-            else
-            {
-                try
+                Sapi.Event.RegisterCallback(_ =>
                 {
                     float volume = stage.soundVolume;
                     if (volume <= 0f) volume = 1f;
 
-                    float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
+                    float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
                     pitch *= pitchMul;
-                    sapi.World.PlaySoundAt(soundLoc, entity.Pos.X, entity.Pos.Y, entity.Pos.Z, null, pitch, range, volume);
-                }
-                catch
-                {
-                }
+                    Sapi.World.PlaySoundAt(soundLoc, entity.Pos.X, entity.Pos.Y, entity.Pos.Z, null, pitch, range, volume);
+                }, stage.soundStartMs);
+            }
+            else
+            {
+                float volume = stage.soundVolume;
+                if (volume <= 0f) volume = 1f;
+
+                float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
+                pitch *= pitchMul;
+                Sapi.World.PlaySoundAt(soundLoc, entity.Pos.X, entity.Pos.Y, entity.Pos.Z, null, pitch, range, volume);
             }
         }
 
@@ -696,5 +523,12 @@ namespace VsQuest
             StopRitual();
             base.OnEntityDespawn(despawn);
         }
+
+        // Required abstract overrides for BossAbilityBase (event-driven mode)
+        protected override int GetStageCount() => stages.Count;
+        protected override object GetStage(int index) => index >= 0 && index < stages.Count ? stages[index] : null;
+        protected override float GetStageHealthThreshold(object stage) => stage is Stage s ? s.whenHealthRelBelow : 1f;
+        protected override float GetStageCooldown(object stage) => stage is Stage s ? s.cooldownSeconds : 0f;
+        protected override float GetMaxTargetRange(object stage) => 0f;
     }
 }

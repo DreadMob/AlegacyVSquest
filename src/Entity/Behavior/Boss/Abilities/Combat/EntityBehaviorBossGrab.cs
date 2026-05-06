@@ -2,29 +2,22 @@
 using System.Collections.Generic;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
-using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossGrab : EntityBehavior
+    public class EntityBehaviorBossGrab : BossAbilityBase
     {
-        private const string GrabStageKey = "alegacyvsquest:bossgrab:stage";
-        private const string LastGrabStartMsKey = "alegacyvsquest:bossgrab:lastStartMs";
         private const string VictimNoSneakUntilKey = "alegacyvsquest:bossgrab:nosneakuntil";
         private const string WalkSpeedStatCode = "alegacyvsquest:bossgrab";
         private const string WalkSpeedStatCodeLegacy = "alegacyvsquest";
 
-        private class GrabStage
+        protected override string CooldownKey => "alegacyvsquest:bossgrab:lastStartMs";
+
+        private class GrabStage : BossAbilityStage
         {
-            public float whenHealthRelBelow;
-            public float cooldownSeconds;
-
-            public float minTargetRange;
-            public float maxTargetRange;
-
             public int windupMs;
             public int grabMs;
             public float victimWalkSpeedMult;
@@ -41,16 +34,44 @@ namespace VsQuest
             public float soundRange;
             public int soundStartMs;
             public float soundVolume;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                windupMs = json["windupMs"].AsInt(150);
+                grabMs = json["grabMs"].AsInt(2500);
+                victimWalkSpeedMult = json["victimWalkSpeedMult"].AsFloat(0.08f);
+                damageIntervalMs = json["damageIntervalMs"].AsInt(500);
+                damage = json["damage"].AsFloat(2f);
+                damageTier = json["damageTier"].AsInt(3);
+                damageType = json["damageType"].AsString("PiercingAttack");
+                windupAnimation = json["windupAnimation"].AsString(null);
+                grabAnimation = json["grabAnimation"].AsString(null);
+                sound = json["sound"].AsString(null);
+                soundRange = json["soundRange"].AsFloat(24f);
+                soundStartMs = json["soundStartMs"].AsInt(0);
+                soundVolume = json["soundVolume"].AsFloat(1f);
+
+                // Validation
+                if (windupMs < 0) windupMs = 0;
+                if (grabMs <= 0) grabMs = 250;
+                if (victimWalkSpeedMult < 0f) victimWalkSpeedMult = 0f;
+                if (damageIntervalMs <= 0) damageIntervalMs = 250;
+                if (damage < 0f) damage = 0f;
+                if (damageTier < 0) damageTier = 0;
+                if (soundVolume <= 0f) soundVolume = 1f;
+            }
         }
 
-        private ICoreServerAPI sapi;
-        private readonly List<GrabStage> stages = new List<GrabStage>();
+        private List<GrabStage> stages = new List<GrabStage>();
 
-        private bool grabActive;
         private long grabEndsAtMs;
         private long grabStartedAtMs;
         private long grabStartCallbackId;
         private long grabTickListenerId;
+
+        private long grabEffectsStartAtMs;
+        private GrabStage activeStage;
 
         private int activeStageIndex = -1;
         private EntityPlayer targetPlayer;
@@ -63,170 +84,98 @@ namespace VsQuest
 
         public override string PropertyName() => "bossgrab";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-
-            stages.Clear();
-            try
-            {
-                foreach (var stageObj in attributes["stages"].AsArray())
-                {
-                    if (stageObj == null || !stageObj.Exists) continue;
-
-                    var stage = new GrabStage
-                    {
-                        whenHealthRelBelow = stageObj["whenHealthRelBelow"].AsFloat(1f),
-                        cooldownSeconds = stageObj["cooldownSeconds"].AsFloat(0f),
-
-                        minTargetRange = stageObj["minTargetRange"].AsFloat(0f),
-                        maxTargetRange = stageObj["maxTargetRange"].AsFloat(3.0f),
-
-                        windupMs = stageObj["windupMs"].AsInt(150),
-                        grabMs = stageObj["grabMs"].AsInt(2500),
-                        victimWalkSpeedMult = stageObj["victimWalkSpeedMult"].AsFloat(0.08f),
-
-                        damageIntervalMs = stageObj["damageIntervalMs"].AsInt(500),
-                        damage = stageObj["damage"].AsFloat(2f),
-                        damageTier = stageObj["damageTier"].AsInt(3),
-                        damageType = stageObj["damageType"].AsString("PiercingAttack"),
-
-                        windupAnimation = stageObj["windupAnimation"].AsString(null),
-                        grabAnimation = stageObj["grabAnimation"].AsString(null),
-
-                        sound = stageObj["sound"].AsString(null),
-                        soundRange = stageObj["soundRange"].AsFloat(24f),
-                        soundStartMs = stageObj["soundStartMs"].AsInt(0),
-                        soundVolume = stageObj["soundVolume"].AsFloat(1f),
-                    };
-
-                    if (stage.cooldownSeconds < 0f) stage.cooldownSeconds = 0f;
-                    if (stage.minTargetRange < 0f) stage.minTargetRange = 0f;
-                    if (stage.maxTargetRange < stage.minTargetRange) stage.maxTargetRange = stage.minTargetRange;
-                    if (stage.windupMs < 0) stage.windupMs = 0;
-                    if (stage.grabMs <= 0) stage.grabMs = 250;
-                    if (stage.victimWalkSpeedMult < 0f) stage.victimWalkSpeedMult = 0f;
-                    if (stage.damageIntervalMs <= 0) stage.damageIntervalMs = 250;
-                    if (stage.damage < 0f) stage.damage = 0f;
-                    if (stage.damageTier < 0) stage.damageTier = 0;
-
-                    if (stage.soundVolume <= 0f) stage.soundVolume = 1f;
-
-                    stages.Add(stage);
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in parsing stages: {ex}");
-            }
+            stages = ParseStages<GrabStage>(attributes);
         }
 
-        public override void OnGameTick(float dt)
+        protected override int GetStageCount() => stages.Count;
+
+        protected override object GetStage(int index) => stages[index];
+
+        protected override float GetStageHealthThreshold(object stage) => ((GrabStage)stage).whenHealthRelBelow;
+
+        protected override float GetStageCooldown(object stage) => ((GrabStage)stage).cooldownSeconds;
+
+        protected override float GetMaxTargetRange(object stage) => ((GrabStage)stage).maxTargetRange;
+
+        protected override bool ShouldCheckAbility() => !IsAbilityActive;
+
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
-            base.OnGameTick(dt);
-            if (sapi == null || entity == null) return;
-            if (stages.Count == 0) return;
-
-            if (!entity.Alive)
-            {
-                StopGrab();
-                return;
-            }
-
-            if (grabActive) return;
-
-            if (!BossBehaviorUtils.TryGetHealthFraction(entity, out float frac)) return;
-
-            int stageIndex = -1;
-            for (int i = 0; i < stages.Count; i++)
-            {
-                var stage = stages[i];
-                if (frac <= stage.whenHealthRelBelow)
-                {
-                    stageIndex = i;
-                }
-            }
-
-            if (stageIndex < 0 || stageIndex >= stages.Count) return;
-
-            var activeStage = stages[stageIndex];
-            if (!BossBehaviorUtils.IsCooldownReady(sapi, entity, LastGrabStartMsKey, activeStage.cooldownSeconds)) return;
-
-            if (!TryFindTarget(activeStage, out var targetEntity, out float targetDist)) return;
-            if (targetDist < activeStage.minTargetRange) return;
-            if (targetDist > activeStage.maxTargetRange) return;
-
-            StartGrab(activeStage, stageIndex, targetEntity);
+            if (target == null || stageObj is not GrabStage stage) return;
+            StartGrab(stage, stageIndex, target);
         }
 
-        public override void OnEntityDeath(DamageSource damageSourceForDeath)
+        protected override void StopAbility() => StopGrab();
+
+        protected override bool OnAbilityTick(float dt)
         {
-            StopGrab();
-            base.OnEntityDeath(damageSourceForDeath);
-        }
+            if (!IsAbilityActive) return false;
+            if (Sapi == null || entity == null) return false;
 
-        public override void OnEntityDespawn(EntityDespawnData despawn)
-        {
-            StopGrab();
-            base.OnEntityDespawn(despawn);
-        }
+            long now = Sapi.World.ElapsedMilliseconds;
 
-        private bool TryFindTarget(GrabStage stage, out EntityPlayer target, out float dist)
-        {
-            target = null;
-            dist = 0f;
-
-            if (sapi == null || entity == null) return false;
-            if (entity.Pos == null) return false;
-
-            double range = Math.Max(1.5, stage.maxTargetRange > 0 ? stage.maxTargetRange : 3f);
-            try
+            if (now < grabEffectsStartAtMs)
             {
-                var own = entity.Pos.XYZ;
-                float frange = (float)range;
-                var found = sapi.World.GetNearestEntity(own, frange, frange, e => e is EntityPlayer) as EntityPlayer;
-                if (found == null || !found.Alive) return false;
-
-                if (found.Pos.Dimension != entity.Pos.Dimension) return false;
-
-                target = found;
-                dist = (float)found.Pos.DistanceTo(entity.Pos);
                 return true;
             }
-            catch (Exception ex)
+
+            if (now >= grabEndsAtMs)
             {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TryFindTarget: {ex}");
                 return false;
             }
+
+            if (!entity.Alive) return false;
+            if (targetPlayer == null || !targetPlayer.Alive) return false;
+            if (targetPlayer.Pos.Dimension != entity.Pos.Dimension) return false;
+            if (activeStage == null) return false;
+
+            float dist = (float)targetPlayer.Pos.DistanceTo(entity.Pos);
+            if (dist > activeStage.maxTargetRange + 2f)
+            {
+                return false;
+            }
+
+            ApplyVictimMoveSlow(activeStage);
+
+            if (now >= nextDamageAtMs)
+            {
+                DealGrabDamage(activeStage);
+                nextDamageAtMs = now + Math.Max(250, activeStage.damageIntervalMs);
+            }
+
+            return true;
         }
 
-        private void StartGrab(GrabStage stage, int stageIndex, EntityPlayer target)
+        private void StartGrab(GrabStage stage, int index, EntityPlayer target)
         {
-            if (sapi == null || entity == null || stage == null || target == null) return;
+            if (Sapi == null || entity == null || stage == null || target == null) return;
 
-            BossBehaviorUtils.MarkCooldownStart(sapi, entity, LastGrabStartMsKey);
+            MarkCooldownStart();
+            SetAbilityActive(true);
 
-            grabActive = true;
-            activeStageIndex = stageIndex;
-            grabStartedAtMs = sapi.World.ElapsedMilliseconds;
+            activeStageIndex = index;
+            activeStage = stage;
+            grabStartedAtMs = Sapi.World.ElapsedMilliseconds;
             targetPlayer = target;
 
-            BossBehaviorUtils.UnregisterCallbackSafe(sapi, ref grabStartCallbackId);
-            BossBehaviorUtils.UnregisterGameTickListenerSafe(sapi, ref grabTickListenerId);
+            UnregisterCallbackSafe(ref grabStartCallbackId);
+            UnregisterGameTickListenerSafe(ref grabTickListenerId);
 
             BossBehaviorUtils.StopAiAndFreeze(entity);
 
-            TryPlaySound(stage);
+            TryPlaySound(stage.sound, stage.soundRange, stage.soundStartMs, stage.soundVolume);
             TryPlayAnimation(stage.windupAnimation);
 
             int windup = Math.Max(0, stage.windupMs);
             int grabMs = Math.Max(100, stage.grabMs);
             grabEndsAtMs = grabStartedAtMs + windup + grabMs;
+            grabEffectsStartAtMs = grabStartedAtMs + windup;
 
             if (windup > 0)
             {
-                grabStartCallbackId = sapi.Event.RegisterCallback(_ =>
+                grabStartCallbackId = Sapi.Event.RegisterCallback(_ =>
                 {
                     BeginGrab(stage);
                 }, windup);
@@ -239,109 +188,32 @@ namespace VsQuest
 
         private void BeginGrab(GrabStage stage)
         {
-            if (sapi == null || entity == null || stage == null) return;
+            if (Sapi == null || entity == null || stage == null) return;
 
             TryPlayAnimation(stage.grabAnimation);
 
             ApplyVictimMoveSlow(stage);
 
-            try
+            if (targetPlayer?.WatchedAttributes != null)
             {
-                if (targetPlayer?.WatchedAttributes != null)
-                {
-                    targetPlayer.WatchedAttributes.SetLong(VictimNoSneakUntilKey, grabEndsAtMs);
-                    targetPlayer.WatchedAttributes.MarkPathDirty(VictimNoSneakUntilKey);
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in BeginGrab VictimNoSneakUntil: {ex}");
+                targetPlayer.WatchedAttributes.SetLong(VictimNoSneakUntilKey, grabEndsAtMs);
+                targetPlayer.WatchedAttributes.MarkPathDirty(VictimNoSneakUntilKey);
             }
 
-            nextDamageAtMs = sapi.World.ElapsedMilliseconds;
-
-            grabTickListenerId = sapi.Event.RegisterGameTickListener(_ =>
-            {
-                try
-                {
-                    if (!grabActive)
-                    {
-                        StopGrab();
-                        return;
-                    }
-
-                    long now = sapi.World.ElapsedMilliseconds;
-                    if (now >= grabEndsAtMs)
-                    {
-                        StopGrab();
-                        return;
-                    }
-
-                    if (entity == null || !entity.Alive)
-                    {
-                        StopGrab();
-                        return;
-                    }
-
-                    if (targetPlayer == null || !targetPlayer.Alive)
-                    {
-                        StopGrab();
-                        return;
-                    }
-
-                    if (targetPlayer.Pos.Dimension != entity.Pos.Dimension)
-                    {
-                        StopGrab();
-                        return;
-                    }
-
-                    var stageNow = (activeStageIndex >= 0 && activeStageIndex < stages.Count) ? stages[activeStageIndex] : null;
-                    if (stageNow != null)
-                    {
-                        float dist = (float)targetPlayer.Pos.DistanceTo(entity.Pos);
-                        if (dist > stageNow.maxTargetRange + 2f)
-                        {
-                            StopGrab();
-                            return;
-                        }
-
-                        ApplyVictimMoveSlow(stageNow);
-
-                        if (now >= nextDamageAtMs)
-                        {
-                            DealGrabDamage(stageNow);
-                            nextDamageAtMs = now + Math.Max(250, stageNow.damageIntervalMs);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in grab tick: {ex}");
-                }
-            }, 50);
+            nextDamageAtMs = Sapi.World.ElapsedMilliseconds;
         }
 
         private void ApplyVictimMoveSlow(GrabStage stage)
         {
-            if (stage == null) return;
-            if (targetPlayer == null) return;
+            if (stage == null || targetPlayer?.Stats == null) return;
 
-            try
-            {
-                if (targetPlayer.Stats == null) return;
+            float mult = GameMath.Clamp(stage.victimWalkSpeedMult, 0f, 1f);
+            float modifier = mult - 1f;
 
-                float mult = GameMath.Clamp(stage.victimWalkSpeedMult, 0f, 1f);
-                float modifier = mult - 1f;
+            targetPlayer.Stats.Remove("walkspeed", WalkSpeedStatCodeLegacy);
+            targetPlayer.Stats.Set("walkspeed", WalkSpeedStatCode, modifier, true);
 
-                targetPlayer.Stats.Remove("walkspeed", WalkSpeedStatCodeLegacy);
-                targetPlayer.Stats.Set("walkspeed", WalkSpeedStatCode, modifier, true);
-
-                targetPlayer.walkSpeed = targetPlayer.Stats.GetBlended("walkspeed");
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in ApplyVictimMoveSlow: {ex}");
-            }
+            targetPlayer.walkSpeed = targetPlayer.Stats.GetBlended("walkspeed");
         }
 
         private void DealGrabDamage(GrabStage stage)
@@ -351,84 +223,59 @@ namespace VsQuest
             if (entity == null) return;
 
             EnumDamageType dmgType = EnumDamageType.PiercingAttack;
-            try
+            if (!string.IsNullOrWhiteSpace(stage.damageType) && Enum.TryParse(stage.damageType, ignoreCase: true, out EnumDamageType parsed))
             {
-                if (!string.IsNullOrWhiteSpace(stage.damageType) && Enum.TryParse(stage.damageType, ignoreCase: true, out EnumDamageType parsed))
-                {
-                    dmgType = parsed;
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in DealGrabDamage EnumParse: {ex}");
+                dmgType = parsed;
             }
 
-            try
+            targetPlayer.ReceiveDamage(new DamageSource()
             {
-                targetPlayer.ReceiveDamage(new DamageSource()
-                {
-                    Source = EnumDamageSource.Entity,
-                    SourceEntity = entity,
-                    Type = dmgType,
-                    DamageTier = stage.damageTier,
-                    KnockbackStrength = 0f
-                }, stage.damage);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in DealGrabDamage ReceiveDamage: {ex}");
-            }
+                Source = EnumDamageSource.Entity,
+                SourceEntity = entity,
+                Type = dmgType,
+                DamageTier = stage.damageTier,
+                KnockbackStrength = 0f
+            }, stage.damage);
         }
 
         private void StopGrab()
         {
-            BossBehaviorUtils.UnregisterCallbackSafe(sapi, ref grabStartCallbackId);
-            BossBehaviorUtils.UnregisterGameTickListenerSafe(sapi, ref grabTickListenerId);
+            UnregisterCallbackSafe(ref grabStartCallbackId);
+            UnregisterGameTickListenerSafe(ref grabTickListenerId);
 
-            if (!grabActive && activeStageIndex < 0) return;
+            if (!IsAbilityActive && activeStageIndex < 0) return;
 
-            grabActive = false;
+            SetAbilityActive(false);
 
             RestoreVictimMoveSpeed();
 
-            try
+            if (targetPlayer?.WatchedAttributes != null)
             {
-                if (targetPlayer?.WatchedAttributes != null)
-                {
-                    targetPlayer.WatchedAttributes.SetLong(VictimNoSneakUntilKey, 0);
-                    targetPlayer.WatchedAttributes.MarkPathDirty(VictimNoSneakUntilKey);
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in StopGrab VictimNoSneakUntil: {ex}");
+                targetPlayer.WatchedAttributes.SetLong(VictimNoSneakUntilKey, 0);
+                targetPlayer.WatchedAttributes.MarkPathDirty(VictimNoSneakUntilKey);
             }
 
             targetPlayer = null;
 
+            activeStage = null;
+
             grabStartedAtMs = 0;
             grabEndsAtMs = 0;
+            grabEffectsStartAtMs = 0;
             nextDamageAtMs = 0;
 
             if (activeStageIndex >= 0 && activeStageIndex < stages.Count)
             {
-                try
+                var stage = stages[activeStageIndex];
+
+                if (!string.IsNullOrWhiteSpace(stage.windupAnimation))
                 {
-                    var stage = stages[activeStageIndex];
-
-                    if (!string.IsNullOrWhiteSpace(stage.windupAnimation))
-                    {
-                        entity?.AnimManager?.StopAnimation(stage.windupAnimation);
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(stage.grabAnimation))
-                    {
-                        entity?.AnimManager?.StopAnimation(stage.grabAnimation);
-                    }
+                    entity?.AnimManager?.StopAnimation(stage.windupAnimation);
                 }
-                catch (Exception ex)
+
+                if (!string.IsNullOrWhiteSpace(stage.grabAnimation))
                 {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in StopGrab Animations: {ex}");
+                    entity?.AnimManager?.StopAnimation(stage.grabAnimation);
                 }
             }
 
@@ -437,113 +284,12 @@ namespace VsQuest
 
         private void RestoreVictimMoveSpeed()
         {
-            if (targetPlayer == null) return;
+            if (targetPlayer?.Stats == null) return;
 
-            try
-            {
-                if (targetPlayer.Stats == null) return;
-
-                targetPlayer.Stats.Remove("walkspeed", WalkSpeedStatCode);
-                targetPlayer.Stats.Remove("walkspeed", WalkSpeedStatCodeLegacy);
-                BossBehaviorUtils.UpdatePlayerWalkSpeed(targetPlayer);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in RestoreVictimMoveSpeed: {ex}");
-            }
+            targetPlayer.Stats.Remove("walkspeed", WalkSpeedStatCode);
+            targetPlayer.Stats.Remove("walkspeed", WalkSpeedStatCodeLegacy);
+            BossBehaviorUtils.UpdatePlayerWalkSpeed(targetPlayer);
         }
 
-        private void TryPlayAnimation(string animation)
-        {
-            if (string.IsNullOrWhiteSpace(animation)) return;
-
-            try
-            {
-                entity?.AnimManager?.StartAnimation(animation);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlayAnimation: {ex}");
-            }
-        }
-
-        private void TryPlaySound(GrabStage stage)
-        {
-            if (sapi == null || stage == null) return;
-            if (string.IsNullOrWhiteSpace(stage.sound)) return;
-
-            AssetLocation soundLoc = AssetLocation.Create(stage.sound, "game").WithPathPrefixOnce("sounds/");
-            if (soundLoc == null) return;
-
-            float volume = stage.soundVolume;
-            try
-            {
-                Dictionary<string, float> volumeBySound = null;
-                try
-                {
-                    volumeBySound = entity?.Properties?.Attributes?["SoundVolumeMulBySound"]?.AsObject<Dictionary<string, float>>();
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlaySound Attributes: {ex}");
-                }
-
-                if (volumeBySound != null && volumeBySound.Count > 0)
-                {
-                    string fullKey = soundLoc.ToString();
-                    string pathKey = soundLoc.Path;
-
-                    foreach (var entry in volumeBySound)
-                    {
-                        if (string.IsNullOrWhiteSpace(entry.Key)) continue;
-
-                        if (string.Equals(entry.Key, fullKey, StringComparison.OrdinalIgnoreCase)
-                            || string.Equals(entry.Key, pathKey, StringComparison.OrdinalIgnoreCase)
-                            || string.Equals(entry.Key, stage.sound, StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (entry.Value > 0f)
-                            {
-                                volume *= entry.Value;
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlaySound volume adjustment: {ex}");
-            }
-
-            float range = stage.soundRange > 0f ? stage.soundRange : 32f;
-
-            if (stage.soundStartMs > 0)
-            {
-                sapi.Event.RegisterCallback(_ =>
-                {
-                    try
-                    {
-                        float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                        sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, volume);
-                    }
-                    catch (Exception ex)
-                    {
-                        entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlaySound callback: {ex}");
-                    }
-                }, stage.soundStartMs);
-            }
-            else
-            {
-                try
-                {
-                    float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                    sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, volume);
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlaySound immediate: {ex}");
-                }
-            }
-        }
     }
 }

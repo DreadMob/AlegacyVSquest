@@ -8,19 +8,33 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossPushback : EntityBehavior
+    public class EntityBehaviorBossPushback : BossAbilityBase
     {
         private const string LastPushKey = "alegacyvsquest:bosspushback:lastPushMs";
         private const string PlayerCooldownKey = "alegacyvsquest:bosspushback:playerCooldown:";
 
-        private ICoreServerAPI sapi;
-        private float triggerRange;
-        private float knockbackStrength;
-        private int cooldownMs;
-        private int playerCooldownMs;
-        private int detectionRange;
+        protected override string CooldownKey => LastPushKey;
 
-        private long lastTickMs;
+        private class Stage : BossAbilityStage
+        {
+            public float force;
+            public float playerCooldownSeconds;
+            public string sound;
+            public float soundRange;
+            public string animation;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                force = json["force"].AsFloat(0.5f);
+                playerCooldownSeconds = json["playerCooldownSeconds"].AsFloat(1.5f);
+                sound = json["sound"].AsString(null);
+                soundRange = json["soundRange"].AsFloat(16f);
+                animation = json["animation"].AsString(null);
+            }
+        }
+
+        private List<Stage> stages = new List<Stage>();
 
         public EntityBehaviorBossPushback(Entity entity) : base(entity)
         {
@@ -28,47 +42,54 @@ namespace VsQuest
 
         public override string PropertyName() => "bosspushback";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-            triggerRange = attributes["range"].AsFloat(4f);
-            knockbackStrength = attributes["knockback"].AsFloat(0.45f);
-            cooldownMs = attributes["cooldownSeconds"].AsInt(6) * 1000;
-            playerCooldownMs = attributes["playerCooldownSeconds"].AsInt(8) * 1000;
-            detectionRange = attributes["detectionRange"].AsInt(60);
-
-            lastTickMs = sapi?.World.ElapsedMilliseconds ?? 0;
+            stages = ParseStages<Stage>(attributes);
         }
 
-        public override void OnGameTick(float dt)
+        protected override int GetStageCount() => stages.Count;
+
+        protected override object GetStage(int index) => stages[index];
+
+        protected override float GetStageHealthThreshold(object stage) => ((Stage)stage).whenHealthRelBelow;
+
+        protected override float GetStageCooldown(object stage) => ((Stage)stage).cooldownSeconds;
+
+        protected override float GetMaxTargetRange(object stage) => ((Stage)stage).maxTargetRange;
+
+        protected override bool ShouldCheckAbility() => true;
+
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
-            base.OnGameTick(dt);
+            if (stageObj is not Stage stage) return;
+            PushPlayers(stage);
+        }
 
-            if (sapi == null || !entity.Alive) return;
+        protected override void StopAbility()
+        {
+        }
 
-            long now = sapi.World.ElapsedMilliseconds;
-            if (now - lastTickMs < 1000) return; // Check every second
-            lastTickMs = now;
+        private void PushPlayers(Stage stage)
+        {
+            if (Sapi == null || !entity.Alive || stage == null) return;
 
-            // Check if cooldown expired
-            long lastPush = entity.WatchedAttributes.GetLong(LastPushKey, 0);
-            if (now - lastPush < cooldownMs) return;
+            long now = Sapi.World.ElapsedMilliseconds;
+            MarkCooldownStart();
 
             // Find nearby players
             List<EntityPlayer> nearbyPlayers = new List<EntityPlayer>();
-            foreach (var player in sapi.World.AllOnlinePlayers)
+            foreach (var player in Sapi.World.AllOnlinePlayers)
             {
                 if (player.Entity?.Pos == null) continue;
                 if (player.Entity.Pos.Dimension != entity.Pos.Dimension) continue;
 
                 double dist = player.Entity.Pos.DistanceTo(entity.Pos);
-                if (dist <= triggerRange)
+                if (dist <= stage.maxTargetRange)
                 {
                     // Check player-specific cooldown
                     string playerKey = PlayerCooldownKey + player.Entity.EntityId;
                     long playerLastPush = entity.WatchedAttributes.GetLong(playerKey, 0);
-                    if (now - playerLastPush >= playerCooldownMs)
+                    if (now - playerLastPush >= stage.playerCooldownSeconds * 1000)
                     {
                         nearbyPlayers.Add(player.Entity);
                     }
@@ -77,8 +98,8 @@ namespace VsQuest
 
             if (nearbyPlayers.Count == 0) return;
 
-            // Perform pushback
-            entity.WatchedAttributes.SetLong(LastPushKey, now);
+            TryPlaySound(stage.sound, stage.soundRange, 0, 1.0f);
+            TryPlayAnimation(stage.animation);
 
             foreach (var player in nearbyPlayers)
             {
@@ -90,14 +111,14 @@ namespace VsQuest
                 Vec3d dir = player.Pos.XYZ - entity.Pos.XYZ;
                 dir.Normalize();
                 dir.Y = 0.3; // Slightly up
-                dir.Mul(knockbackStrength);
+                dir.Mul(stage.force);
 
                 // Apply knockback
                 player.Pos.Motion.Add(dir);
 
                 // Visual effect
                 var playerPos = player.Pos.XYZ;
-                sapi.World.SpawnParticles(
+                Sapi.World.SpawnParticles(
                     new SimpleParticleProperties(
                         5, 10,
                         ColorUtil.ToRgba(200, 255, 200, 100),

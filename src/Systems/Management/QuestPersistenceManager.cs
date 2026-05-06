@@ -53,7 +53,7 @@ namespace VsQuest
                 {
                     if (playerQuests.TryGetValue(playerUID, out var quests))
                     {
-                        sapi.WorldManager.SaveGame.StoreData<List<ActiveQuest>>(String.Format("quests-{0}", playerUID), quests);
+                        sapi.WorldManager.SaveGame.StoreData<List<ActiveQuest>>($"quests-{playerUID}", quests);
                     }
                 }
                 catch (Exception e)
@@ -75,7 +75,7 @@ namespace VsQuest
 
         public void SavePlayerQuests(string playerUID, List<ActiveQuest> activeQuests)
         {
-            sapi.WorldManager.SaveGame.StoreData<List<ActiveQuest>>(String.Format("quests-{0}", playerUID), activeQuests);
+            sapi.WorldManager.SaveGame.StoreData<List<ActiveQuest>>($"quests-{playerUID}", activeQuests);
         }
 
         public void MarkDirty(string playerUID)
@@ -91,7 +91,7 @@ namespace VsQuest
         {
             try
             {
-                return sapi.WorldManager.SaveGame.GetData<List<ActiveQuest>>(String.Format("quests-{0}", playerUID), new List<ActiveQuest>());
+                return sapi.WorldManager.SaveGame.GetData<List<ActiveQuest>>($"quests-{playerUID}", new List<ActiveQuest>());
             }
             catch (ProtoException)
             {

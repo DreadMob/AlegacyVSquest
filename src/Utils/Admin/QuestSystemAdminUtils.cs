@@ -11,12 +11,22 @@ namespace VsQuest
 {
     public static class QuestSystemAdminUtils
     {
+        // Cached reflection fields for ModJournal (avoids repeated GetField calls)
+        private static readonly FieldInfo ModJournalJournalsField = typeof(ModJournal).GetField("journalsByPlayerUid", BindingFlags.Instance | BindingFlags.NonPublic);
+        private static readonly FieldInfo ModJournalChannelField = typeof(ModJournal).GetField("serverChannel", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        // Cached reflection fields for EntityBehaviorQuestDropOnDeath
+        private static readonly FieldInfo DropOnDeathDropsField = typeof(EntityBehaviorQuestDropOnDeath).GetField("drops", BindingFlags.NonPublic | BindingFlags.Instance);
+        private static FieldInfo _dropCodeField;
+        private static FieldInfo _dropQuestField;
+        private static FieldInfo _dropVarKeyField;
+
         public static void ClearQuestCooldownForPlayer(IServerPlayer player, string questId)
         {
             if (player?.Entity?.WatchedAttributes == null) return;
             if (string.IsNullOrWhiteSpace(questId)) return;
 
-            string cooldownKey = string.Format("alegacyvsquest:lastaccepted-{0}", questId);
+            string cooldownKey = $"alegacyvsquest:lastaccepted-{questId}";
             player.Entity.WatchedAttributes.SetDouble(cooldownKey, -9999999);
             player.Entity.WatchedAttributes.MarkPathDirty(cooldownKey);
         }
@@ -241,28 +251,10 @@ namespace VsQuest
                 var modJournal = sapi.ModLoader.GetModSystem<ModJournal>();
                 if (modJournal == null) return;
 
-                var t = modJournal.GetType();
-                var journalsField = t.GetField("journalsByPlayerUid", BindingFlags.Instance | BindingFlags.NonPublic);
-                var channelField = t.GetField("serverChannel", BindingFlags.Instance | BindingFlags.NonPublic);
+                // Use cached reflection fields (faster than GetField every call)
+                Dictionary<string, Journal> journals = ModJournalJournalsField?.GetValue(modJournal) as Dictionary<string, Journal>;
+                IServerNetworkChannel serverChannel = ModJournalChannelField?.GetValue(modJournal) as IServerNetworkChannel;
 
-                Dictionary<string, Journal> journals = journalsField?.GetValue(modJournal) as Dictionary<string, Journal>;
-                IServerNetworkChannel serverChannel = channelField?.GetValue(modJournal) as IServerNetworkChannel;
-
-                if (journals == null || serverChannel == null)
-                {
-                    var fields = t.GetFields(BindingFlags.Instance | BindingFlags.NonPublic);
-                    if (journals == null)
-                    {
-                        var jf = fields.FirstOrDefault(f => typeof(Dictionary<string, Journal>).IsAssignableFrom(f.FieldType));
-                        journals = jf?.GetValue(modJournal) as Dictionary<string, Journal>;
-                    }
-
-                    if (serverChannel == null)
-                    {
-                        var cf = fields.FirstOrDefault(f => typeof(IServerNetworkChannel).IsAssignableFrom(f.FieldType));
-                        serverChannel = cf?.GetValue(modJournal) as IServerNetworkChannel;
-                    }
-                }
                 if (journals == null || serverChannel == null) return;
 
                 if (!journals.TryGetValue(player.PlayerUID, out var journal) || journal?.Entries == null) return;
@@ -321,11 +313,7 @@ namespace VsQuest
             if (player?.Entity?.WatchedAttributes == null) return;
             if (string.IsNullOrWhiteSpace(questId)) return;
 
-            string cooldownKey = string.Format("alegacyvsquest:lastaccepted-{0}", questId);
-            // Do NOT remove cooldownKey here.
-            // If it is missing (NaN), EntityBehaviorQuestGiver will migrate legacy cooldown data
-            // from the questgiver entity back onto the player the next time quests are opened.
-            // Setting it to a very old value avoids that migration and makes cooldown expire.
+            string cooldownKey = $"alegacyvsquest:lastaccepted-{questId}";
             player.Entity.WatchedAttributes.SetDouble(cooldownKey, -9999999);
             player.Entity.WatchedAttributes.MarkPathDirty(cooldownKey);
 
@@ -564,25 +552,23 @@ namespace VsQuest
                             var dropBehavior = entity.GetBehavior<EntityBehaviorQuestDropOnDeath>();
                             if (dropBehavior == null) continue;
 
-                            // Get drops from the behavior using reflection since they're private
-                            var dropsField = typeof(EntityBehaviorQuestDropOnDeath).GetField("drops", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                            if (dropsField == null) continue;
-
-                            var drops = dropsField.GetValue(dropBehavior) as Array;
+                            // Get drops from the behavior using cached reflection field
+                            var drops = DropOnDeathDropsField?.GetValue(dropBehavior) as Array;
                             if (drops == null) continue;
 
                             foreach (var drop in drops)
                             {
                                 if (drop == null) continue;
 
-                                // Get drop properties using reflection
-                                var codeProp = drop.GetType().GetField("code");
-                                var questProp = drop.GetType().GetField("onlyIfQuestActive");
-                                var varKeyProp = drop.GetType().GetField("variableKey");
+                                // Cache drop type fields on first use (drop type is private nested class)
+                                var dropType = drop.GetType();
+                                if (_dropCodeField == null) _dropCodeField = dropType.GetField("code");
+                                if (_dropQuestField == null) _dropQuestField = dropType.GetField("onlyIfQuestActive");
+                                if (_dropVarKeyField == null) _dropVarKeyField = dropType.GetField("variableKey");
 
-                                string dropCode = codeProp?.GetValue(drop) as string;
-                                string dropQuest = questProp?.GetValue(drop) as string;
-                                string varKey = varKeyProp?.GetValue(drop) as string;
+                                string dropCode = _dropCodeField?.GetValue(drop) as string;
+                                string dropQuest = _dropQuestField?.GetValue(drop) as string;
+                                string varKey = _dropVarKeyField?.GetValue(drop) as string;
 
                                 // Only process drops for this quest
                                 if (dropQuest != questId) continue;

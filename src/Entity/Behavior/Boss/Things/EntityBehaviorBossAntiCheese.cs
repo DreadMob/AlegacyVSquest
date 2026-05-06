@@ -9,7 +9,7 @@ using Vintagestory.API.Util;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossAntiCheese : EntityBehavior, IWorldIntersectionSupplier
+    public class EntityBehaviorBossAntiCheese : EntityBehaviorBossBase, IWorldIntersectionSupplier
     {
         private const string LastStartMsKey = "alegacyvsquest:bossanticheese:lastStartMs";
 
@@ -43,7 +43,6 @@ namespace VsQuest
         }
 
         private readonly List<Stage> stages = new List<Stage>();
-        private ICoreServerAPI sapi;
 
         private long lastCheckMs;
         private float farSecondsAcc;
@@ -72,7 +71,6 @@ namespace VsQuest
         public override void Initialize(EntityProperties properties, JsonObject attributes)
         {
             base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
 
             stages.Clear();
             try
@@ -138,7 +136,7 @@ namespace VsQuest
         {
             base.OnGameTick(dt);
 
-            if (sapi == null || entity == null) return;
+            if (Sapi == null || entity == null) return;
             if (entity.Api?.Side != EnumAppSide.Server) return;
             if (stages.Count == 0) return;
 
@@ -151,7 +149,7 @@ namespace VsQuest
 
             if (pending) return;
 
-            if (!BossBehaviorUtils.TryGetHealthFraction(entity, out float frac)) return;
+            if (!TryGetHealthFraction(out float frac)) return;
 
             int stageIndex = -1;
             for (int i = 0; i < stages.Count; i++)
@@ -165,7 +163,7 @@ namespace VsQuest
             if (stageIndex < 0 || stageIndex >= stages.Count) return;
             var stage = stages[stageIndex];
 
-            long now = sapi.World.ElapsedMilliseconds;
+            long now = Sapi.World.ElapsedMilliseconds;
             if (lastCheckMs != 0 && now - lastCheckMs < stage.checkIntervalMs) return;
             lastCheckMs = now;
 
@@ -223,7 +221,7 @@ namespace VsQuest
 
             if (!farTrigger && !noLosTrigger) return;
 
-            if (!BossBehaviorUtils.IsCooldownReady(sapi, entity, LastStartMsKey, stage.cooldownSeconds)) return;
+            if (!BossBehaviorUtils.IsCooldownReady(Sapi, entity, LastStartMsKey, stage.cooldownSeconds)) return;
 
             if (!TryFindTeleportPos(stage, target.Pos.XYZ, entity.Pos.Dimension, out var tpPos))
             {
@@ -259,13 +257,8 @@ namespace VsQuest
 
         private void CancelPending()
         {
-            if (sapi != null)
-            {
-                BossBehaviorUtils.UnregisterCallbackSafe(sapi, ref callbackId);
-            }
-
+            UnregisterCallbackSafe(ref callbackId);
             pending = false;
-            callbackId = 0;
         }
 
         private bool TryFindTarget(Stage stage, out EntityPlayer target, out float dist)
@@ -273,14 +266,14 @@ namespace VsQuest
             target = null;
             dist = 0f;
 
-            if (sapi == null || entity == null || stage == null) return false;
+            if (Sapi == null || entity == null || stage == null) return false;
 
             double range = Math.Max(1.0, stage.searchRange);
             try
             {
                 var own = entity.Pos.XYZ;
                 float frange = (float)range;
-                var found = sapi.World.GetNearestEntity(own, frange, frange, e => e is EntityPlayer) as EntityPlayer;
+                var found = Sapi.World.GetNearestEntity(own, frange, frange, e => e is EntityPlayer) as EntityPlayer;
                 if (found == null || !found.Alive) return false;
                 if (found.Pos.Dimension != entity.Pos.Dimension) return false;
 
@@ -329,20 +322,20 @@ namespace VsQuest
 
         private void StartTeleport(Stage stage, Vec3d pos)
         {
-            if (sapi == null || entity == null || stage == null || pos == null) return;
+            if (Sapi == null || entity == null || stage == null || pos == null) return;
 
-            BossBehaviorUtils.MarkCooldownStart(sapi, entity, LastStartMsKey);
+            BossBehaviorUtils.MarkCooldownStart(Sapi, entity, LastStartMsKey);
 
             pending = true;
 
-            BossBehaviorUtils.StopAiAndFreeze(entity);
+            entity.StopAiAndFreeze();
 
-            TryPlaySound(stage);
+            TryPlaySound(stage.sound, stage.soundRange, stage.soundStartMs, stage.soundVolume);
             TryPlayAnimation(stage.windupAnimation);
 
             int delay = Math.Max(0, stage.windupMs);
-            BossBehaviorUtils.UnregisterCallbackSafe(sapi, ref callbackId);
-            callbackId = sapi.Event.RegisterCallback(_ =>
+            UnregisterCallbackSafe(ref callbackId);
+            callbackId = Sapi.Event.RegisterCallback(_ =>
             {
                 try
                 {
@@ -386,13 +379,13 @@ namespace VsQuest
         private bool TryFindTeleportPos(Stage stage, Vec3d center, int dim, out Vec3d pos)
         {
             pos = null;
-            if (sapi == null || entity == null || stage == null || center == null) return false;
+            if (Sapi == null || entity == null || stage == null || center == null) return false;
 
             double minR = Math.Max(0.0, stage.minRadius);
             double maxR = Math.Max(minR, stage.maxRadius);
             if (maxR <= 0.01) maxR = 0.01;
 
-            var world = sapi.World;
+            var world = Sapi.World;
             var ba = world?.BlockAccessor;
             if (ba == null) return false;
 
@@ -422,9 +415,9 @@ namespace VsQuest
         private bool TryFindFreeSpotNear(BlockPos basePos, bool requireSolidGround, out Vec3d pos)
         {
             pos = null;
-            if (sapi == null || entity == null || basePos == null) return false;
+            if (Sapi == null || entity == null || basePos == null) return false;
 
-            var world = sapi.World;
+            var world = Sapi.World;
             var ba = world?.BlockAccessor;
             if (ba == null) return false;
 
@@ -511,58 +504,6 @@ namespace VsQuest
             }
 
             return false;
-        }
-
-        private void TryPlayAnimation(string animation)
-        {
-            if (string.IsNullOrWhiteSpace(animation)) return;
-
-            try
-            {
-                entity?.AnimManager?.StartAnimation(animation);
-            }
-            catch
-            {
-            }
-        }
-
-        private void TryPlaySound(Stage stage)
-        {
-            if (sapi == null || stage == null) return;
-            if (string.IsNullOrWhiteSpace(stage.sound)) return;
-
-            try
-            {
-                var soundLoc = AssetLocation.Create(stage.sound, "game").WithPathPrefixOnce("sounds/");
-                if (soundLoc == null) return;
-
-                float range = stage.soundRange > 0f ? stage.soundRange : 24f;
-                float volume = stage.soundVolume;
-                if (volume <= 0f) volume = 1f;
-
-                if (stage.soundStartMs > 0)
-                {
-                    sapi.Event.RegisterCallback(_ =>
-                    {
-                        try
-                        {
-                            float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                            sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, volume);
-                        }
-                        catch
-                        {
-                        }
-                    }, stage.soundStartMs);
-                }
-                else
-                {
-                    float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                    sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, volume);
-                }
-            }
-            catch
-            {
-            }
         }
 
         public Block GetBlock(BlockPos pos)

@@ -33,7 +33,7 @@ namespace VsQuest.Gui.Journal
 
         public void CalcTotalHeight()
         {
-            double height = Elements.Where(e => e.Visible).Count() * (unscaledCellHeight + unscaledCellSpacing);
+            double height = Elements.Count(e => e.Visible) * (unscaledCellHeight + unscaledCellSpacing);
             insideBounds.fixedHeight = height + unscaledCellSpacing;
         }
 

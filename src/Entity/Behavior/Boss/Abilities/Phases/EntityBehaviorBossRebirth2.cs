@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
@@ -9,35 +10,63 @@ using Vintagestory.GameContent;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossRebirth2 : EntityBehavior
+    public class EntityBehaviorBossRebirth2 : BossAbilityBase
     {
         private const string AnchorKeyPrefix = "alegacyvsquest:spawner:";
         private const string TargetIdKey = "alegacyvsquest:killaction:targetid";
 
-        private ICoreServerAPI sapi;
-        private string nextEntityCode;
-        private bool isFinalStage;
+        private class Stage : BossAbilityStage
+        {
+            public string nextEntityCode;
+            public bool isFinalStage;
+            public int spawnDelayMs;
+            public bool spawnLightning;
+
+            public string sound;
+            public float soundRange;
+            public int soundStartMs;
+
+            public string spawnSound;
+            public float spawnSoundRange;
+            public int spawnSoundStartMs;
+
+            public string loopSound;
+            public float loopSoundRange;
+            public int loopSoundIntervalMs;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                nextEntityCode = json["nextEntityCode"].AsString(null);
+                isFinalStage = json["isFinalStage"].AsBool(false);
+                spawnDelayMs = json["spawnDelayMs"].AsInt(2000);
+                spawnLightning = json["spawnLightning"].AsBool(true);
+
+                sound = json["sound"].AsString(null);
+                soundRange = json["soundRange"].AsFloat(24f);
+                soundStartMs = json["soundStartMs"].AsInt(0);
+
+                spawnSound = json["spawnSound"].AsString(null);
+                spawnSoundRange = json["spawnSoundRange"].AsFloat(24f);
+                spawnSoundStartMs = json["spawnSoundStartMs"].AsInt(0);
+
+                loopSound = json["loopSound"].AsString(null);
+                loopSoundRange = json["loopSoundRange"].AsFloat(24f);
+                loopSoundIntervalMs = json["loopSoundIntervalMs"].AsInt(900);
+            }
+        }
+
+        private List<Stage> stages = new List<Stage>();
+        protected override string CooldownKey => "alegacyvsquest:bossrebirth2:lastStartMs";
+        protected override bool UseHealthBasedStages() => false;
+        protected override bool RequiresTarget() => false;
+        protected override bool ShouldCheckAbility() => false; // Only activates on death
+
         private bool phaseTriggered;
-        private int spawnDelayMs;
-        private bool spawnLightning;
-
-        private string sound;
-        private float soundRange;
-        private int soundStartMs;
-
-        private string spawnSound;
-        private float spawnSoundRange;
-        private int spawnSoundStartMs;
-
-        private string loopSound;
-        private float loopSoundRange;
-        private int loopSoundIntervalMs;
-
         private readonly BossBehaviorUtils.LoopSound loopSoundPlayer = new BossBehaviorUtils.LoopSound();
-
         private WeatherSystemBase weatherSystem;
 
-        public bool IsFinalStage => isFinalStage;
+        public bool IsFinalStage => stages.Count > 0 && stages[0].isFinalStage;
 
         public EntityBehaviorBossRebirth2(Entity entity) : base(entity)
         {
@@ -45,183 +74,76 @@ namespace VsQuest
 
         public override string PropertyName() => "bossrebirth2";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
+            stages = ParseStages<Stage>(attributes);
+            weatherSystem = Sapi?.ModLoader?.GetModSystem<WeatherSystemBase>();
+        }
 
-            try
-            {
-                weatherSystem = sapi?.ModLoader?.GetModSystem<WeatherSystemBase>();
-            }
-            catch
-            {
-                weatherSystem = null;
-            }
+        protected override int GetStageCount() => stages.Count;
+        protected override object GetStage(int index) => stages[index];
+        protected override float GetStageHealthThreshold(object stage) => ((Stage)stage).whenHealthRelBelow;
+        protected override float GetStageCooldown(object stage) => ((Stage)stage).cooldownSeconds;
+        protected override float GetMaxTargetRange(object stage) => 0f;
 
-            nextEntityCode = attributes["nextEntityCode"].AsString(null);
-            isFinalStage = attributes["isFinalStage"].AsBool(false);
-            spawnDelayMs = attributes["spawnDelayMs"].AsInt(2000);
-            spawnLightning = attributes["spawnLightning"].AsBool(true);
-
-            sound = attributes["sound"].AsString(null);
-            soundRange = attributes["soundRange"].AsFloat(24f);
-            soundStartMs = attributes["soundStartMs"].AsInt(0);
-
-            spawnSound = attributes["spawnSound"].AsString(null);
-            spawnSoundRange = attributes["spawnSoundRange"].AsFloat(24f);
-            spawnSoundStartMs = attributes["spawnSoundStartMs"].AsInt(0);
-
-            loopSound = attributes["loopSound"].AsString(null);
-            loopSoundRange = attributes["loopSoundRange"].AsFloat(24f);
-            loopSoundIntervalMs = attributes["loopSoundIntervalMs"].AsInt(900);
+        protected override void ActivateAbility(object stage, int stageIndex, EntityPlayer target) { }
+        protected override void StopAbility()
+        {
+            StopLoopSound();
         }
 
         public override void OnEntityDeath(DamageSource damageSourceForDeath)
         {
-            if (sapi != null && entity != null)
+            if (Sapi != null && entity != null)
             {
-                try
-                {
-                    entity.WatchedAttributes.SetBool("showHealthbar", false);
-                    entity.WatchedAttributes.MarkPathDirty("showHealthbar");
-                }
-                catch
-                {
-                }
+                entity.WatchedAttributes.SetBool("showHealthbar", false);
+                entity.WatchedAttributes.MarkPathDirty("showHealthbar");
 
-                try
+                if (entity is EntityAgent agent)
                 {
-                    if (entity is EntityAgent agent)
-                    {
-                        agent.AllowDespawn = false;
-                    }
-                }
-                catch
-                {
+                    agent.AllowDespawn = false;
                 }
             }
 
             base.OnEntityDeath(damageSourceForDeath);
 
-            if (sapi == null || entity == null) return;
-            if (isFinalStage) return;
-            if (phaseTriggered) return;
-            if (string.IsNullOrWhiteSpace(nextEntityCode)) return;
+            if (Sapi == null || entity == null || stages.Count == 0 || phaseTriggered) return;
+            var stage = stages[0];
+            if (stage.isFinalStage || string.IsNullOrWhiteSpace(stage.nextEntityCode)) return;
 
             phaseTriggered = true;
-            TriggerNextPhase();
+            TriggerNextPhase(stage);
         }
 
-        private void TriggerNextPhase()
+        private void TriggerNextPhase(Stage stage)
         {
-            try
+            Vec3d pos = new Vec3d(entity.Pos.X, entity.Pos.Y, entity.Pos.Z);
+            int dim = entity.Pos.Dimension;
+            float yaw = entity.Pos.Yaw;
+
+            TryPlaySound(stage.sound, stage.soundRange, stage.soundStartMs, 1f);
+            StartLoopSound(stage);
+
+            int delay = Math.Max(0, stage.spawnDelayMs);
+            if (delay > 0)
             {
-                Vec3d pos = new Vec3d(entity.Pos.X, entity.Pos.Y, entity.Pos.Z);
-                int dim = entity.Pos.Dimension;
-                float yaw = entity.Pos.Yaw;
-
-                TryPlaySound(pos);
-                StartLoopSound();
-
-                int delay = Math.Max(0, spawnDelayMs);
-                if (delay > 0)
-                {
-                    sapi.Event.RegisterCallback(_ =>
-                    {
-                        StopLoopSound();
-                        TrySpawnNextPhase(pos, dim, yaw);
-                    }, delay);
-                }
-                else
+                Sapi.Event.RegisterCallback(_ =>
                 {
                     StopLoopSound();
-                    TrySpawnNextPhase(pos, dim, yaw);
-                }
+                    TrySpawnNextPhase(stage, pos, dim, yaw);
+                }, delay);
             }
-            catch
+            else
             {
+                StopLoopSound();
+                TrySpawnNextPhase(stage, pos, dim, yaw);
             }
         }
 
-        private void TryPlaySpawnSound(Vec3d pos)
+        private void StartLoopSound(Stage stage)
         {
-            if (sapi == null) return;
-            if (string.IsNullOrWhiteSpace(spawnSound)) return;
-            float range = spawnSoundRange > 0f ? spawnSoundRange : 24f;
-
-            AssetLocation soundLoc = AssetLocation.Create(spawnSound, "game").WithPathPrefixOnce("sounds/");
-            if (soundLoc == null) return;
-
-            if (spawnSoundStartMs > 0)
-            {
-                sapi.Event.RegisterCallback(_ =>
-                {
-                    try
-                    {
-                        if (entity == null || !entity.Alive) return;
-                        float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                        sapi.World.PlaySoundAt(soundLoc, pos.X, pos.Y, pos.Z, null, pitch, range, 1f);
-                    }
-                    catch
-                    {
-                    }
-                }, spawnSoundStartMs);
-                return;
-            }
-
-            try
-            {
-                if (entity == null || !entity.Alive) return;
-                float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                sapi.World.PlaySoundAt(soundLoc, pos.X, pos.Y, pos.Z, null, pitch, range, 1f);
-            }
-            catch
-            {
-            }
-        }
-
-        private void TryPlaySound(Vec3d pos)
-        {
-            if (sapi == null) return;
-            if (string.IsNullOrWhiteSpace(sound)) return;
-            float range = soundRange > 0f ? soundRange : 24f;
-
-            AssetLocation soundLoc = AssetLocation.Create(sound, "game").WithPathPrefixOnce("sounds/");
-            if (soundLoc == null) return;
-
-            if (soundStartMs > 0)
-            {
-                sapi.Event.RegisterCallback(_ =>
-                {
-                    try
-                    {
-                        if (entity == null || !entity.Alive) return;
-                        float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                        sapi.World.PlaySoundAt(soundLoc, pos.X, pos.Y, pos.Z, null, pitch, range, 1f);
-                    }
-                    catch
-                    {
-                    }
-                }, soundStartMs);
-                return;
-            }
-
-            try
-            {
-                if (entity == null || !entity.Alive) return;
-                float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                sapi.World.PlaySoundAt(soundLoc, pos.X, pos.Y, pos.Z, null, pitch, range, 1f);
-            }
-            catch
-            {
-            }
-        }
-
-        private void StartLoopSound()
-        {
-            if (sapi == null) return;
-            loopSoundPlayer.Start(sapi, entity, loopSound, loopSoundRange, loopSoundIntervalMs);
+            if (Sapi == null || stage == null) return;
+            loopSoundPlayer.Start(Sapi, entity, stage.loopSound, stage.loopSoundRange, stage.loopSoundIntervalMs);
         }
 
         private void StopLoopSound()
@@ -229,60 +151,38 @@ namespace VsQuest
             loopSoundPlayer.Stop();
         }
 
-        private void TrySpawnNextPhase(Vec3d pos, int dim, float yaw)
+        private void TrySpawnNextPhase(Stage stage, Vec3d pos, int dim, float yaw)
         {
-            try
+            if (stage.spawnLightning)
             {
-                if (spawnLightning)
-                {
-                    try
-                    {
-                        weatherSystem?.SpawnLightningFlash(pos);
-                    }
-                    catch
-                    {
-                    }
-                }
-
-                var type = sapi.World.GetEntityType(new AssetLocation(nextEntityCode));
-                if (type == null) return;
-
-                Entity newEntity = sapi.World.ClassRegistry.CreateEntity(type);
-                if (newEntity == null) return;
-
-                CopyTargetId(newEntity);
-                CopyAnchor(newEntity);
-
-                // Track spawn time for soft reset logic
-                double nowHours = sapi.World?.Calendar?.TotalHours ?? 0;
-                newEntity.WatchedAttributes?.SetDouble("alegacyvsquest:bosshunt:spawnedAtTotalHours", nowHours);
-                newEntity.WatchedAttributes?.MarkPathDirty("alegacyvsquest:bosshunt:spawnedAtTotalHours");
-
-                newEntity.Pos.SetPosWithDimension(new Vec3d(pos.X, pos.Y + dim * 32768.0, pos.Z));
-                newEntity.Pos.Yaw = yaw;
-                newEntity.Pos.SetFrom(newEntity.Pos);
-
-                sapi.World.SpawnEntity(newEntity);
-
-                TryPlaySpawnSound(pos);
-
-                try
-                {
-                    if (entity != null)
-                    {
-                        if (entity is EntityAgent agent)
-                        {
-                            agent.AllowDespawn = true;
-                        }
-                        sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
-                    }
-                }
-                catch
-                {
-                }
+                weatherSystem?.SpawnLightningFlash(pos);
             }
-            catch
+
+            var type = Sapi.World.GetEntityType(new AssetLocation(stage.nextEntityCode));
+            if (type == null) return;
+
+            Entity newEntity = Sapi.World.ClassRegistry.CreateEntity(type);
+            if (newEntity == null) return;
+
+            CopyTargetId(newEntity);
+            CopyAnchor(newEntity);
+
+            double nowHours = Sapi.World?.Calendar?.TotalHours ?? 0;
+            newEntity.WatchedAttributes?.SetDouble("alegacyvsquest:bosshunt:spawnedAtTotalHours", nowHours);
+            newEntity.WatchedAttributes?.MarkPathDirty("alegacyvsquest:bosshunt:spawnedAtTotalHours");
+
+            newEntity.Pos.SetPosWithDimension(new Vec3d(pos.X, pos.Y + dim * 32768.0, pos.Z));
+            newEntity.Pos.Yaw = yaw;
+            newEntity.Pos.SetFrom(newEntity.Pos);
+
+            Sapi.World.SpawnEntity(newEntity);
+
+            TryPlaySound(stage.spawnSound, stage.spawnSoundRange, stage.spawnSoundStartMs, 1f);
+
+            if (entity != null)
             {
+                if (entity is EntityAgent agent) agent.AllowDespawn = true;
+                Sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
             }
         }
 
@@ -294,45 +194,33 @@ namespace VsQuest
 
         private void CopyTargetId(Entity newEntity)
         {
-            try
-            {
-                string targetId = entity?.WatchedAttributes?.GetString(TargetIdKey, null);
-                if (string.IsNullOrWhiteSpace(targetId) || newEntity?.WatchedAttributes == null) return;
+            string targetId = entity?.WatchedAttributes?.GetString(TargetIdKey, null);
+            if (string.IsNullOrWhiteSpace(targetId) || newEntity?.WatchedAttributes == null) return;
 
-                newEntity.WatchedAttributes.SetString(TargetIdKey, targetId);
-                newEntity.WatchedAttributes.MarkPathDirty(TargetIdKey);
-            }
-            catch
-            {
-            }
+            newEntity.WatchedAttributes.SetString(TargetIdKey, targetId);
+            newEntity.WatchedAttributes.MarkPathDirty(TargetIdKey);
         }
 
         private void CopyAnchor(Entity newEntity)
         {
-            try
-            {
-                if (newEntity?.WatchedAttributes == null || entity?.WatchedAttributes == null) return;
+            if (newEntity?.WatchedAttributes == null || entity?.WatchedAttributes == null) return;
 
-                int dim = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "dim", int.MinValue);
-                int x = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "x", int.MinValue);
-                int y = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "y", int.MinValue);
-                int z = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "z", int.MinValue);
+            int dim = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "dim", int.MinValue);
+            int x = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "x", int.MinValue);
+            int y = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "y", int.MinValue);
+            int z = entity.WatchedAttributes.GetInt(AnchorKeyPrefix + "z", int.MinValue);
 
-                if (dim == int.MinValue || x == int.MinValue || y == int.MinValue || z == int.MinValue) return;
+            if (dim == int.MinValue || x == int.MinValue || y == int.MinValue || z == int.MinValue) return;
 
-                newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "x", x);
-                newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "y", y);
-                newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "z", z);
-                newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "dim", dim);
+            newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "x", x);
+            newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "y", y);
+            newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "z", z);
+            newEntity.WatchedAttributes.SetInt(AnchorKeyPrefix + "dim", dim);
 
-                newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "x");
-                newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "y");
-                newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "z");
-                newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "dim");
-            }
-            catch
-            {
-            }
+            newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "x");
+            newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "y");
+            newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "z");
+            newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "dim");
         }
     }
 }

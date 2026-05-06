@@ -18,6 +18,7 @@ namespace VsQuest
 
         private QuizSystem quizSystem;
 
+        private QuestNetworkHandler networkHandler;
         private QuestPersistenceManager persistenceManager;
         private QuestLifecycleManager lifecycleManager;
         private QuestEventHandler eventHandler;
@@ -39,6 +40,7 @@ namespace VsQuest
         private long lagMonitorListenerId;
 
         public QuizSystem QuizSystem => quizSystem;
+        public QuestNetworkHandler NetworkHandler => networkHandler;
 
         private static T LoadOrCreateModConfig<T>(ICoreAPI api, string filename) where T : class, new()
         {
@@ -63,7 +65,6 @@ namespace VsQuest
         {
             Config = LoadOrCreateModConfig<QuestConfig>(api, "questconfig.json");
             CoreConfig = LoadOrCreateModConfig<AlegacyVsQuestConfig>(api, "alegacy-vsquest-config.json");
-            LocalizationUtils.SetNestedLocalizationDomains(CoreConfig.NestedLocalizationDomains);
             HarmonyPatchSwitches.ApplyFromConfig(CoreConfig);
             
             // Initialize performance config
@@ -108,9 +109,10 @@ namespace VsQuest
         {
             base.Start(api);
 
+            networkHandler = new QuestNetworkHandler(this);
+
             /* QuestSystem cache (used by other subsystems to safely resolve the active instance). */
             QuestSystemCache.Initialize(api);
-            LoadConfigs(api);
 
             MobLocalizationUtils.LoadFromAssets(api);
 
@@ -133,6 +135,8 @@ namespace VsQuest
 
             networkChannelRegistry = new QuestNetworkChannelRegistry(this);
 
+            LoadConfigs(api);
+
             /* discoveryHud is client-only; it will be replaced in StartClientSide when available. */
             notificationHandler = new QuestNotificationHandler(discoveryHud);
             questSelectGuiManager = new QuestSelectGuiManager(Config);
@@ -142,6 +146,9 @@ namespace VsQuest
         public override void StartClientSide(ICoreClientAPI capi)
         {
             base.StartClientSide(capi);
+
+            LocalizationUtils.LoadFromAssets(capi);
+            LocalizationUtils.LoadNestedLanguageFiles(capi);
 
             if (networkChannelRegistry == null)
             {
@@ -351,6 +358,16 @@ namespace VsQuest
             return lifecycleManager.ForceCompleteQuest(player, message, sapi, GetPlayerQuests);
         }
 
+        #region Packet Handler Delegations
+
+        // TODO: [Architecture] Packet handler methods below are simple 1-2 line delegations to
+        // subsystem managers (lifecycleManager, eventHandler, quizSystem, etc.). If they grow
+        // in complexity, extract into dedicated handler classes under src/Systems/Handlers/:
+        //   - QuestPacketHandler.cs  (OnQuestAccepted, OnQuestCompleted, OnQuestInfoMessage)
+        //   - DialogPacketHandler.cs (OnShowQuestDialogMessage, OnDialogTriggerMessage)
+        //   - QuizPacketHandler.cs   (OnShowQuizMessage, OnOpenQuizMessage, OnSubmitQuizAnswerMessage)
+        // Each handler would accept its required dependencies in the constructor.
+
         internal void OnQuestAccepted(IServerPlayer fromPlayer, QuestAcceptedMessage message, ICoreServerAPI sapi)
         {
             lifecycleManager.OnQuestAccepted(fromPlayer, message, sapi, GetPlayerQuests);
@@ -447,5 +464,7 @@ namespace VsQuest
             var rewardSystem = sapi?.ModLoader?.GetModSystem<QuestCompletionRewardSystem>();
             rewardSystem?.OnClaimQuestCompletionRewardMessage(player, message, sapi);
         }
+
+        #endregion
     }
 }

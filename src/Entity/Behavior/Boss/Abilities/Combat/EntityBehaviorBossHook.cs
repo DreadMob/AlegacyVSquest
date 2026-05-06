@@ -9,24 +9,17 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossHook : EntityBehavior
+    public class EntityBehaviorBossHook : BossAbilityBase
     {
-        private const string HookStageKey = "alegacyvsquest:bosshook:stage";
-        private const string LastHookStartMsKey = "alegacyvsquest:bosshook:lastStartMs";
+        protected override string CooldownKey => "alegacyvsquest:bosshook:lastStartMs";
+
+        private const long PullLogIntervalMs = 250;
 
         private const string WalkSpeedStatCodeHook = "alegacyvsquest:bosshook";
         private const float HookVictimWalkSpeedMult = 0.05f;
 
-        private const long PullLogIntervalMs = 250;
-
-        private class HookStage
+        private class HookStage : BossAbilityStage
         {
-            public float whenHealthRelBelow;
-            public float cooldownSeconds;
-
-            public float minTargetRange;
-            public float maxTargetRange;
-
             public int windupMs;
             public int pullMs;
             public float pullSpeed;
@@ -39,16 +32,39 @@ namespace VsQuest
             public float soundRange;
             public int soundStartMs;
             public float soundVolume;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                windupMs = json["windupMs"].AsInt(250);
+                pullMs = json["pullMs"].AsInt(850);
+                pullSpeed = json["pullSpeed"].AsFloat(0.12f);
+                maxPlayerMotion = json["maxPlayerMotion"].AsFloat(0.22f);
+                windupAnimation = json["windupAnimation"].AsString(null);
+                pullAnimation = json["pullAnimation"].AsString(null);
+                sound = json["sound"].AsString(null);
+                soundRange = json["soundRange"].AsFloat(24f);
+                soundStartMs = json["soundStartMs"].AsInt(0);
+                soundVolume = json["soundVolume"].AsFloat(1f);
+
+                // Validation
+                if (windupMs < 0) windupMs = 0;
+                if (pullMs <= 0) pullMs = 250;
+                if (pullSpeed <= 0f) pullSpeed = 0.08f;
+                if (maxPlayerMotion <= 0f) maxPlayerMotion = 0.18f;
+                if (soundVolume <= 0f) soundVolume = 1f;
+            }
         }
 
-        private ICoreServerAPI sapi;
-        private readonly List<HookStage> stages = new List<HookStage>();
+        private List<HookStage> stages = new List<HookStage>();
 
-        private bool hookActive;
         private long hookEndsAtMs;
         private long hookStartedAtMs;
         private long hookStartCallbackId;
         private long hookTickListenerId;
+
+        private long pullStartsAtMs;
+        private HookStage activeStage;
 
         private long lastPullLogAtMs;
 
@@ -61,194 +77,142 @@ namespace VsQuest
 
         public override string PropertyName() => "bosshook";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-
-            stages.Clear();
-            try
-            {
-                foreach (var stageObj in attributes["stages"].AsArray())
-                {
-                    if (stageObj == null || !stageObj.Exists) continue;
-
-                    var stage = new HookStage
-                    {
-                        whenHealthRelBelow = stageObj["whenHealthRelBelow"].AsFloat(1f),
-                        cooldownSeconds = stageObj["cooldownSeconds"].AsFloat(0f),
-
-                        minTargetRange = stageObj["minTargetRange"].AsFloat(0f),
-                        maxTargetRange = stageObj["maxTargetRange"].AsFloat(28f),
-
-                        windupMs = stageObj["windupMs"].AsInt(250),
-                        pullMs = stageObj["pullMs"].AsInt(850),
-                        pullSpeed = stageObj["pullSpeed"].AsFloat(0.12f),
-                        maxPlayerMotion = stageObj["maxPlayerMotion"].AsFloat(0.22f),
-
-                        windupAnimation = stageObj["windupAnimation"].AsString(null),
-                        pullAnimation = stageObj["pullAnimation"].AsString(null),
-
-                        sound = stageObj["sound"].AsString(null),
-                        soundRange = stageObj["soundRange"].AsFloat(24f),
-                        soundStartMs = stageObj["soundStartMs"].AsInt(0),
-                        soundVolume = stageObj["soundVolume"].AsFloat(1f),
-                    };
-
-                    if (stage.cooldownSeconds < 0f) stage.cooldownSeconds = 0f;
-                    if (stage.minTargetRange < 0f) stage.minTargetRange = 0f;
-                    if (stage.maxTargetRange < stage.minTargetRange) stage.maxTargetRange = stage.minTargetRange;
-                    if (stage.windupMs < 0) stage.windupMs = 0;
-                    if (stage.pullMs <= 0) stage.pullMs = 250;
-                    if (stage.pullSpeed <= 0f) stage.pullSpeed = 0.08f;
-                    if (stage.maxPlayerMotion <= 0f) stage.maxPlayerMotion = 0.18f;
-
-                    if (stage.soundVolume <= 0f) stage.soundVolume = 1f;
-
-                    stages.Add(stage);
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in parsing stages: {ex}");
-            }
+            stages = ParseStages<HookStage>(attributes);
         }
 
-        public override void OnGameTick(float dt)
+        protected override int GetStageCount() => stages.Count;
+
+        protected override object GetStage(int index) => stages[index];
+
+        protected override float GetStageHealthThreshold(object stage) => ((HookStage)stage).whenHealthRelBelow;
+
+        protected override float GetStageCooldown(object stage) => ((HookStage)stage).cooldownSeconds;
+
+        protected override float GetMaxTargetRange(object stage) => ((HookStage)stage).maxTargetRange;
+
+        protected override bool ShouldCheckAbility() => !IsAbilityActive;
+
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
-            base.OnGameTick(dt);
-            if (sapi == null || entity == null) return;
-            if (stages.Count == 0) return;
-
-            if (!entity.Alive)
-            {
-                StopHook();
-                return;
-            }
-
-            if (hookActive) return;
-
-            if (!BossBehaviorUtils.TryGetHealthFraction(entity, out float frac)) return;
-
-            int stageIndex = -1;
-            for (int i = 0; i < stages.Count; i++)
-            {
-                var stage = stages[i];
-                if (frac <= stage.whenHealthRelBelow)
-                {
-                    stageIndex = i;
-                }
-            }
-
-            if (stageIndex < 0 || stageIndex >= stages.Count) return;
-
-            var activeStage = stages[stageIndex];
-            if (!BossBehaviorUtils.IsCooldownReady(sapi, entity, LastHookStartMsKey, activeStage.cooldownSeconds)) return;
-
-            if (!TryFindTarget(activeStage, out var targetEntity, out float targetDist)) return;
-            // Do not hard-block casting when too close. We slow the victim during hook,
-            // so using minTargetRange as a hard gate can permanently prevent re-casting.
-            if (targetDist < 0.75f) return;
-            if (targetDist > activeStage.maxTargetRange) return;
-
-            StartHook(activeStage, stageIndex, targetEntity);
+            if (target == null || stageObj is not HookStage stage) return;
+            StartHook(stage, stageIndex, target);
         }
 
-        public override void OnEntityDeath(DamageSource damageSourceForDeath)
+        protected override void StopAbility() => StopHook();
+
+        protected override bool OnAbilityTick(float dt)
         {
-            StopHook();
-            base.OnEntityDeath(damageSourceForDeath);
-        }
+            if (!IsAbilityActive) return false;
+            if (Sapi == null || entity == null) return false;
 
-        public override void OnEntityDespawn(EntityDespawnData despawn)
-        {
-            StopHook();
-            base.OnEntityDespawn(despawn);
-        }
+            long now = Sapi.World.ElapsedMilliseconds;
 
-        private bool TryFindTarget(HookStage stage, out EntityPlayer target, out float dist)
-        {
-            target = null;
-            dist = 0f;
-
-            if (sapi == null || entity == null) return false;
-            if (entity.Pos == null) return false;
-
-            double range = Math.Max(2.0, stage.maxTargetRange > 0 ? stage.maxTargetRange : 28f);
-            try
+            if (now < pullStartsAtMs)
             {
-                var own = entity.Pos.XYZ;
-                float frange = (float)range;
-                var found = sapi.World.GetNearestEntity(own, frange, frange, e => e is EntityPlayer) as EntityPlayer;
-                if (found == null || !found.Alive) return false;
-
-                if (found.Pos.Dimension != entity.Pos.Dimension) return false;
-
-                target = found;
-                dist = (float)found.Pos.DistanceTo(entity.Pos);
                 return true;
             }
-            catch (Exception ex)
+
+            if (now >= hookEndsAtMs)
             {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TryFindTarget: {ex}");
                 return false;
             }
+
+            if (!entity.Alive) return false;
+            if (targetPlayer == null || !targetPlayer.Alive) return false;
+            if (targetPlayer.Pos.Dimension != entity.Pos.Dimension) return false;
+            if (activeStage == null) return false;
+
+            var dir = new Vec3d(entity.Pos.X - targetPlayer.Pos.X, 0, entity.Pos.Z - targetPlayer.Pos.Z);
+            if (dir.Length() < 0.001) return true;
+
+            float dist = (float)targetPlayer.Pos.DistanceTo(entity.Pos);
+            dir.Normalize();
+
+            double pull = activeStage.pullSpeed;
+            if (pull <= 0.0001) pull = 0.05;
+            if (pull < 0.18) pull = 0.18;
+
+            double max = activeStage.maxPlayerMotion;
+            if (max <= 0.0001) max = 0.25;
+            if (max < 0.35) max = 0.35;
+
+            float maxRange = activeStage.maxTargetRange > 0 ? activeStage.maxTargetRange : 28f;
+            float denom = Math.Max(1f, maxRange - 1f);
+            float distNorm = GameMath.Clamp((dist - 1f) / denom, 0f, 1f);
+            double scale = 1.0 + distNorm * 2.0;
+            pull *= scale;
+            max *= scale;
+
+            double kbX = GameMath.Clamp(dir.X * pull, -max, max);
+            double kbZ = GameMath.Clamp(dir.Z * pull, -max, max);
+
+            long nowMs = now;
+            if (lastPullLogAtMs == 0 || nowMs - lastPullLogAtMs >= PullLogIntervalMs)
+            {
+                lastPullLogAtMs = nowMs;
+                Sapi.Logger.VerboseDebug($"[alegacyvsquest] bosshook pull target={targetPlayer?.Player?.PlayerName ?? "?"} kbX={kbX:0.###} kbZ={kbZ:0.###} dist={dist:0.00}");
+            }
+
+            // Use vanilla knockback module so the pull cannot be overridden by player client controls.
+            // PModuleKnockback reads kbdirX/Y/Z from WatchedAttributes and applies when Attributes.dmgkb == 1.
+            targetPlayer.WatchedAttributes.SetDouble("kbdirX", kbX);
+            targetPlayer.WatchedAttributes.SetDouble("kbdirY", 0.0);
+            targetPlayer.WatchedAttributes.SetDouble("kbdirZ", kbZ);
+
+            targetPlayer.WatchedAttributes.SetFloat("onHurt", 0.01f);
+            targetPlayer.WatchedAttributes.SetInt("onHurtCounter", targetPlayer.WatchedAttributes.GetInt("onHurtCounter") + 1);
+
+            targetPlayer.WatchedAttributes.MarkPathDirty("kbdirX");
+            targetPlayer.WatchedAttributes.MarkPathDirty("kbdirY");
+            targetPlayer.WatchedAttributes.MarkPathDirty("kbdirZ");
+            targetPlayer.WatchedAttributes.MarkPathDirty("onHurt");
+            targetPlayer.WatchedAttributes.MarkPathDirty("onHurtCounter");
+
+            return true;
         }
 
         private void StartHook(HookStage stage, int stageIndex, EntityPlayer target)
         {
-            if (sapi == null || entity == null || stage == null || target == null) return;
+            if (Sapi == null || entity == null || stage == null || target == null) return;
 
-            BossBehaviorUtils.MarkCooldownStart(sapi, entity, LastHookStartMsKey);
+            MarkCooldownStart();
+            SetAbilityActive(true);
 
-            hookActive = true;
             activeStageIndex = stageIndex;
-            hookStartedAtMs = sapi.World.ElapsedMilliseconds;
+            activeStage = stage;
+            hookStartedAtMs = Sapi.World.ElapsedMilliseconds;
             lastPullLogAtMs = 0;
             targetPlayer = target;
 
-            try
+            if (targetPlayer?.Stats != null)
             {
-                if (targetPlayer?.Stats != null)
-                {
-                    float modifier = HookVictimWalkSpeedMult - 1f;
-                    targetPlayer.Stats.Remove("walkspeed", WalkSpeedStatCodeHook);
-                    targetPlayer.Stats.Set("walkspeed", WalkSpeedStatCodeHook, modifier, true);
-                    targetPlayer.walkSpeed = targetPlayer.Stats.GetBlended("walkspeed");
-                }
-
-                // Disable jumping while hooked
-                targetPlayer.WatchedAttributes.SetBool("alegacyvsquest:canjump", false);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in StartHook VictimWalkSpeed: {ex}");
+                float modifier = HookVictimWalkSpeedMult - 1f;
+                targetPlayer.Stats.Remove("walkspeed", WalkSpeedStatCodeHook);
+                targetPlayer.Stats.Set("walkspeed", WalkSpeedStatCodeHook, modifier, true);
+                targetPlayer.walkSpeed = targetPlayer.Stats.GetBlended("walkspeed");
             }
 
-            BossBehaviorUtils.UnregisterCallbackSafe(sapi, ref hookStartCallbackId);
-            BossBehaviorUtils.UnregisterGameTickListenerSafe(sapi, ref hookTickListenerId);
+            // Disable jumping while hooked
+            targetPlayer.WatchedAttributes.SetBool("alegacyvsquest:canjump", false);
+
+            UnregisterCallbackSafe(ref hookStartCallbackId);
+            UnregisterGameTickListenerSafe(ref hookTickListenerId);
 
             BossBehaviorUtils.StopAiAndFreeze(entity);
 
-            try
-            {
-                float dist = (float)target.Pos.DistanceTo(entity.Pos);
-                sapi.Logger.VerboseDebug($"[alegacyvsquest] bosshook start stage={stageIndex} target={target?.Player?.PlayerName ?? "?"} entId={target?.EntityId} dist={dist:0.00} windupMs={stage.windupMs} pullMs={stage.pullMs} pullSpeed={stage.pullSpeed:0.###} maxMotion={stage.maxPlayerMotion:0.###}");
-            }
-            catch
-            {
-            }
-
-            TryPlaySound(stage);
+            TryPlaySound(stage.sound, stage.soundRange, stage.soundStartMs, stage.soundVolume);
             TryPlayAnimation(stage.windupAnimation);
 
             int windup = Math.Max(0, stage.windupMs);
             int pullMs = Math.Max(100, stage.pullMs);
             hookEndsAtMs = hookStartedAtMs + windup + pullMs;
+            pullStartsAtMs = hookStartedAtMs + windup;
 
             if (windup > 0)
             {
-                hookStartCallbackId = sapi.Event.RegisterCallback(_ =>
+                hookStartCallbackId = Sapi.Event.RegisterCallback(_ =>
                 {
                     BeginPull(stage);
                 }, windup);
@@ -261,274 +225,75 @@ namespace VsQuest
 
         private void BeginPull(HookStage stage)
         {
-            if (sapi == null || entity == null || stage == null) return;
+            if (Sapi == null || entity == null || stage == null) return;
 
             TryPlayAnimation(stage.pullAnimation);
-
-            hookTickListenerId = sapi.Event.RegisterGameTickListener(_ =>
-            {
-                try
-                {
-                    if (!hookActive)
-                    {
-                        StopHook();
-                        return;
-                    }
-
-                    if (sapi.World.ElapsedMilliseconds >= hookEndsAtMs)
-                    {
-                        StopHook();
-                        return;
-                    }
-
-                    if (entity == null || !entity.Alive)
-                    {
-                        StopHook();
-                        return;
-                    }
-
-                    if (targetPlayer == null || !targetPlayer.Alive)
-                    {
-                        StopHook();
-                        return;
-                    }
-
-                    if (targetPlayer.Pos.Dimension != entity.Pos.Dimension)
-                    {
-                        StopHook();
-                        return;
-                    }
-
-                    var dir = new Vec3d(entity.Pos.X - targetPlayer.Pos.X, 0, entity.Pos.Z - targetPlayer.Pos.Z);
-                    if (dir.Length() < 0.001) return;
-
-                    float dist = (float)targetPlayer.Pos.DistanceTo(entity.Pos);
-                    dir.Normalize();
-
-                    double pull = stage.pullSpeed;
-                    if (pull <= 0.0001) pull = 0.05;
-                    if (pull < 0.18) pull = 0.18;
-
-                    double max = stage.maxPlayerMotion;
-                    if (max <= 0.0001) max = 0.25;
-                    if (max < 0.35) max = 0.35;
-
-                    float maxRange = stage.maxTargetRange > 0 ? stage.maxTargetRange : 28f;
-                    float denom = Math.Max(1f, maxRange - 1f);
-                    float distNorm = GameMath.Clamp((dist - 1f) / denom, 0f, 1f);
-                    double scale = 1.0 + distNorm * 2.0;
-                    pull *= scale;
-                    max *= scale;
-
-                    double kbX = GameMath.Clamp(dir.X * pull, -max, max);
-                    double kbZ = GameMath.Clamp(dir.Z * pull, -max, max);
-
-                    long nowMs = sapi.World.ElapsedMilliseconds;
-                    if (lastPullLogAtMs == 0 || nowMs - lastPullLogAtMs >= PullLogIntervalMs)
-                    {
-                        lastPullLogAtMs = nowMs;
-                        sapi.Logger.VerboseDebug($"[alegacyvsquest] bosshook pull target={targetPlayer?.Player?.PlayerName ?? "?"} kbX={kbX:0.###} kbZ={kbZ:0.###} dist={dist:0.00}");
-                    }
-
-                    // Use vanilla knockback module so the pull cannot be overridden by player client controls.
-                    // PModuleKnockback reads kbdirX/Y/Z from WatchedAttributes and applies when Attributes.dmgkb == 1.
-                    targetPlayer.WatchedAttributes.SetDouble("kbdirX", kbX);
-                    targetPlayer.WatchedAttributes.SetDouble("kbdirY", 0.0);
-                    targetPlayer.WatchedAttributes.SetDouble("kbdirZ", kbZ);
-
-                    targetPlayer.WatchedAttributes.SetFloat("onHurt", 0.01f);
-                    targetPlayer.WatchedAttributes.SetInt("onHurtCounter", targetPlayer.WatchedAttributes.GetInt("onHurtCounter") + 1);
-
-                    targetPlayer.WatchedAttributes.MarkPathDirty("kbdirX");
-                    targetPlayer.WatchedAttributes.MarkPathDirty("kbdirY");
-                    targetPlayer.WatchedAttributes.MarkPathDirty("kbdirZ");
-                    targetPlayer.WatchedAttributes.MarkPathDirty("onHurt");
-                    targetPlayer.WatchedAttributes.MarkPathDirty("onHurtCounter");
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in hook tick: {ex}");
-                }
-            }, 50);
         }
 
         private void StopHook()
         {
-            BossBehaviorUtils.UnregisterCallbackSafe(sapi, ref hookStartCallbackId);
-            BossBehaviorUtils.UnregisterGameTickListenerSafe(sapi, ref hookTickListenerId);
+            UnregisterCallbackSafe(ref hookStartCallbackId);
+            UnregisterGameTickListenerSafe(ref hookTickListenerId);
 
-            if (!hookActive && activeStageIndex < 0) return;
+            if (!IsAbilityActive) return;
 
-            hookActive = false;
+            SetAbilityActive(false);
 
-            try
+            // Ensure no leftover knockback impulse.
+            if (targetPlayer != null)
             {
-                sapi?.Logger?.VerboseDebug($"[alegacyvsquest] bosshook stop target={(targetPlayer?.Player?.PlayerName ?? "?")}");
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in StopHook VerboseDebug: {ex}");
-            }
-
-            try
-            {
-                // Ensure no leftover knockback impulse.
-                if (targetPlayer != null)
+                if (targetPlayer.Stats != null)
                 {
-                    try
-                    {
-                        if (targetPlayer.Stats != null)
-                        {
-                            targetPlayer.Stats.Remove("walkspeed", WalkSpeedStatCodeHook);
-                            targetPlayer.walkSpeed = targetPlayer.Stats.GetBlended("walkspeed");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        entity?.Api?.Logger?.Error($"[vsquest] Exception in StopHook Stats: {ex}");
-                    }
-
-                    targetPlayer.WatchedAttributes.SetDouble("kbdirX", 0.0);
-                    targetPlayer.WatchedAttributes.SetDouble("kbdirY", 0.0);
-                    targetPlayer.WatchedAttributes.SetDouble("kbdirZ", 0.0);
-                    targetPlayer.WatchedAttributes.MarkPathDirty("kbdirX");
-                    targetPlayer.WatchedAttributes.MarkPathDirty("kbdirY");
-                    targetPlayer.WatchedAttributes.MarkPathDirty("kbdirZ");
-
-                    targetPlayer.WatchedAttributes.SetFloat("onHurt", 0f);
-                    targetPlayer.WatchedAttributes.MarkPathDirty("onHurt");
-
-                    // Re-enable jumping
-                    targetPlayer.WatchedAttributes.SetBool("alegacyvsquest:canjump", true);
+                    targetPlayer.Stats.Remove("walkspeed", WalkSpeedStatCodeHook);
+                    targetPlayer.walkSpeed = targetPlayer.Stats.GetBlended("walkspeed");
                 }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in StopHook Knockback: {ex}");
+
+                targetPlayer.WatchedAttributes.SetDouble("kbdirX", 0.0);
+                targetPlayer.WatchedAttributes.SetDouble("kbdirY", 0.0);
+                targetPlayer.WatchedAttributes.SetDouble("kbdirZ", 0.0);
+                targetPlayer.WatchedAttributes.MarkPathDirty("kbdirX");
+                targetPlayer.WatchedAttributes.MarkPathDirty("kbdirY");
+                targetPlayer.WatchedAttributes.MarkPathDirty("kbdirZ");
+
+                targetPlayer.WatchedAttributes.SetFloat("onHurt", 0f);
+                targetPlayer.WatchedAttributes.MarkPathDirty("onHurt");
+
+                // Re-enable jumping
+                targetPlayer.WatchedAttributes.SetBool("alegacyvsquest:canjump", true);
             }
 
             targetPlayer = null;
 
+            activeStage = null;
+
             hookStartedAtMs = 0;
             hookEndsAtMs = 0;
+            pullStartsAtMs = 0;
             lastPullLogAtMs = 0;
 
             if (activeStageIndex >= 0 && activeStageIndex < stages.Count)
             {
-                try
+                var stage = stages[activeStageIndex];
+
+                if (!string.IsNullOrWhiteSpace(stage.windupAnimation))
                 {
-                    var stage = stages[activeStageIndex];
-
-                    if (!string.IsNullOrWhiteSpace(stage.windupAnimation))
-                    {
-                        entity?.AnimManager?.StopAnimation(stage.windupAnimation);
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(stage.pullAnimation))
-                    {
-                        entity?.AnimManager?.StopAnimation(stage.pullAnimation);
-                    }
+                    entity?.AnimManager?.StopAnimation(stage.windupAnimation);
                 }
-                catch (Exception ex)
+
+                if (!string.IsNullOrWhiteSpace(stage.pullAnimation))
                 {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in StopHook Animations: {ex}");
+                    entity?.AnimManager?.StopAnimation(stage.pullAnimation);
                 }
             }
 
             activeStageIndex = -1;
         }
 
-        private void TryPlayAnimation(string animation)
-        {
-            if (string.IsNullOrWhiteSpace(animation)) return;
-
-            try
-            {
-                entity?.AnimManager?.StartAnimation(animation);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlayAnimation: {ex}");
-            }
-        }
 
         private void TryPlaySound(HookStage stage)
         {
-            if (sapi == null || stage == null) return;
-            if (string.IsNullOrWhiteSpace(stage.sound)) return;
-
-            AssetLocation soundLoc = AssetLocation.Create(stage.sound, "game").WithPathPrefixOnce("sounds/");
-            if (soundLoc == null) return;
-
-            float volume = stage.soundVolume;
-            try
-            {
-                Dictionary<string, float> volumeBySound = null;
-                try
-                {
-                    volumeBySound = entity?.Properties?.Attributes?["SoundVolumeMulBySound"]?.AsObject<Dictionary<string, float>>();
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlaySound Attributes: {ex}");
-                }
-
-                if (volumeBySound != null && volumeBySound.Count > 0)
-                {
-                    string fullKey = soundLoc.ToString();
-                    string pathKey = soundLoc.Path;
-
-                    foreach (var entry in volumeBySound)
-                    {
-                        if (string.IsNullOrWhiteSpace(entry.Key)) continue;
-
-                        if (string.Equals(entry.Key, fullKey, StringComparison.OrdinalIgnoreCase)
-                            || string.Equals(entry.Key, pathKey, StringComparison.OrdinalIgnoreCase)
-                            || string.Equals(entry.Key, stage.sound, StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (entry.Value > 0f)
-                            {
-                                volume *= entry.Value;
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlaySound volume adjustment: {ex}");
-            }
-
-            float range = stage.soundRange > 0f ? stage.soundRange : 32f;
-
-            if (stage.soundStartMs > 0)
-            {
-                sapi.Event.RegisterCallback(_ =>
-                {
-                    try
-                    {
-                        float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                        sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, volume);
-                    }
-                    catch (Exception ex)
-                    {
-                        entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlaySound callback: {ex}");
-                    }
-                }, stage.soundStartMs);
-            }
-            else
-            {
-                try
-                {
-                    float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                    sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, volume);
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlaySound immediate: {ex}");
-                }
-            }
+            if (Sapi == null || stage == null) return;
+            TryPlaySound(stage.sound, stage.soundRange, stage.soundStartMs, stage.soundVolume);
         }
     }
 }

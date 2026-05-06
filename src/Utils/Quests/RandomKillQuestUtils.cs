@@ -104,8 +104,9 @@ namespace VsQuest
                 {
                     ok = impl.IsCompletable(player, ao.args);
                 }
-                catch
+                catch (Exception)
                 {
+                    // IsCompletable failed for randomkill objective, treat as not complete
                     ok = false;
                 }
 

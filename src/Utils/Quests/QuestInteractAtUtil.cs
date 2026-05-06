@@ -153,12 +153,13 @@ namespace VsQuest
                 wa.SetString("completedInteractions", "");
                 wa.MarkPathDirty("completedInteractions");
             }
-            catch
+            catch (Exception)
             {
+                // Failed to reset interactions - non-critical
             }
         }
 
-                public static void TryHandleInteractAtObjectives(Quest quest, ActiveQuest activeQuest, IServerPlayer serverPlayer, int[] position, ICoreServerAPI sapi)
+        public static void TryHandleInteractAtObjectives(Quest quest, ActiveQuest activeQuest, IServerPlayer serverPlayer, int[] position, ICoreServerAPI sapi)
         {
             if (serverPlayer?.Entity?.WatchedAttributes == null) return;
             if (position == null || position.Length != 3) return;

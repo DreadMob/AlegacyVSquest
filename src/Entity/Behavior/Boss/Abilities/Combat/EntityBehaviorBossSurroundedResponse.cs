@@ -8,17 +8,34 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossSurroundedResponse : EntityBehavior
+    public class EntityBehaviorBossSurroundedResponse : BossAbilityBase
     {
-        private ICoreServerAPI sapi;
-        private int surroundedThreshold;
-        private float detectionRange;
-        private int shockwaveCooldownMs;
-        private int slamCooldownMs;
-        private float knockbackRange;
-        private float slamDamage;
-        private int stunMs;
+        protected override string CooldownKey => "alegacyvsquest:bosssurroundedresponse:lastUseMs";
+        protected override bool UseHealthBasedStages() => false;
+        protected override bool RequiresTarget() => false;
 
+        private class Stage : BossAbilityStage
+        {
+            public int surroundedThreshold;
+            public int shockwaveCooldownMs;
+            public int slamCooldownMs;
+            public float knockbackRange;
+            public float slamDamage;
+            public int stunMs;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                surroundedThreshold = json["surroundedThreshold"].AsInt(3);
+                shockwaveCooldownMs = json["shockwaveCooldownSeconds"].AsInt(10) * 1000;
+                slamCooldownMs = json["slamCooldownSeconds"].AsInt(8) * 1000;
+                knockbackRange = json["knockbackRange"].AsFloat(8f);
+                slamDamage = json["slamDamage"].AsFloat(22f);
+                stunMs = json["stunMs"].AsInt(1000);
+            }
+        }
+
+        private List<Stage> stages = new List<Stage>();
         private long lastShockwaveMs;
         private long lastSlamMs;
 
@@ -28,56 +45,45 @@ namespace VsQuest
 
         public override string PropertyName() => "bosssurroundedresponse";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-            surroundedThreshold = attributes["surroundedThreshold"].AsInt(3);
-            detectionRange = attributes["detectionRange"].AsFloat(6f);
-            shockwaveCooldownMs = attributes["shockwaveCooldownSeconds"].AsInt(10) * 1000;
-            slamCooldownMs = attributes["slamCooldownSeconds"].AsInt(8) * 1000;
-            knockbackRange = attributes["knockbackRange"].AsFloat(8f);
-            slamDamage = attributes["slamDamage"].AsFloat(22f);
-            stunMs = attributes["stunMs"].AsInt(1000);
-
-            lastShockwaveMs = 0;
-            lastSlamMs = 0;
+            stages = ParseStages<Stage>(attributes);
         }
 
-        public override void OnGameTick(float dt)
+        protected override int GetStageCount() => stages.Count;
+
+        protected override object GetStage(int index) => stages[index];
+
+        protected override float GetStageHealthThreshold(object stage) => ((Stage)stage).whenHealthRelBelow;
+
+        protected override float GetStageCooldown(object stage) => ((Stage)stage).cooldownSeconds;
+
+        protected override float GetMaxTargetRange(object stage) => ((Stage)stage).maxTargetRange;
+
+        protected override bool ShouldCheckAbility()
         {
-            base.OnGameTick(dt);
-
-            if (sapi == null || !entity.Alive) return;
-
-            long now = sapi.World.ElapsedMilliseconds;
-
-            // Count nearby players
-            int nearbyCount = CountNearbyPlayers();
-            if (nearbyCount < surroundedThreshold) return;
-
-            // Check which ability to use
-            bool canShockwave = now - lastShockwaveMs >= shockwaveCooldownMs;
-            bool canSlam = now - lastSlamMs >= slamCooldownMs;
-
-            if (canShockwave)
-            {
-                PerformShockwave(now);
-            }
-            else if (canSlam)
-            {
-                PerformSlam(now);
-            }
+            if (stages.Count == 0) return false;
+            var stage = stages[0];
+            return !IsAbilityActive && CountNearbyPlayers(stage.maxTargetRange) >= stage.surroundedThreshold;
         }
 
-        private int CountNearbyPlayers()
+        protected override void StopAbility()
+        {
+        }
+
+        protected override bool OnAbilityTick(float dt) => false;
+
+        private int CountNearbyPlayers(float range)
         {
             int count = 0;
-            foreach (var player in sapi.World.AllOnlinePlayers)
+            var players = Sapi.World.AllOnlinePlayers;
+            for (int i = 0; i < players.Length; i++)
             {
-                if (player.Entity?.Pos == null) continue;
-                if (player.Entity.Pos.Dimension != entity.Pos.Dimension) continue;
-                if (player.Entity.Pos.DistanceTo(entity.Pos) <= detectionRange)
+                var player = players[i];
+                var plrEntity = player.Entity;
+                if (plrEntity?.Pos == null) continue;
+                if (plrEntity.Pos.Dimension != entity.Pos.Dimension) continue;
+                if (plrEntity.Pos.DistanceTo(entity.Pos) <= range)
                 {
                     count++;
                 }
@@ -85,36 +91,59 @@ namespace VsQuest
             return count;
         }
 
-        private void PerformShockwave(long now)
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
+        {
+            if (stageObj is not Stage stage) return;
+            
+            MarkCooldownStart();
+            long now = Sapi.World.ElapsedMilliseconds;
+            
+            // Check which ability to use
+            bool canShockwave = now - lastShockwaveMs >= stage.shockwaveCooldownMs;
+            bool canSlam = now - lastSlamMs >= stage.slamCooldownMs;
+
+            if (canShockwave)
+            {
+                PerformShockwave(stage, now);
+            }
+            else if (canSlam)
+            {
+                PerformSlam(stage, now);
+            }
+        }
+
+        private void PerformShockwave(Stage stage, long now)
         {
             lastShockwaveMs = now;
 
             // Push all nearby players back
-            foreach (var player in sapi.World.AllOnlinePlayers)
+            var players = Sapi.World.AllOnlinePlayers;
+            for (int i = 0; i < players.Length; i++)
             {
-                if (player.Entity?.Pos == null) continue;
-                if (player.Entity.Pos.Dimension != entity.Pos.Dimension) continue;
+                var plrEntity = players[i].Entity;
+                if (plrEntity?.Pos == null) continue;
+                if (plrEntity.Pos.Dimension != entity.Pos.Dimension) continue;
 
-                double dist = player.Entity.Pos.DistanceTo(entity.Pos);
-                if (dist > knockbackRange) continue;
+                double dist = plrEntity.Pos.DistanceTo(entity.Pos);
+                if (dist > stage.knockbackRange) continue;
 
                 // Calculate knockback
-                Vec3d dir = player.Entity.Pos.XYZ - entity.Pos.XYZ;
+                Vec3d dir = plrEntity.Pos.XYZ - entity.Pos.XYZ;
                 dir.Normalize();
                 dir.Y = 0.5;
                 dir.Mul(0.6);
 
-                player.Entity.Pos.Motion.Add(dir);
+                plrEntity.Pos.Motion.Add(dir);
             }
 
             // Visual effect
             var entityPos = entity.Pos.XYZ;
-            sapi.World.SpawnParticles(
+            Sapi.World.SpawnParticles(
                 new SimpleParticleProperties(
                     60, 80,
                     ColorUtil.ToRgba(200, 200, 200, 255),
-                    entityPos.Add(-knockbackRange, 0, -knockbackRange),
-                    entityPos.Add(knockbackRange, 2, knockbackRange),
+                    entityPos.Add(-stage.knockbackRange, 0, -stage.knockbackRange),
+                    entityPos.Add(stage.knockbackRange, 2, stage.knockbackRange),
                     new Vec3f(-0.3f, 0.1f, -0.3f),
                     new Vec3f(0.3f, 0.3f, 0.3f),
                     0.8f,
@@ -126,47 +155,49 @@ namespace VsQuest
             );
 
             // Sound
-            sapi.World.PlaySoundAt(
+            Sapi.World.PlaySoundAt(
                 new AssetLocation("albase:shock-sound-effect-horror"),
                 entity.Pos.X, entity.Pos.Y, entity.Pos.Z,
                 null, false, 32, 0.5f
             );
         }
 
-        private void PerformSlam(long now)
+        private void PerformSlam(Stage stage, long now)
         {
             lastSlamMs = now;
 
             // Damage and stun all nearby players
-            foreach (var player in sapi.World.AllOnlinePlayers)
+            var players = Sapi.World.AllOnlinePlayers;
+            for (int i = 0; i < players.Length; i++)
             {
-                if (player.Entity?.Pos == null) continue;
-                if (player.Entity.Pos.Dimension != entity.Pos.Dimension) continue;
+                var plrEntity = players[i].Entity;
+                if (plrEntity?.Pos == null) continue;
+                if (plrEntity.Pos.Dimension != entity.Pos.Dimension) continue;
 
-                double dist = player.Entity.Pos.DistanceTo(entity.Pos);
-                if (dist > detectionRange * 1.5) continue;
+                double dist = plrEntity.Pos.DistanceTo(entity.Pos);
+                if (dist > stage.maxTargetRange * 1.5) continue;
 
                 // Damage
-                player.Entity.ReceiveDamage(
+                plrEntity.ReceiveDamage(
                     new DamageSource
                     {
                         Source = EnumDamageSource.Entity,
                         SourceEntity = entity,
                         Type = EnumDamageType.BluntAttack
                     },
-                    slamDamage
+                    stage.slamDamage
                 );
 
                 // Stun
-                player.Entity.WatchedAttributes.SetLong(
+                plrEntity.WatchedAttributes.SetLong(
                     "alegacyvsquest:stununtil",
-                    sapi.World.ElapsedMilliseconds + stunMs
+                    Sapi.World.ElapsedMilliseconds + stage.stunMs
                 );
             }
 
             // Visual effect
             var slamPos = entity.Pos.XYZ;
-            sapi.World.SpawnParticles(
+            Sapi.World.SpawnParticles(
                 new SimpleParticleProperties(
                     40, 60,
                     ColorUtil.ToRgba(255, 150, 100, 50),

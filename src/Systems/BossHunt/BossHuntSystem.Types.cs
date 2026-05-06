@@ -11,7 +11,6 @@ namespace VsQuest
             public string bossKey;
             public string questId;
             public double rotationDays;
-            public List<string> points;
 
             public double relocateIntervalHours;
             public double respawnInGameHours;
@@ -42,7 +41,6 @@ namespace VsQuest
             {
                 if (string.IsNullOrWhiteSpace(bossKey)) return false;
                 if (string.IsNullOrWhiteSpace(GetBossEntityCode())) return false;
-                if (points == null || points.Count < 1) return false;
                 return true;
             }
 
@@ -52,18 +50,6 @@ namespace VsQuest
             public float GetActivationRange(AlegacyVsQuestConfig.BossHuntCoreConfig coreConfig = null) => 
                 activationRange > 0 ? activationRange : (coreConfig?.DefaultActivationRange ?? 160f);
             public float GetPlayerLockRange() => playerLockRange > 0 ? playerLockRange : 40f;
-
-            [ProtoIgnore]
-            public List<ParsedPoint> _parsedPoints;
-        }
-
-        public class ParsedPoint
-        {
-            public bool ok;
-            public double x;
-            public double y;
-            public double z;
-            public int dim;
         }
 
         [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]

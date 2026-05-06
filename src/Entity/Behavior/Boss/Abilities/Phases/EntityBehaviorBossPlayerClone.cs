@@ -9,7 +9,7 @@ using Vintagestory.GameContent;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossPlayerClone : EntityBehavior
+    public class EntityBehaviorBossPlayerClone : BossAbilityBase
     {
         private const string CloneFlagKey = "alegacyvsquest:bossplayerclone";
         private const string CloneOwnerIdKey = "alegacyvsquest:bossplayerclone:ownerid";
@@ -19,12 +19,24 @@ namespace VsQuest
         private const int HandSlotRight = 15;
         private const int HandSlotLeft = 16;
 
-        private ICoreServerAPI sapi;
-        private string cloneEntityCode;
-        private float cloneRange;
-        private int checkIntervalMs;
+        private class Stage : BossAbilityStage
+        {
+            public string cloneEntityCode;
+            public float cloneRange;
 
-        private long lastCheckMs;
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                cloneEntityCode = json["cloneEntityCode"].AsString(null);
+                cloneRange = json["cloneRange"].AsFloat(50f);
+            }
+        }
+
+        private List<Stage> stages = new List<Stage>();
+        protected override string CooldownKey => "alegacyvsquest:bossplayerclone:lastCheckMs";
+        protected override bool UsePeriodicTick() => true;
+        protected override int CheckIntervalMs => 500;
+
         private readonly Dictionary<string, long> cloneByPlayerUid = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
 
         public EntityBehaviorBossPlayerClone(Entity entity) : base(entity)
@@ -33,23 +45,14 @@ namespace VsQuest
 
         public override string PropertyName() => "bossplayerclone";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-
-            cloneEntityCode = attributes["cloneEntityCode"].AsString(null);
-            cloneRange = attributes["cloneRange"].AsFloat(50f);
-            checkIntervalMs = attributes["checkIntervalMs"].AsInt(500);
-
-            if (checkIntervalMs < 100) checkIntervalMs = 100;
+            stages = ParseStages<Stage>(attributes);
         }
 
-        public override void OnGameTick(float dt)
+        protected override void OnPeriodicTick(float dt)
         {
-            base.OnGameTick(dt);
-
-            if (sapi == null || entity == null) return;
+            if (Sapi == null || entity == null) return;
 
             if (IsCloneEntity())
             {
@@ -63,18 +66,29 @@ namespace VsQuest
                 return;
             }
 
-            long nowMs = sapi.World.ElapsedMilliseconds;
-            if (nowMs - lastCheckMs < checkIntervalMs) return;
-            lastCheckMs = nowMs;
-
             UpdateClones();
+        }
+
+        protected override int GetStageCount() => stages.Count;
+        protected override object GetStage(int index) => stages[index];
+        protected override float GetStageHealthThreshold(object stage) => ((Stage)stage).whenHealthRelBelow;
+        protected override float GetStageCooldown(object stage) => ((Stage)stage).cooldownSeconds;
+        protected override float GetMaxTargetRange(object stage) => 0f;
+
+        protected override void ActivateAbility(object stage, int stageIndex, EntityPlayer target) { }
+        protected override void StopAbility()
+        {
+            if (!IsCloneEntity())
+            {
+                CleanupClones();
+            }
         }
 
         public override void OnInteract(EntityAgent byEntity, ItemSlot itemslot, Vec3d hitPosition, EnumInteractMode mode, ref EnumHandling handled)
         {
             if (mode != EnumInteractMode.Interact) return;
             if (handled == EnumHandling.Handled) return;
-            if (sapi == null || entity == null) return;
+            if (Sapi == null || entity == null) return;
             if (byEntity is not EntityPlayer) return;
 
             // Prevent any debug/selection messages on right-click for Crypt Mirror and its clones.
@@ -92,15 +106,8 @@ namespace VsQuest
             var owner = GetCloneOwner();
             if (owner == null || !owner.Alive) return;
 
-            try
-            {
-                owner.ReceiveDamage(damageSource, damage);
-                damage = 0f;
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in OnEntityReceiveDamage ReceiveDamage: {ex}");
-            }
+            owner.ReceiveDamage(damageSource, damage);
+            damage = 0f;
         }
 
         public override void OnEntityDeath(DamageSource damageSourceForDeath)
@@ -125,9 +132,11 @@ namespace VsQuest
 
         private void UpdateClones()
         {
-            if (string.IsNullOrWhiteSpace(cloneEntityCode)) return;
+            if (stages.Count == 0) return;
+            var settings = stages[0];
+            if (string.IsNullOrWhiteSpace(settings.cloneEntityCode)) return;
 
-            var players = sapi.World.AllOnlinePlayers;
+            var players = Sapi.World.AllOnlinePlayers;
             if (players == null) return;
 
             var aliveUids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -138,7 +147,7 @@ namespace VsQuest
                 if (plrEntity.Pos.Dimension != entity.Pos.Dimension) continue;
 
                 double distSq = plrEntity.Pos.DistanceTo(entity.Pos);
-                if (distSq > cloneRange) continue;
+                if (distSq > settings.cloneRange) continue;
 
                 string uid = player.PlayerUID;
                 if (string.IsNullOrWhiteSpace(uid)) continue;
@@ -151,7 +160,7 @@ namespace VsQuest
                     continue;
                 }
 
-                var cloneEntity = sapi.World.GetEntityById(cloneId);
+                var cloneEntity = Sapi.World.GetEntityById(cloneId);
                 if (cloneEntity == null || !cloneEntity.Alive)
                 {
                     cloneByPlayerUid.Remove(uid);
@@ -166,17 +175,10 @@ namespace VsQuest
             {
                 if (aliveUids.Contains(pair.Key)) continue;
 
-                var clone = sapi.World.GetEntityById(pair.Value);
+                var clone = Sapi.World.GetEntityById(pair.Value);
                 if (clone != null)
                 {
-                    try
-                    {
-                        sapi.World.DespawnEntity(clone, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
-                    }
-                    catch (Exception ex)
-                    {
-                        entity?.Api?.Logger?.Error($"[vsquest] Exception in UpdateClones DespawnEntity: {ex}");
-                    }
+                    Sapi.World.DespawnEntity(clone, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
                 }
 
                 toRemove.Add(pair.Key);
@@ -190,70 +192,52 @@ namespace VsQuest
 
         private void SpawnCloneFor(IPlayer player)
         {
-            if (player?.Entity == null || sapi == null || entity == null) return;
+            if (player?.Entity == null || Sapi == null || entity == null) return;
+            if (stages.Count == 0) return;
 
-            var type = sapi.World.GetEntityType(new AssetLocation(cloneEntityCode));
+            var type = Sapi.World.GetEntityType(new AssetLocation(stages[0].cloneEntityCode));
             if (type == null) return;
 
-            Entity clone = null;
-            try
+            Entity clone = Sapi.World.ClassRegistry.CreateEntity(type);
+            if (clone == null) return;
+
+            ApplyCloneFlags(clone, player);
+
+            var spawnPos = GetSpawnPositionNear(player.Entity.Pos.XYZ);
+            int dim = entity.Pos.Dimension;
+            clone.Pos.SetPosWithDimension(new Vec3d(spawnPos.X, spawnPos.Y + dim * 32768.0, spawnPos.Z));
+            clone.Pos.Yaw = player.Entity.Pos.Yaw;
+            clone.Pos.SetFrom(clone.Pos);
+
+            Sapi.World.SpawnEntity(clone);
+
+            // Important: many behaviors (including seraphinventory) finish initialization during SpawnEntity.
+            // Copying inventory/appearance before SpawnEntity can silently do nothing.
+            Sapi.Event.EnqueueMainThreadTask(() =>
             {
-                clone = sapi.World.ClassRegistry.CreateEntity(type);
-                if (clone == null) return;
-
-                ApplyCloneFlags(clone, player);
-
-                var spawnPos = GetSpawnPositionNear(player.Entity.Pos.XYZ);
-                int dim = entity.Pos.Dimension;
-                clone.Pos.SetPosWithDimension(new Vec3d(spawnPos.X, spawnPos.Y + dim * 32768.0, spawnPos.Z));
-                clone.Pos.Yaw = player.Entity.Pos.Yaw;
-                clone.Pos.SetFrom(clone.Pos);
-
-                sapi.World.SpawnEntity(clone);
-
-                // Important: many behaviors (including seraphinventory) finish initialization during SpawnEntity.
-                // Copying inventory/appearance before SpawnEntity can silently do nothing.
-                sapi.Event.EnqueueMainThreadTask(() =>
+                try
                 {
-                    try
-                    {
-                        if (clone == null || !clone.Alive) return;
+                    if (clone == null || !clone.Alive) return;
 
-                        CopyAppearanceAttributes(player, clone);
-                        CopyPlayerInventory(player, clone);
-                        clone.MarkShapeModified();
-                    }
-                    catch (Exception ex)
-                    {
-                        entity?.Api?.Logger?.Error($"[vsquest] Exception in SpawnCloneFor callback: {ex}");
-                    }
-                }, "bossplayerclone-copy");
-
-                cloneByPlayerUid[player.PlayerUID] = clone.EntityId;
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in SpawnCloneFor: {ex}");
-                if (clone != null)
-                {
-                    try
-                    {
-                        sapi.World.DespawnEntity(clone, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
-                    }
-                    catch (Exception innerEx)
-                    {
-                        entity?.Api?.Logger?.Error($"[vsquest] Exception in SpawnCloneFor DespawnEntity: {innerEx}");
-                    }
+                    CopyAppearanceAttributes(player, clone);
+                    CopyPlayerInventory(player, clone);
+                    clone.MarkShapeModified();
                 }
-            }
+                catch (Exception ex)
+                {
+                    entity?.Api?.Logger?.Error($"[vsquest] Exception in SpawnCloneFor callback: {ex}");
+                }
+            }, "bossplayerclone-copy");
+
+            cloneByPlayerUid[player.PlayerUID] = clone.EntityId;
         }
 
         private Vec3d GetSpawnPositionNear(Vec3d basePos)
         {
             if (basePos == null) return entity.Pos.XYZ.Clone();
 
-            double angle = sapi.World.Rand.NextDouble() * Math.PI * 2.0;
-            double dist = 1.5 + sapi.World.Rand.NextDouble() * 1.5;
+            double angle = Sapi.World.Rand.NextDouble() * Math.PI * 2.0;
+            double dist = 1.5 + Sapi.World.Rand.NextDouble() * 1.5;
             return new Vec3d(basePos.X + Math.Cos(angle) * dist, basePos.Y, basePos.Z + Math.Sin(angle) * dist);
         }
 
@@ -261,37 +245,23 @@ namespace VsQuest
         {
             if (clone?.WatchedAttributes == null) return;
 
-            try
-            {
-                clone.WatchedAttributes.SetBool(CloneFlagKey, true);
-                clone.WatchedAttributes.SetLong(CloneOwnerIdKey, entity.EntityId);
-                clone.WatchedAttributes.SetString(ClonePlayerUidKey, player.PlayerUID ?? string.Empty);
-                clone.WatchedAttributes.SetString(ClonePlayerNameKey, player.PlayerName ?? string.Empty);
+            clone.WatchedAttributes.SetBool(CloneFlagKey, true);
+            clone.WatchedAttributes.SetLong(CloneOwnerIdKey, entity.EntityId);
+            clone.WatchedAttributes.SetString(ClonePlayerUidKey, player.PlayerUID ?? string.Empty);
+            clone.WatchedAttributes.SetString(ClonePlayerNameKey, player.PlayerName ?? string.Empty);
 
-                clone.WatchedAttributes.SetBool("showHealthbar", false);
+            clone.WatchedAttributes.SetBool("showHealthbar", false);
 
-                clone.WatchedAttributes.MarkPathDirty(CloneFlagKey);
-                clone.WatchedAttributes.MarkPathDirty(CloneOwnerIdKey);
-                clone.WatchedAttributes.MarkPathDirty(ClonePlayerUidKey);
-                clone.WatchedAttributes.MarkPathDirty(ClonePlayerNameKey);
-                clone.WatchedAttributes.MarkPathDirty("showHealthbar");
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in ApplyCloneFlags SetAttributes: {ex}");
-            }
+            clone.WatchedAttributes.MarkPathDirty(CloneFlagKey);
+            clone.WatchedAttributes.MarkPathDirty(CloneOwnerIdKey);
+            clone.WatchedAttributes.MarkPathDirty(ClonePlayerUidKey);
+            clone.WatchedAttributes.MarkPathDirty(ClonePlayerNameKey);
+            clone.WatchedAttributes.MarkPathDirty("showHealthbar");
 
-            try
-            {
-                var tag = clone.WatchedAttributes.GetTreeAttribute("nametag") ?? new TreeAttribute();
-                tag.SetString("name", player.PlayerName ?? "");
-                clone.WatchedAttributes.SetAttribute("nametag", tag);
-                clone.WatchedAttributes.MarkPathDirty("nametag");
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in ApplyCloneFlags nametag: {ex}");
-            }
+            var tag = clone.WatchedAttributes.GetTreeAttribute("nametag") ?? new TreeAttribute();
+            tag.SetString("name", player.PlayerName ?? "");
+            clone.WatchedAttributes.SetAttribute("nametag", tag);
+            clone.WatchedAttributes.MarkPathDirty("nametag");
 
             CopyAppearanceAttributes(player, clone);
         }
@@ -316,67 +286,46 @@ namespace VsQuest
         {
             if (source?.WatchedAttributes == null || target?.WatchedAttributes == null) return;
 
-            try
-            {
-                var tree = source.WatchedAttributes.GetTreeAttribute(key);
-                if (tree == null) return;
+            var tree = source.WatchedAttributes.GetTreeAttribute(key);
+            if (tree == null) return;
 
-                target.WatchedAttributes.SetAttribute(key, tree.Clone());
-                target.WatchedAttributes.MarkPathDirty(key);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TryCopyTreeAttribute: {ex}");
-            }
+            target.WatchedAttributes.SetAttribute(key, tree.Clone());
+            target.WatchedAttributes.MarkPathDirty(key);
         }
 
         private void CopyPlayerInventory(IPlayer player, Entity clone)
         {
             if (player?.Entity == null || clone == null) return;
 
-            try
+            var invBehavior = clone.GetBehavior<EntityBehaviorSeraphInventory>();
+            if (invBehavior?.Inventory == null) return;
+
+            var targetInv = invBehavior.Inventory;
+            var sourceInv = player.InventoryManager?.GetOwnInventory("character");
+
+            if (sourceInv != null)
             {
-                var invBehavior = clone.GetBehavior<EntityBehaviorSeraphInventory>();
-                if (invBehavior?.Inventory == null) return;
-
-                var targetInv = invBehavior.Inventory;
-                var sourceInv = player.InventoryManager?.GetOwnInventory("character");
-
-                if (sourceInv != null)
+                int count = Math.Min(targetInv.Count, sourceInv.Count);
+                for (int i = 0; i < count; i++)
                 {
-                    int count = Math.Min(targetInv.Count, sourceInv.Count);
-                    for (int i = 0; i < count; i++)
+                    var sourceSlot = sourceInv[i];
+                    var targetSlot = targetInv[i];
+                    if (targetSlot == null) continue;
+
+                    if (sourceSlot?.Itemstack != null)
                     {
-                        var sourceSlot = sourceInv[i];
-                        var targetSlot = targetInv[i];
-                        if (targetSlot == null) continue;
-
-                        try
-                        {
-                            if (sourceSlot?.Itemstack != null)
-                            {
-                                targetSlot.Itemstack = sourceSlot.Itemstack.Clone();
-                            }
-                            else
-                            {
-                                targetSlot.Itemstack = null;
-                            }
-                            targetSlot.MarkDirty();
-                        }
-                        catch (Exception ex)
-                        {
-                            entity?.Api?.Logger?.Error($"[vsquest] Exception in CopyPlayerInventory item copy: {ex}");
-                        }
+                        targetSlot.Itemstack = sourceSlot.Itemstack.Clone();
                     }
+                    else
+                    {
+                        targetSlot.Itemstack = null;
+                    }
+                    targetSlot.MarkDirty();
                 }
+            }
 
-                TrySetHandItem(targetInv, HandSlotRight, player.Entity.RightHandItemSlot);
-                TrySetHandItem(targetInv, HandSlotLeft, player.Entity.LeftHandItemSlot);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in CopyPlayerInventory: {ex}");
-            }
+            TrySetHandItem(targetInv, HandSlotRight, player.Entity.RightHandItemSlot);
+            TrySetHandItem(targetInv, HandSlotLeft, player.Entity.LeftHandItemSlot);
         }
 
         private void TrySetHandItem(InventoryBase targetInv, int slotIndex, ItemSlot sourceSlot)
@@ -387,22 +336,15 @@ namespace VsQuest
             var targetSlot = targetInv[slotIndex];
             if (targetSlot == null) return;
 
-            try
+            if (sourceSlot?.Itemstack != null)
             {
-                if (sourceSlot?.Itemstack != null)
-                {
-                    targetSlot.Itemstack = sourceSlot.Itemstack.Clone();
-                }
-                else
-                {
-                    targetSlot.Itemstack = null;
-                }
-                targetSlot.MarkDirty();
+                targetSlot.Itemstack = sourceSlot.Itemstack.Clone();
             }
-            catch (Exception ex)
+            else
             {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TrySetHandItem: {ex}");
+                targetSlot.Itemstack = null;
             }
+            targetSlot.MarkDirty();
         }
 
         private void SyncClone()
@@ -414,88 +356,51 @@ namespace VsQuest
                 return;
             }
 
-            try
+            if (owner.TryGetHealth(out var healthTree, out float cur, out float max))
             {
-                if (BossBehaviorUtils.TryGetHealth(owner, out var healthTree, out float cur, out float max))
+                if (entity.TryGetHealth(out var cloneTree, out float cloneCur, out float cloneMax))
                 {
-                    if (BossBehaviorUtils.TryGetHealth(entity, out var cloneTree, out float cloneCur, out float cloneMax))
+                    if (cloneTree != null)
                     {
-                        if (cloneTree != null)
-                        {
-                            cloneTree.SetFloat("maxhealth", max);
-                            cloneTree.SetFloat("currenthealth", cur);
-                            entity.WatchedAttributes.MarkPathDirty("health");
-                        }
+                        cloneTree.SetFloat("maxhealth", max);
+                        cloneTree.SetFloat("currenthealth", cur);
+                        entity.WatchedAttributes.MarkPathDirty("health");
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in SyncClone: {ex}");
             }
         }
 
         private Entity GetCloneOwner()
         {
-            try
-            {
-                long ownerId = entity?.WatchedAttributes?.GetLong(CloneOwnerIdKey, 0) ?? 0;
-                if (ownerId <= 0 || sapi == null) return null;
-                return sapi.World.GetEntityById(ownerId);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in GetCloneOwner: {ex}");
-                return null;
-            }
+            long ownerId = entity?.WatchedAttributes?.GetLong(CloneOwnerIdKey, 0) ?? 0;
+            if (ownerId <= 0 || Sapi == null) return null;
+            return Sapi.World.GetEntityById(ownerId);
         }
 
         private bool IsCloneEntity()
         {
-            try
-            {
-                return entity?.WatchedAttributes?.GetBool(CloneFlagKey, false) ?? false;
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in IsCloneEntity: {ex}");
-                return false;
-            }
+            return entity?.WatchedAttributes?.GetBool(CloneFlagKey, false) ?? false;
         }
 
         private void DespawnClone()
         {
-            if (sapi == null || entity == null) return;
+            if (Sapi == null || entity == null) return;
 
-            try
-            {
-                sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in DespawnClone: {ex}");
-            }
+            Sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
         }
 
         private void CleanupClones()
         {
-            if (sapi == null) return;
+            if (Sapi == null) return;
 
             foreach (var pair in cloneByPlayerUid)
             {
                 if (pair.Value <= 0) continue;
 
-                try
+                var clone = Sapi.World.GetEntityById(pair.Value);
+                if (clone != null)
                 {
-                    var clone = sapi.World.GetEntityById(pair.Value);
-                    if (clone != null)
-                    {
-                        sapi.World.DespawnEntity(clone, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in CleanupClones: {ex}");
+                    Sapi.World.DespawnEntity(clone, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
                 }
             }
 

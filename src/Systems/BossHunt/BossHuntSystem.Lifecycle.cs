@@ -12,8 +12,12 @@ namespace VsQuest
 
             ApplyCoreConfig();
 
+            entityTracker = new BossEntityTracker(sapi);
+
             LoadConfigs();
             LoadState();
+
+            entityTracker.Start();
 
             tickListenerId = sapi.Event.RegisterGameTickListener(OnTick, 10000);
             sapi.Event.GameWorldSave += OnWorldSave;
@@ -22,6 +26,10 @@ namespace VsQuest
 
         public override void Dispose()
         {
+            entityTracker?.Stop();
+            entityTracker = null;
+            combatStateMachines.Clear();
+
             if (sapi != null)
             {
                 if (tickListenerId != 0)
@@ -52,6 +60,9 @@ namespace VsQuest
                         {
                             if (IsBossKeySkipped(asset.Value.bossKey)) continue;
                             configs.Add(asset.Value);
+
+                            // Register boss key with entity tracker
+                            entityTracker?.RegisterBossKey(asset.Value.bossKey);
                         }
                     }
                 }

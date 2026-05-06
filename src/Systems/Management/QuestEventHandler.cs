@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
@@ -11,9 +10,7 @@ namespace VsQuest
 {
     public class QuestEventHandler
     {
-        private double bossKillCreditMinShareCeil = 0.5;
-        private double bossKillCreditMinShareFloor = 0.08;
-        private float bossKillHealFraction = 0.17f;
+        private readonly BossCombatService bossCombatService = new BossCombatService();
 
         private const string SummonedByEntityIdKey = "alegacyvsquest:bosssummonritual:summonedByEntityId";
 
@@ -24,28 +21,9 @@ namespace VsQuest
 
         private void ApplyCoreConfig()
         {
-            AlegacyVsQuestConfig cfg = null;
-            try
+            if (questSystem?.CoreConfig != null)
             {
-                cfg = questSystem?.CoreConfig;
-            }
-            catch
-            {
-                cfg = null;
-            }
-
-            var combat = cfg?.BossCombat;
-            if (combat != null)
-            {
-                bossKillCreditMinShareCeil = combat.BossKillCreditMinShareCeil;
-                bossKillCreditMinShareFloor = combat.BossKillCreditMinShareFloor;
-                bossKillHealFraction = combat.BossKillHealFraction;
-
-                if (bossKillCreditMinShareCeil < 0) bossKillCreditMinShareCeil = 0;
-                if (bossKillCreditMinShareFloor < 0) bossKillCreditMinShareFloor = 0;
-                if (bossKillCreditMinShareFloor > bossKillCreditMinShareCeil) bossKillCreditMinShareFloor = bossKillCreditMinShareCeil;
-
-                if (bossKillHealFraction < 0f) bossKillHealFraction = 0f;
+                bossCombatService.ApplyConfig(questSystem.CoreConfig);
             }
         }
 
@@ -150,21 +128,9 @@ namespace VsQuest
             try
             {
                 var killer = damageSource?.SourceEntity ?? damageSource?.CauseEntity;
-                if (killer != null && killer.Alive && killer != entity && IsBossEntity(killer))
+                if (killer != null && killer.Alive && killer != entity && bossCombatService.IsBossEntity(killer))
                 {
-                    TryHealBossOnKill(killer);
-                }
-            }
-            catch
-            {
-            }
-
-            // Heal player on kill if wearing item with healonkill attribute (e.g., Kennel Master mask)
-            try
-            {
-                if (damageSource?.SourceEntity is EntityPlayer killerPlayer && killerPlayer.Alive && entity != null && entity != killerPlayer)
-                {
-                    TryHealPlayerOnKill(killerPlayer);
+                    bossCombatService.TryHealBossOnKill(killer);
                 }
             }
             catch
@@ -176,55 +142,35 @@ namespace VsQuest
                 credited.Add(player.PlayerUID);
             }
 
-            if (IsBossEntity(entity) && IsFinalBossStage(entity))
+            if (bossCombatService.IsBossEntity(entity) && bossCombatService.IsFinalBossStage(entity))
             {
                 try
                 {
-                    var wa = entity?.WatchedAttributes;
-                    if (wa != null)
+                    var wa = entity.WatchedAttributes;
+                    var dmgTree = wa.GetTreeAttribute(EntityBehaviorBossCombatMarker.BossCombatDamageByPlayerKey);
+                    if (dmgTree != null)
                     {
-                        try
+                        double totalDmg = 0;
+                        var attackers = wa.GetStringArray(EntityBehaviorBossCombatMarker.BossCombatAttackersKey, new string[0]) ?? new string[0];
+                        foreach (var uid in attackers)
                         {
-                            float maxHp = 0;
+                            totalDmg += dmgTree.GetDouble(uid);
+                        }
+
+                        if (totalDmg > 0)
+                        {
+                            float maxHp = 1f;
                             var healthBh = entity.GetBehavior<EntityBehaviorHealth>();
                             if (healthBh != null)
                             {
                                 maxHp = healthBh.MaxHealth;
                             }
 
-                            var dmgTree = wa.GetTreeAttribute(EntityBehaviorBossCombatMarker.BossCombatDamageByPlayerKey);
-                            if (dmgTree != null && maxHp > 0)
+                            var creditedUids = bossCombatService.GetCreditedPlayerUids(entity, totalDmg, maxHp);
+                            foreach (var uid in creditedUids)
                             {
-                                var attackers = wa.GetStringArray(EntityBehaviorBossCombatMarker.BossCombatAttackersKey, new string[0]) ?? new string[0];
-                                int attackersWithDamage = 0;
-                                for (int i = 0; i < attackers.Length; i++)
-                                {
-                                    var uid = attackers[i];
-                                    if (string.IsNullOrWhiteSpace(uid)) continue;
-
-                                    double dmg = dmgTree.GetDouble(uid, 0);
-                                    if (dmg > 0)
-                                    {
-                                        attackersWithDamage++;
-                                    }
-                                }
-
-                                double minShare = GetBossKillCreditMinShare(attackersWithDamage);
-                                for (int i = 0; i < attackers.Length; i++)
-                                {
-                                    var uid = attackers[i];
-                                    if (string.IsNullOrWhiteSpace(uid)) continue;
-
-                                    double dmg = dmgTree.GetDouble(uid, 0);
-                                    if (dmg > 0 && dmg / maxHp >= minShare)
-                                    {
-                                        credited.Add(uid);
-                                    }
-                                }
+                                credited.Add(uid);
                             }
-                        }
-                        catch
-                        {
                         }
                     }
                 }
@@ -262,33 +208,13 @@ namespace VsQuest
                 QuestDeathUtil.HandleEntityDeath(sapi, quests, epl, entity);
             }
 
-            try
-            {
-                if (IsBossEntity(entity) && IsFinalBossStage(entity))
-                {
-                    if (creditedPlayers.Count > 0)
-                    {
-                        BossKillAnnouncementUtil.AnnounceBossDefeated(sapi, creditedPlayers, entity);
-                    }
-                    else if (damageSource?.SourceEntity is EntityPlayer announcePlayer)
-                    {
-                        var serverPlayer = announcePlayer.Player as IServerPlayer;
-                        if (serverPlayer != null)
-                        {
-                            BossKillAnnouncementUtil.AnnounceBossDefeated(sapi, serverPlayer, entity);
-                        }
-                    }
-                }
-            }
-            catch
-            {
-            }
+            bossCombatService.AnnounceBossDeath(sapi, entity, creditedPlayers, damageSource);
 
             var victimPlayer = entity as EntityPlayer;
             if (victimPlayer != null)
             {
                 var killer = damageSource?.SourceEntity ?? damageSource?.CauseEntity;
-                if (killer != null && (killer.GetBehavior<EntityBehaviorQuestBoss>() != null || killer.GetBehavior<EntityBehaviorQuestTarget>() != null || killer.GetBehavior<EntityBehaviorBoss>() != null))
+                if (killer != null && killer.IsQuestBoss())
                 {
                     var serverVictim = victimPlayer.Player as IServerPlayer;
                     if (serverVictim != null)
@@ -301,112 +227,6 @@ namespace VsQuest
                     }
                 }
             }
-        }
-
-        private void TryHealBossOnKill(Entity boss)
-        {
-            if (boss == null) return;
-
-            try
-            {
-                if (!BossBehaviorUtils.TryGetHealth(boss, out ITreeAttribute healthTree, out float currentHealth, out float maxHealth)) return;
-                if (maxHealth <= 0f) return;
-
-                float add = maxHealth * bossKillHealFraction;
-                if (add <= 0f) return;
-
-                float next = currentHealth + add;
-                if (next > maxHealth) next = maxHealth;
-
-                healthTree.SetFloat("currenthealth", next);
-                boss.WatchedAttributes.MarkPathDirty("health");
-            }
-            catch
-            {
-            }
-        }
-
-        private void TryHealPlayerOnKill(EntityPlayer player)
-        {
-            if (player == null) return;
-
-            try
-            {
-                // Check if player is wearing an item with healonkill attribute
-                float healOnKill = 0f;
-                var inv = player.Player?.InventoryManager?.GetOwnInventory("character");
-                if (inv != null)
-                {
-                    foreach (var slot in inv)
-                    {
-                        if (slot?.Itemstack == null) continue;
-                        if (slot.Itemstack.Collectible.GetCollectibleInterface<Vintagestory.API.Common.IWearable>() == null) continue;
-                        float val = ItemAttributeUtils.GetAttributeFloat(slot.Itemstack, ItemAttributeUtils.AttrHealOnKill, 0f);
-                        if (val > 0f) healOnKill += val;
-                    }
-                }
-
-                if (healOnKill <= 0f) return;
-
-                var healthTree = player.WatchedAttributes?.GetTreeAttribute("health");
-                if (healthTree == null) return;
-
-                float currentHealth = healthTree.GetFloat("currenthealth", 0f);
-                float maxHealth = healthTree.GetFloat("maxhealth", 0f);
-                if (maxHealth <= 0f) return;
-
-                float add = maxHealth * healOnKill;
-                if (add <= 0f) return;
-
-                float next = currentHealth + add;
-                if (next > maxHealth) next = maxHealth;
-
-                healthTree.SetFloat("currenthealth", next);
-                player.WatchedAttributes.MarkPathDirty("health");
-            }
-            catch
-            {
-            }
-        }
-
-        private double GetBossKillCreditMinShare(int attackersWithDamage)
-        {
-            if (attackersWithDamage <= 1)
-            {
-                return bossKillCreditMinShareCeil;
-            }
-
-            double ceil = bossKillCreditMinShareCeil;
-            double floor = bossKillCreditMinShareFloor;
-
-            if (ceil < 0) ceil = 0;
-            if (floor < 0) floor = 0;
-            if (floor > ceil) floor = ceil;
-
-            double share = ceil / Math.Sqrt(Math.Max(1, attackersWithDamage));
-            if (share < floor) share = floor;
-            if (share > ceil) share = ceil;
-
-            return share;
-        }
-
-        private static bool IsBossEntity(Entity entity)
-        {
-            if (entity == null) return false;
-
-            return entity.GetBehavior<EntityBehaviorBossHuntCombatMarker>() != null
-                || entity.GetBehavior<EntityBehaviorBossCombatMarker>() != null
-                || entity.GetBehavior<EntityBehaviorBossRespawn>() != null
-                || entity.GetBehavior<EntityBehaviorBossDespair>() != null
-                || entity.GetBehavior<EntityBehaviorQuestBoss>() != null;
-        }
-
-        private static bool IsFinalBossStage(Entity entity)
-        {
-            if (entity == null) return false;
-
-            var rebirth2 = entity.GetBehavior<EntityBehaviorBossRebirth2>();
-            return rebirth2 == null || rebirth2.IsFinalStage;
         }
 
         private void OnBlockBroken(IServerPlayer byPlayer, int blockId, BlockSelection blockSel)
@@ -448,7 +268,7 @@ namespace VsQuest
                 {
                 }
 
-                quest.OnBlockBroken(blockCode, position, byPlayer);
+                quest.OnBlockBroken(blockCode, position, byPlayer, null);
             }
         }
 
@@ -491,7 +311,7 @@ namespace VsQuest
                 {
                 }
 
-                quest.OnBlockPlaced(blockCode, position, byPlayer);
+                quest.OnBlockPlaced(blockCode, position, byPlayer, null);
             }
         }
 
@@ -589,7 +409,7 @@ namespace VsQuest
 
                 if (needsInteract)
                 {
-                    activeQuest.OnBlockUsed(message.BlockCode, position, player, sapi);
+                    activeQuest.OnBlockUsed(message.BlockCode, position, player, sapi, null);
                 }
             }
         }

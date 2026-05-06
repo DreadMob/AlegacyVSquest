@@ -9,28 +9,22 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossParasiteLeech : EntityBehavior
+    public class EntityBehaviorBossParasiteLeech : BossAbilityBase
     {
-        private const string LastStartMsKey = "alegacyvsquest:bossparasiteleech:lastStartMs";
+        protected override string CooldownKey => "alegacyvsquest:bossparasiteleech:lastStartMs";
         private const string DebuffUntilKey = "alegacyvsquest:bossparasiteleech:until";
-
         private const string DebuffStatKey = "alegacyvsquest:bossparasiteleech:stat";
 
-        private class Stage
+        private class Stage : BossAbilityStage
         {
-            public float whenHealthRelBelow;
-            public float cooldownSeconds;
-
-            public float minTargetRange;
-            public float maxTargetRange;
+            public int windupMs;
+            public string windupAnimation;
 
             public int durationMs;
             public int tickIntervalMs;
-
             public float damagePerTick;
             public int damageTier;
             public string damageType;
-
             public float healBossPerTick;
             public float healBossRelPerTick;
 
@@ -41,20 +35,52 @@ namespace VsQuest
             public string sound;
             public float soundRange;
             public int soundStartMs;
+            public float soundVolume;
 
             public string loopSound;
             public float loopSoundRange;
             public int loopSoundIntervalMs;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                windupMs = json["windupMs"].AsInt(350);
+                windupAnimation = json["windupAnimation"].AsString(null);
+                durationMs = json["durationMs"].AsInt(12000);
+                tickIntervalMs = json["tickIntervalMs"].AsInt(1000);
+                damagePerTick = json["damagePerTick"].AsFloat(5f);
+                damageTier = json["damageTier"].AsInt(0);
+                damageType = json["damageType"].AsString("Acid");
+                healBossPerTick = json["healBossPerTick"].AsFloat(0f);
+                healBossRelPerTick = json["healBossRelPerTick"].AsFloat(0.01f);
+                victimWalkSpeedDelta = json["victimWalkSpeedDelta"].AsFloat(-0.35f);
+                victimHealingDelta = json["victimHealingDelta"].AsFloat(-0.5f);
+                victimHungerRateDelta = json["victimHungerRateDelta"].AsFloat(1.5f);
+                sound = json["sound"].AsString(null);
+                soundRange = json["soundRange"].AsFloat(24f);
+                soundStartMs = json["soundStartMs"].AsInt(0);
+                soundVolume = json["soundVolume"].AsFloat(1f);
+                loopSound = json["loopSound"].AsString(null);
+                loopSoundRange = json["loopSoundRange"].AsFloat(24f);
+                loopSoundIntervalMs = json["loopSoundIntervalMs"].AsInt(900);
+
+                // Validation
+                if (windupMs < 0) windupMs = 0;
+                if (durationMs <= 0) durationMs = 500;
+                if (tickIntervalMs < 50) tickIntervalMs = 50;
+                if (damagePerTick < 0f) damagePerTick = 0f;
+                if (healBossPerTick < 0f) healBossPerTick = 0f;
+                if (healBossRelPerTick < 0f) healBossRelPerTick = 0f;
+                if (soundVolume <= 0f) soundVolume = 1f;
+            }
         }
 
-        private ICoreServerAPI sapi;
-        private readonly List<Stage> stages = new List<Stage>();
-
-        private readonly BossBehaviorUtils.LoopSound loopSoundPlayer = new BossBehaviorUtils.LoopSound();
-
-        private long nextTickAtMs;
-        private EntityPlayer target;
+        private List<Stage> stages = new List<Stage>();
+        private long callbackId;
         private int activeStageIndex = -1;
+        private EntityPlayer target;
+        private long nextTickAtMs;
+        private readonly BossBehaviorUtils.LoopSound loopSoundPlayer = new BossBehaviorUtils.LoopSound();
 
         public EntityBehaviorBossParasiteLeech(Entity entity) : base(entity)
         {
@@ -62,152 +88,97 @@ namespace VsQuest
 
         public override string PropertyName() => "bossparasiteleech";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-
-            stages.Clear();
-            try
-            {
-                foreach (var stageObj in attributes["stages"].AsArray())
-                {
-                    if (stageObj == null || !stageObj.Exists) continue;
-
-                    var stage = new Stage
-                    {
-                        whenHealthRelBelow = stageObj["whenHealthRelBelow"].AsFloat(1f),
-                        cooldownSeconds = stageObj["cooldownSeconds"].AsFloat(0f),
-
-                        minTargetRange = stageObj["minTargetRange"].AsFloat(0f),
-                        maxTargetRange = stageObj["maxTargetRange"].AsFloat(30f),
-
-                        durationMs = stageObj["durationMs"].AsInt(6000),
-                        tickIntervalMs = stageObj["tickIntervalMs"].AsInt(750),
-
-                        damagePerTick = stageObj["damagePerTick"].AsFloat(0f),
-                        damageTier = stageObj["damageTier"].AsInt(2),
-                        damageType = stageObj["damageType"].AsString("PiercingAttack"),
-
-                        healBossPerTick = stageObj["healBossPerTick"].AsFloat(0f),
-                        healBossRelPerTick = stageObj["healBossRelPerTick"].AsFloat(0f),
-
-                        victimWalkSpeedDelta = stageObj["victimWalkSpeedDelta"].AsFloat(-0.1f),
-                        victimHealingDelta = stageObj["victimHealingDelta"].AsFloat(-0.2f),
-                        victimHungerRateDelta = stageObj["victimHungerRateDelta"].AsFloat(0.15f),
-
-                        sound = stageObj["sound"].AsString(null),
-                        soundRange = stageObj["soundRange"].AsFloat(24f),
-                        soundStartMs = stageObj["soundStartMs"].AsInt(0),
-
-                        loopSound = stageObj["loopSound"].AsString(null),
-                        loopSoundRange = stageObj["loopSoundRange"].AsFloat(24f),
-                        loopSoundIntervalMs = stageObj["loopSoundIntervalMs"].AsInt(900),
-                    };
-
-                    if (stage.cooldownSeconds < 0f) stage.cooldownSeconds = 0f;
-                    if (stage.minTargetRange < 0f) stage.minTargetRange = 0f;
-                    if (stage.maxTargetRange < stage.minTargetRange) stage.maxTargetRange = stage.minTargetRange;
-
-                    if (stage.durationMs <= 0) stage.durationMs = 500;
-                    if (stage.tickIntervalMs <= 0) stage.tickIntervalMs = 250;
-
-                    if (stage.damagePerTick < 0f) stage.damagePerTick = 0f;
-                    if (stage.damageTier < 0) stage.damageTier = 0;
-
-                    stages.Add(stage);
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in parsing stages: {ex}");
-            }
+            stages = ParseStages<Stage>(attributes);
         }
 
-        public override void OnGameTick(float dt)
+        protected override int GetStageCount() => stages.Count;
+
+        protected override object GetStage(int index) => stages[index];
+
+        protected override float GetStageHealthThreshold(object stage) => ((Stage)stage).whenHealthRelBelow;
+
+        protected override float GetStageCooldown(object stage) => ((Stage)stage).cooldownSeconds;
+
+        protected override float GetMaxTargetRange(object stage) => ((Stage)stage).maxTargetRange;
+
+        protected override bool ShouldCheckAbility() => !IsAbilityActive;
+
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
-            base.OnGameTick(dt);
-            if (sapi == null || entity == null) return;
-            if (stages.Count == 0) return;
+            if (target == null || stageObj is not Stage stage) return;
+            StartParasiteLeech(stage, stageIndex, target);
+        }
 
-            if (!entity.Alive)
-            {
-                StopDebuff();
-                return;
-            }
+        protected override void StopAbility()
+        {
+            CancelPending();
+            StopDebuff();
+        }
 
-            if (target != null)
+        protected override bool OnAbilityTick(float dt)
+        {
+            if (IsAbilityActive)
             {
                 TickDebuff();
-                return;
             }
+            return IsAbilityActive;
+        }
 
-            if (!BossBehaviorUtils.TryGetHealthFraction(entity, out float frac)) return;
+        private void StartParasiteLeech(Stage stage, int stageIndex, EntityPlayer target)
+        {
+            if (Sapi == null || entity == null || stage == null || target == null) return;
 
-            int stageIndex = -1;
-            for (int i = 0; i < stages.Count; i++)
+            MarkCooldownStart();
+            SetAbilityActive(true);
+            activeStageIndex = stageIndex;
+
+            BossBehaviorUtils.StopAiAndFreeze(entity);
+            TryPlaySound(stage.sound, stage.soundRange, stage.soundStartMs, stage.soundVolume);
+            TryPlayAnimation(stage.windupAnimation);
+
+            int delay = Math.Max(0, stage.windupMs);
+            UnregisterCallbackSafe(ref callbackId);
+            callbackId = Sapi.Event.RegisterCallback(_ =>
             {
-                var stage = stages[i];
-                if (frac <= stage.whenHealthRelBelow)
-                {
-                    stageIndex = i;
-                }
-            }
-
-            if (stageIndex < 0 || stageIndex >= stages.Count) return;
-
-            var activeStage = stages[stageIndex];
-            if (!BossBehaviorUtils.IsCooldownReady(sapi, entity, LastStartMsKey, activeStage.cooldownSeconds)) return;
-
-            if (!TryFindTarget(activeStage, out var candidate, out float dist)) return;
-            if (dist < activeStage.minTargetRange) return;
-            if (dist > activeStage.maxTargetRange) return;
-
-            StartDebuff(activeStage, stageIndex, candidate);
+                callbackId = 0;
+                StartDebuff(stage, stageIndex, target);
+            }, delay);
         }
 
         public override void OnEntityDeath(DamageSource damageSourceForDeath)
         {
-            StopDebuff();
+            StopAbility();
             base.OnEntityDeath(damageSourceForDeath);
         }
 
         public override void OnEntityDespawn(EntityDespawnData despawn)
         {
-            StopDebuff();
+            StopAbility();
             base.OnEntityDespawn(despawn);
         }
 
         private void StartDebuff(Stage stage, int stageIndex, EntityPlayer targetPlayer)
         {
-            if (sapi == null || entity == null || stage == null || targetPlayer == null) return;
+            if (Sapi == null || entity == null || stage == null || targetPlayer == null) return;
 
-            BossBehaviorUtils.MarkCooldownStart(sapi, entity, LastStartMsKey);
-
+            SetAbilityActive(true);
             activeStageIndex = stageIndex;
             target = targetPlayer;
 
-            try
-            {
-                target.WatchedAttributes.SetLong(DebuffUntilKey, sapi.World.ElapsedMilliseconds + Math.Max(250, stage.durationMs));
-                target.WatchedAttributes.MarkPathDirty(DebuffUntilKey);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in StartDebuff DebuffUntil: {ex}");
-            }
+            target.WatchedAttributes.SetLong(DebuffUntilKey, Sapi.World.ElapsedMilliseconds + Math.Max(250, stage.durationMs));
+            target.WatchedAttributes.MarkPathDirty(DebuffUntilKey);
 
             ApplyDebuffStats(stage, target);
-
-            TryPlaySound(stage);
             TryStartLoopSound(stage);
 
-            nextTickAtMs = sapi.World.ElapsedMilliseconds;
+            nextTickAtMs = Sapi.World.ElapsedMilliseconds;
         }
 
         private void TickDebuff()
         {
-            if (sapi == null || entity == null) return;
+            if (Sapi == null || entity == null) return;
             if (target == null || !target.Alive)
             {
                 StopDebuff();
@@ -226,18 +197,9 @@ namespace VsQuest
                 return;
             }
 
-            long until = 0;
-            try
-            {
-                until = target.WatchedAttributes.GetLong(DebuffUntilKey, 0);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TickDebuff GetLong: {ex}");
-                until = 0;
-            }
+            long until = target.WatchedAttributes.GetLong(DebuffUntilKey, 0);
 
-            if (until <= 0 || sapi.World.ElapsedMilliseconds >= until)
+            if (until <= 0 || Sapi.World.ElapsedMilliseconds >= until)
             {
                 StopDebuff();
                 return;
@@ -247,7 +209,7 @@ namespace VsQuest
 
             ApplyDebuffStats(stage, target);
 
-            long now = sapi.World.ElapsedMilliseconds;
+            long now = Sapi.World.ElapsedMilliseconds;
             if (now < nextTickAtMs) return;
 
             nextTickAtMs = now + Math.Max(250, stage.tickIntervalMs);
@@ -265,19 +227,13 @@ namespace VsQuest
 
         private void StopDebuff()
         {
+            SetAbilityActive(false);
             loopSoundPlayer.Stop();
 
             if (target != null)
             {
-                try
-                {
-                    target.WatchedAttributes.SetLong(DebuffUntilKey, 0);
-                    target.WatchedAttributes.MarkPathDirty(DebuffUntilKey);
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in StopDebuff DebuffUntil: {ex}");
-                }
+                target.WatchedAttributes.SetLong(DebuffUntilKey, 0);
+                target.WatchedAttributes.MarkPathDirty(DebuffUntilKey);
 
                 ClearDebuffStats(target);
             }
@@ -289,37 +245,22 @@ namespace VsQuest
 
         private void ApplyDebuffStats(Stage stage, EntityPlayer player)
         {
-            if (stage == null || player == null) return;
-            if (player.Stats == null) return;
+            if (stage == null || player?.Stats == null) return;
 
-            try
-            {
-                player.Stats.Set("walkspeed", DebuffStatKey, stage.victimWalkSpeedDelta, true);
-                player.Stats.Set("healingeffectivness", DebuffStatKey, stage.victimHealingDelta, true);
-                player.Stats.Set("hungerrate", DebuffStatKey, stage.victimHungerRateDelta, true);
-                BossBehaviorUtils.UpdatePlayerWalkSpeed(player);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in ApplyDebuffStats: {ex}");
-            }
+            player.Stats.Set("walkspeed", DebuffStatKey, stage.victimWalkSpeedDelta, true);
+            player.Stats.Set("healingeffectivness", DebuffStatKey, stage.victimHealingDelta, true);
+            player.Stats.Set("hungerrate", DebuffStatKey, stage.victimHungerRateDelta, true);
+            BossBehaviorUtils.UpdatePlayerWalkSpeed(player);
         }
 
         private void ClearDebuffStats(EntityPlayer player)
         {
             if (player?.Stats == null) return;
 
-            try
-            {
-                player.Stats.Set("walkspeed", DebuffStatKey, 0f, true);
-                player.Stats.Set("healingeffectivness", DebuffStatKey, 0f, true);
-                player.Stats.Set("hungerrate", DebuffStatKey, 0f, true);
-                BossBehaviorUtils.UpdatePlayerWalkSpeed(player);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in ClearDebuffStats: {ex}");
-            }
+            player.Stats.Set("walkspeed", DebuffStatKey, 0f, true);
+            player.Stats.Set("healingeffectivness", DebuffStatKey, 0f, true);
+            player.Stats.Set("hungerrate", DebuffStatKey, 0f, true);
+            BossBehaviorUtils.UpdatePlayerWalkSpeed(player);
         }
 
         private void DealDamage(Stage stage)
@@ -327,33 +268,19 @@ namespace VsQuest
             if (stage == null || target == null) return;
 
             EnumDamageType dmgType = EnumDamageType.PiercingAttack;
-            try
+            if (!string.IsNullOrWhiteSpace(stage.damageType) && Enum.TryParse(stage.damageType, ignoreCase: true, out EnumDamageType parsed))
             {
-                if (!string.IsNullOrWhiteSpace(stage.damageType) && Enum.TryParse(stage.damageType, ignoreCase: true, out EnumDamageType parsed))
-                {
-                    dmgType = parsed;
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in DealDamage EnumParse: {ex}");
+                dmgType = parsed;
             }
 
-            try
+            target.ReceiveDamage(new DamageSource()
             {
-                target.ReceiveDamage(new DamageSource()
-                {
-                    Source = EnumDamageSource.Entity,
-                    SourceEntity = entity,
-                    Type = dmgType,
-                    DamageTier = stage.damageTier,
-                    KnockbackStrength = 0f
-                }, stage.damagePerTick);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in DealDamage ReceiveDamage: {ex}");
-            }
+                Source = EnumDamageSource.Entity,
+                SourceEntity = entity,
+                Type = dmgType,
+                DamageTier = stage.damageTier,
+                KnockbackStrength = 0f
+            }, stage.damagePerTick);
         }
 
         private void HealBoss(Stage stage)
@@ -366,90 +293,22 @@ namespace VsQuest
             float heal = abs + rel;
             if (heal <= 0f) return;
 
-            try
-            {
-                float newHealth = Math.Min(maxHealth, curHealth + heal);
-                healthTree.SetFloat("currenthealth", newHealth);
-                entity.WatchedAttributes.MarkPathDirty("health");
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in HealBoss: {ex}");
-            }
-        }
-
-        private bool TryFindTarget(Stage stage, out EntityPlayer targetPlayer, out float dist)
-        {
-            targetPlayer = null;
-            dist = 0f;
-
-            if (sapi == null || entity == null) return false;
-
-            double range = Math.Max(2.0, stage.maxTargetRange > 0 ? stage.maxTargetRange : 30f);
-            try
-            {
-                var own = entity.Pos.XYZ;
-                float frange = (float)range;
-                var found = sapi.World.GetNearestEntity(own, frange, frange, e => e is EntityPlayer) as EntityPlayer;
-                if (found == null || !found.Alive) return false;
-
-                if (found.Pos.Dimension != entity.Pos.Dimension) return false;
-
-                targetPlayer = found;
-                dist = (float)found.Pos.DistanceTo(entity.Pos);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TryFindTarget: {ex}");
-                return false;
-            }
-        }
-
-        private void TryPlaySound(Stage stage)
-        {
-            if (sapi == null || stage == null) return;
-            if (string.IsNullOrWhiteSpace(stage.sound)) return;
-            float range = stage.soundRange > 0f ? stage.soundRange : 24f;
-
-            AssetLocation soundLoc = AssetLocation.Create(stage.sound, "game").WithPathPrefixOnce("sounds/");
-            if (soundLoc == null) return;
-
-            if (stage.soundStartMs > 0)
-            {
-                sapi.Event.RegisterCallback(_ =>
-                {
-                    try
-                    {
-                        if (entity == null || !entity.Alive) return;
-                        float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                        sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, 1f);
-                    }
-                    catch
-                    {
-                    }
-                }, stage.soundStartMs);
-            }
-            else
-            {
-                try
-                {
-                    if (entity == null || !entity.Alive) return;
-                    float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                    sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, 1f);
-                }
-                catch
-                {
-                }
-            }
+            float newHealth = Math.Min(maxHealth, curHealth + heal);
+            healthTree.SetFloat("currenthealth", newHealth);
+            entity.WatchedAttributes.MarkPathDirty("health");
         }
 
         private void TryStartLoopSound(Stage stage)
         {
-            if (sapi == null || stage == null) return;
+            if (Sapi == null || stage == null) return;
             if (string.IsNullOrWhiteSpace(stage.loopSound)) return;
 
-            loopSoundPlayer.Start(sapi, entity, stage.loopSound, stage.loopSoundRange, stage.loopSoundIntervalMs);
+            loopSoundPlayer.Start(Sapi, entity, stage.loopSound, stage.loopSoundRange, stage.loopSoundIntervalMs);
+        }
+
+        private void CancelPending()
+        {
+            UnregisterCallbackSafe(ref callbackId);
         }
     }
 }

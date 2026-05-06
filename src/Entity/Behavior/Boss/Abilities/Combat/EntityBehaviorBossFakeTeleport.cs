@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -9,21 +9,16 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossFakeTeleport : EntityBehavior
+    public class EntityBehaviorBossFakeTeleport : BossAbilityBase
     {
-        private const string LastStartMsKey = "alegacyvsquest:bossfaketeleport:lastStartMs";
+        protected override string CooldownKey => "alegacyvsquest:bossfaketeleport:lastStartMs";
+        protected override int CheckIntervalMs => 200;
         private const string FakeFlagKey = "alegacyvsquest:bossfaketeleport:fake";
         private const string FakeOwnerIdKey = "alegacyvsquest:bossfaketeleport:ownerid";
         private const string FakeDespawnAtMsKey = "alegacyvsquest:bossfaketeleport:despawnat";
 
-        private class Stage
+        private class Stage : BossAbilityStage
         {
-            public float whenHealthRelBelow;
-            public float cooldownSeconds;
-
-            public float minTargetRange;
-            public float maxTargetRange;
-
             public float minRadius;
             public float maxRadius;
             public int tries;
@@ -44,16 +39,44 @@ namespace VsQuest
             public float bossTeleportMinRadius;
             public float bossTeleportMaxRadius;
             public int bossTeleportTries;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                minRadius = json["minRadius"].AsFloat(3f);
+                maxRadius = json["maxRadius"].AsFloat(8f);
+                tries = json["tries"].AsInt(10);
+                requireSolidGround = json["requireSolidGround"].AsBool(true);
+                windupMs = json["windupMs"].AsInt(250);
+                windupAnimation = json["windupAnimation"].AsString(null);
+                sound = json["sound"].AsString(null);
+                soundRange = json["soundRange"].AsFloat(24f);
+                soundStartMs = json["soundStartMs"].AsInt(0);
+                soundVolume = json["soundVolume"].AsFloat(1f);
+                fakeEntityCode = json["fakeEntityCode"].AsString(null);
+                fakeDurationMs = json["fakeDurationMs"].AsInt(2500);
+                fakeInvulnerable = json["fakeInvulnerable"].AsBool(true);
+                teleportBoss = json["teleportBoss"].AsBool(false);
+                bossTeleportMinRadius = json["bossTeleportMinRadius"].AsFloat(3f);
+                bossTeleportMaxRadius = json["bossTeleportMaxRadius"].AsFloat(7f);
+                bossTeleportTries = json["bossTeleportTries"].AsInt(10);
+
+                // Validation
+                if (minRadius < 0f) minRadius = 0f;
+                if (maxRadius < minRadius) maxRadius = minRadius;
+                if (tries <= 0) tries = 1;
+                if (windupMs < 0) windupMs = 0;
+                if (soundVolume <= 0f) soundVolume = 1f;
+                if (fakeDurationMs <= 0) fakeDurationMs = 500;
+                if (bossTeleportMinRadius < 0f) bossTeleportMinRadius = 0f;
+                if (bossTeleportMaxRadius < bossTeleportMinRadius) bossTeleportMaxRadius = bossTeleportMinRadius;
+                if (bossTeleportTries <= 0) bossTeleportTries = 1;
+            }
         }
 
-        private ICoreServerAPI sapi;
-        private readonly List<Stage> stages = new List<Stage>();
-
-        private const int CheckIntervalMs = 200;
-        private long lastCheckMs;
+        private List<Stage> stages = new List<Stage>();
 
         private long callbackId;
-        private bool pending;
         private int pendingStageIndex;
 
         public EntityBehaviorBossFakeTeleport(Entity entity) : base(entity)
@@ -62,146 +85,34 @@ namespace VsQuest
 
         public override string PropertyName() => "bossfaketeleport";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-
-            stages.Clear();
-            try
-            {
-                foreach (var stageObj in attributes["stages"].AsArray())
-                {
-                    if (stageObj == null || !stageObj.Exists) continue;
-
-                    var stage = new Stage
-                    {
-                        whenHealthRelBelow = stageObj["whenHealthRelBelow"].AsFloat(1f),
-                        cooldownSeconds = stageObj["cooldownSeconds"].AsFloat(0f),
-
-                        minTargetRange = stageObj["minTargetRange"].AsFloat(0f),
-                        maxTargetRange = stageObj["maxTargetRange"].AsFloat(40f),
-
-                        minRadius = stageObj["minRadius"].AsFloat(3f),
-                        maxRadius = stageObj["maxRadius"].AsFloat(8f),
-                        tries = stageObj["tries"].AsInt(10),
-                        requireSolidGround = stageObj["requireSolidGround"].AsBool(true),
-
-                        windupMs = stageObj["windupMs"].AsInt(250),
-                        windupAnimation = stageObj["windupAnimation"].AsString(null),
-                        sound = stageObj["sound"].AsString(null),
-                        soundRange = stageObj["soundRange"].AsFloat(24f),
-                        soundStartMs = stageObj["soundStartMs"].AsInt(0),
-                        soundVolume = stageObj["soundVolume"].AsFloat(1f),
-
-                        fakeEntityCode = stageObj["fakeEntityCode"].AsString(null),
-                        fakeDurationMs = stageObj["fakeDurationMs"].AsInt(2500),
-                        fakeInvulnerable = stageObj["fakeInvulnerable"].AsBool(true),
-
-                        teleportBoss = stageObj["teleportBoss"].AsBool(false),
-                        bossTeleportMinRadius = stageObj["bossTeleportMinRadius"].AsFloat(3f),
-                        bossTeleportMaxRadius = stageObj["bossTeleportMaxRadius"].AsFloat(7f),
-                        bossTeleportTries = stageObj["bossTeleportTries"].AsInt(10),
-                    };
-
-                    if (stage.cooldownSeconds < 0f) stage.cooldownSeconds = 0f;
-                    if (stage.minTargetRange < 0f) stage.minTargetRange = 0f;
-                    if (stage.maxTargetRange < stage.minTargetRange) stage.maxTargetRange = stage.minTargetRange;
-
-                    if (stage.minRadius < 0f) stage.minRadius = 0f;
-                    if (stage.maxRadius < stage.minRadius) stage.maxRadius = stage.minRadius;
-                    if (stage.tries <= 0) stage.tries = 1;
-
-                    if (stage.windupMs < 0) stage.windupMs = 0;
-                    if (stage.soundVolume <= 0f) stage.soundVolume = 1f;
-
-                    if (stage.fakeDurationMs <= 0) stage.fakeDurationMs = 500;
-
-                    if (stage.bossTeleportMinRadius < 0f) stage.bossTeleportMinRadius = 0f;
-                    if (stage.bossTeleportMaxRadius < stage.bossTeleportMinRadius) stage.bossTeleportMaxRadius = stage.bossTeleportMinRadius;
-                    if (stage.bossTeleportTries <= 0) stage.bossTeleportTries = 1;
-
-                    if (!string.IsNullOrWhiteSpace(stage.fakeEntityCode))
-                    {
-                        stages.Add(stage);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in parsing stages: {ex}");
-            }
+            stages = ParseStages<Stage>(attributes);
         }
 
-        public override void OnGameTick(float dt)
+        protected override int GetStageCount() => stages.Count;
+
+        protected override object GetStage(int index) => stages[index];
+
+        protected override float GetStageHealthThreshold(object stage) => ((Stage)stage).whenHealthRelBelow;
+
+        protected override float GetStageCooldown(object stage) => ((Stage)stage).cooldownSeconds;
+
+        protected override float GetMaxTargetRange(object stage) => ((Stage)stage).maxTargetRange;
+
+        protected override float MinTargetRange => 0.75f;
+
+        protected override bool ShouldCheckAbility() => !IsAbilityActive && !IsFakeEntity();
+
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
-            base.OnGameTick(dt);
-            if (sapi == null || entity == null) return;
-            if (entity.Api?.Side != EnumAppSide.Server) return;
+            if (target == null || stageObj is not Stage stage) return;
+            StartFakeTeleport(stage, stageIndex, target);
+        }
 
-            if (IsFakeEntity())
-            {
-                DespawnIfExpiredOrOwnerMissing();
-                return;
-            }
-
-            if (stages.Count == 0) return;
-
-            if (!entity.Alive)
-            {
-                CancelPending();
-                return;
-            }
-
-            if (pending) return;
-
-            long now;
-            try
-            {
-                now = sapi.World.ElapsedMilliseconds;
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in getting ElapsedMilliseconds: {ex}");
-                now = 0;
-            }
-
-            if (now > 0)
-            {
-                if (lastCheckMs != 0 && now - lastCheckMs < CheckIntervalMs) return;
-                lastCheckMs = now;
-            }
-
-            if (!BossBehaviorUtils.TryGetHealthFraction(entity, out float frac)) return;
-
-            int stageIndex = -1;
-            for (int i = 0; i < stages.Count; i++)
-            {
-                var stage = stages[i];
-                if (frac <= stage.whenHealthRelBelow)
-                {
-                    stageIndex = i;
-                }
-            }
-
-            if (stageIndex < 0 || stageIndex >= stages.Count) return;
-
-            var activeStage = stages[stageIndex];
-            if (!BossBehaviorUtils.IsCooldownReady(sapi, entity, LastStartMsKey, activeStage.cooldownSeconds)) return;
-
-            if (!TryFindTarget(activeStage, out var target, out float dist)) return;
-            if (dist < activeStage.minTargetRange) return;
-            if (dist > activeStage.maxTargetRange) return;
-
-            if (!TryFindPosNear(activeStage.minRadius, activeStage.maxRadius, activeStage.tries, activeStage.requireSolidGround, target.Pos.XYZ, entity.Pos.Dimension, out var fakePos)) return;
-
-            Vec3d bossTpPos = null;
-            if (activeStage.teleportBoss)
-            {
-                TryFindPosNear(activeStage.bossTeleportMinRadius, activeStage.bossTeleportMaxRadius, activeStage.bossTeleportTries, activeStage.requireSolidGround, target.Pos.XYZ, entity.Pos.Dimension, out bossTpPos);
-            }
-
-            Start(activeStage, stageIndex, fakePos, bossTpPos);
+        protected override void StopAbility()
+        {
+            CancelPending();
         }
 
         public override void OnEntityDeath(DamageSource damageSourceForDeath)
@@ -218,11 +129,9 @@ namespace VsQuest
 
         private void Start(Stage stage, int stageIndex, Vec3d fakePos, Vec3d bossTpPos)
         {
-            if (sapi == null || entity == null || stage == null || fakePos == null) return;
+            if (Sapi == null || entity == null || stage == null || fakePos == null) return;
 
-            BossBehaviorUtils.MarkCooldownStart(sapi, entity, LastStartMsKey);
-
-            pending = true;
+            SetAbilityActive(true);
             pendingStageIndex = stageIndex;
 
             BossBehaviorUtils.StopAiAndFreeze(entity);
@@ -231,23 +140,16 @@ namespace VsQuest
             TryPlayAnimation(stage.windupAnimation);
 
             int delay = Math.Max(0, stage.windupMs);
-            BossBehaviorUtils.UnregisterCallbackSafe(sapi, ref callbackId);
-            callbackId = sapi.Event.RegisterCallback(_ =>
+            UnregisterCallbackSafe(ref callbackId);
+            callbackId = Sapi.Event.RegisterCallback(_ =>
             {
-                try
+                SpawnFake(stage, fakePos);
+                if (stage.teleportBoss && bossTpPos != null)
                 {
-                    SpawnFake(stage, fakePos);
-                    if (stage.teleportBoss && bossTpPos != null)
-                    {
-                        TeleportEntity(entity, bossTpPos, entity.Pos.Dimension);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in Start callback: {ex}");
+                    TeleportEntity(entity, bossTpPos, entity.Pos.Dimension);
                 }
 
-                pending = false;
+                SetAbilityActive(false);
                 pendingStageIndex = -1;
                 callbackId = 0;
 
@@ -256,198 +158,126 @@ namespace VsQuest
 
         private void SpawnFake(Stage stage, Vec3d pos)
         {
-            if (sapi == null || entity == null || stage == null || pos == null) return;
+            if (Sapi == null || entity == null || stage == null || pos == null) return;
             if (string.IsNullOrWhiteSpace(stage.fakeEntityCode)) return;
 
-            var type = sapi.World.GetEntityType(new AssetLocation(stage.fakeEntityCode));
+            var type = Sapi.World.GetEntityType(new AssetLocation(stage.fakeEntityCode));
             if (type == null) return;
 
-            Entity fake = null;
-            try
-            {
-                fake = sapi.World.ClassRegistry.CreateEntity(type);
-                if (fake == null) return;
+            Entity fake = Sapi.World.ClassRegistry.CreateEntity(type);
+            if (fake == null) return;
 
-                ApplyFakeFlags(fake, stage);
+            ApplyFakeFlags(fake, stage);
 
-                int dim = entity.Pos.Dimension;
-                fake.Pos.SetPosWithDimension(new Vec3d(pos.X, pos.Y + dim * 32768.0, pos.Z));
-                fake.Pos.Yaw = entity.Pos.Yaw;
-                fake.Pos.SetFrom(fake.Pos);
+            int dim = entity.Pos.Dimension;
+            fake.Pos.SetPosWithDimension(new Vec3d(pos.X, pos.Y + dim * 32768.0, pos.Z));
+            fake.Pos.Yaw = entity.Pos.Yaw;
+            fake.Pos.SetFrom(fake.Pos);
 
-                sapi.World.SpawnEntity(fake);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in SpawnFake: {ex}");
-                if (fake != null)
-                {
-                    try
-                    {
-                        sapi.World.DespawnEntity(fake, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
-                    }
-                    catch (Exception innerEx)
-                    {
-                        entity?.Api?.Logger?.Error($"[vsquest] Exception in DespawnEntity: {innerEx}");
-                    }
-                }
-            }
+            Sapi.World.SpawnEntity(fake);
         }
 
         private void ApplyFakeFlags(Entity fake, Stage stage)
         {
             if (fake?.WatchedAttributes == null || stage == null) return;
 
-            try
-            {
-                fake.WatchedAttributes.SetBool(FakeFlagKey, true);
-                fake.WatchedAttributes.MarkPathDirty(FakeFlagKey);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in ApplyFakeFlags FakeFlag: {ex}");
-            }
+            fake.WatchedAttributes.SetBool(FakeFlagKey, true);
+            fake.WatchedAttributes.MarkPathDirty(FakeFlagKey);
 
-            try
-            {
-                fake.WatchedAttributes.SetLong(FakeOwnerIdKey, entity.EntityId);
-                fake.WatchedAttributes.MarkPathDirty(FakeOwnerIdKey);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in ApplyFakeFlags FakeOwnerId: {ex}");
-            }
+            fake.WatchedAttributes.SetLong(FakeOwnerIdKey, entity.EntityId);
+            fake.WatchedAttributes.MarkPathDirty(FakeOwnerIdKey);
 
-            try
-            {
-                fake.WatchedAttributes.SetLong(FakeDespawnAtMsKey, sapi.World.ElapsedMilliseconds + Math.Max(250, stage.fakeDurationMs));
-                fake.WatchedAttributes.MarkPathDirty(FakeDespawnAtMsKey);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in ApplyFakeFlags FakeDespawnAtMs: {ex}");
-            }
+            fake.WatchedAttributes.SetLong(FakeDespawnAtMsKey, Sapi.World.ElapsedMilliseconds + Math.Max(250, stage.fakeDurationMs));
+            fake.WatchedAttributes.MarkPathDirty(FakeDespawnAtMsKey);
 
-            try
-            {
-                fake.WatchedAttributes.SetBool("alegacyvsquest:bossclone:invulnerable", stage.fakeInvulnerable);
-                fake.WatchedAttributes.MarkPathDirty("alegacyvsquest:bossclone:invulnerable");
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in ApplyFakeFlags Invulnerable: {ex}");
-            }
+            fake.WatchedAttributes.SetBool("alegacyvsquest:bossclone:invulnerable", stage.fakeInvulnerable);
+            fake.WatchedAttributes.MarkPathDirty("alegacyvsquest:bossclone:invulnerable");
 
-            try
-            {
-                fake.WatchedAttributes.SetBool("showHealthbar", false);
-                fake.WatchedAttributes.MarkPathDirty("showHealthbar");
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in ApplyFakeFlags ShowHealthbar: {ex}");
-            }
+            fake.WatchedAttributes.SetBool("showHealthbar", false);
+            fake.WatchedAttributes.MarkPathDirty("showHealthbar");
         }
 
         private bool IsFakeEntity()
         {
-            try
-            {
-                return entity?.WatchedAttributes?.GetBool(FakeFlagKey, false) ?? false;
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in IsFakeEntity: {ex}");
-                return false;
-            }
+            return entity?.WatchedAttributes?.GetBool(FakeFlagKey, false) ?? false;
         }
 
         private void DespawnIfExpiredOrOwnerMissing()
         {
-            if (sapi == null || entity == null) return;
+            if (Sapi == null || entity == null) return;
 
-            long despawnAt = 0;
-            long ownerId = 0;
-            try
-            {
-                var wa = entity.WatchedAttributes;
-                despawnAt = wa.GetLong(FakeDespawnAtMsKey, 0);
-                ownerId = wa.GetLong(FakeOwnerIdKey, 0);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in DespawnIfExpiredOrOwnerMissing: {ex}");
-            }
+            var wa = entity.WatchedAttributes;
+            long despawnAt = wa.GetLong(FakeDespawnAtMsKey, 0);
+            long ownerId = wa.GetLong(FakeOwnerIdKey, 0);
 
             if (ownerId <= 0)
             {
-                sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
+                Sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
                 return;
             }
 
-            var owner = sapi.World.GetEntityById(ownerId);
+            var owner = Sapi.World.GetEntityById(ownerId);
             if (owner == null || !owner.Alive)
             {
-                sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
+                Sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
                 return;
             }
 
-            if (despawnAt > 0 && sapi.World.ElapsedMilliseconds >= despawnAt)
+            if (despawnAt > 0 && Sapi.World.ElapsedMilliseconds >= despawnAt)
             {
-                sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
+                Sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
             }
         }
 
         private void CancelPending()
         {
-            if (sapi != null)
+            if (Sapi != null)
             {
-                BossBehaviorUtils.UnregisterCallbackSafe(sapi, ref callbackId);
+                UnregisterCallbackSafe(ref callbackId);
             }
 
-            pending = false;
             pendingStageIndex = -1;
             callbackId = 0;
         }
 
-        private bool TryFindTarget(Stage stage, out EntityPlayer target, out float dist)
+        private void StartFakeTeleport(Stage stage, int stageIndex, EntityPlayer target)
         {
-            target = null;
-            dist = 0f;
+            if (Sapi == null || entity == null || stage == null || target == null) return;
 
-            if (sapi == null || entity == null) return false;
+            MarkCooldownStart();
+            SetAbilityActive(true);
+            pendingStageIndex = stageIndex;
 
-            double range = Math.Max(2.0, stage.maxTargetRange > 0 ? stage.maxTargetRange : 40f);
-            try
+            BossBehaviorUtils.StopAiAndFreeze(entity);
+
+            TryPlaySound(stage);
+            TryPlayAnimation(stage.windupAnimation);
+
+            Vec3d fakePos = null;
+            Vec3d bossTpPos = null;
+            if (!TryFindPosNear(stage.minRadius, stage.maxRadius, stage.tries, stage.requireSolidGround, entity.Pos.XYZ, entity.Pos.Dimension, out fakePos))
             {
-                var own = entity.Pos.XYZ;
-                float frange = (float)range;
-                var found = sapi.World.GetNearestEntity(own, frange, frange, e => e is EntityPlayer) as EntityPlayer;
-                if (found == null || !found.Alive) return false;
-
-                if (found.Pos.Dimension != entity.Pos.Dimension) return false;
-
-                target = found;
-                dist = (float)found.Pos.DistanceTo(entity.Pos);
-                return true;
+                return;
             }
-            catch (Exception ex)
+
+            if (stage.teleportBoss && !TryFindPosNear(stage.bossTeleportMinRadius, stage.bossTeleportMaxRadius, stage.bossTeleportTries, stage.requireSolidGround, entity.Pos.XYZ, entity.Pos.Dimension, out bossTpPos))
             {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TryFindTarget: {ex}");
-                return false;
+                return;
             }
+
+            Start(stage, stageIndex, fakePos, bossTpPos);
         }
 
         private bool TryFindPosNear(float minRadius, float maxRadius, int tries, bool requireSolidGround, Vec3d center, int dim, out Vec3d pos)
         {
             pos = null;
-            if (sapi == null || entity == null || center == null) return false;
+            if (Sapi == null || entity == null || center == null) return false;
 
             double minR = Math.Max(0.0, minRadius);
             double maxR = Math.Max(minR, maxRadius);
             if (maxR <= 0.01) maxR = 0.01;
 
-            var world = sapi.World;
+            var world = Sapi.World;
             var ba = world?.BlockAccessor;
             if (ba == null) return false;
 
@@ -476,9 +306,9 @@ namespace VsQuest
         private bool TryFindFreeSpotNear(BlockPos basePos, bool requireSolidGround, out Vec3d pos)
         {
             pos = null;
-            if (sapi == null || entity == null || basePos == null) return false;
+            if (Sapi == null || entity == null || basePos == null) return false;
 
-            var world = sapi.World;
+            var world = Sapi.World;
             var ba = world?.BlockAccessor;
             if (ba == null) return false;
 
@@ -493,33 +323,17 @@ namespace VsQuest
                 int y = basePos.Y + dy;
                 var testPos = new Vec3d(basePos.X + 0.5, y + 1.0, basePos.Z + 0.5);
 
-                bool colliding;
-                try
-                {
-                    colliding = ct.IsColliding(ba, selBox, testPos, alsoCheckTouch: false);
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in IsColliding: {ex}");
-                    colliding = true;
-                }
+                bool colliding = ct.IsColliding(ba, selBox, testPos, alsoCheckTouch: false);
 
                 if (colliding) continue;
 
                 if (requireSolidGround)
                 {
-                    try
-                    {
-                        var belowPos = basePos.Copy();
-                        belowPos.Y = basePos.Y + dy - 1;
-                        var below = ba.GetBlock(belowPos);
-                        if (below == null) continue;
-                        if (!below.SideSolid[BlockFacing.UP.Index]) continue;
-                    }
-                    catch
-                    {
-                        continue;
-                    }
+                    var belowPos = basePos.Copy();
+                    belowPos.Y = basePos.Y + dy - 1;
+                    var below = ba.GetBlock(belowPos);
+                    if (below == null) continue;
+                    if (!below.SideSolid[BlockFacing.UP.Index]) continue;
                 }
 
                 pos = new Vec3d(testPos.X, testPos.Y - 1.0, testPos.Z);
@@ -533,33 +347,17 @@ namespace VsQuest
 
                 var testPos = new Vec3d(basePos.X + 0.5, y + 1.0, basePos.Z + 0.5);
 
-                bool colliding;
-                try
-                {
-                    colliding = ct.IsColliding(ba, selBox, testPos, alsoCheckTouch: false);
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in IsColliding: {ex}");
-                    colliding = true;
-                }
+                bool colliding = ct.IsColliding(ba, selBox, testPos, alsoCheckTouch: false);
 
                 if (colliding) continue;
 
                 if (requireSolidGround)
                 {
-                    try
-                    {
-                        var belowPos = basePos.Copy();
-                        belowPos.Y = basePos.Y - dy - 1;
-                        var below = ba.GetBlock(belowPos);
-                        if (below == null) continue;
-                        if (!below.SideSolid[BlockFacing.UP.Index]) continue;
-                    }
-                    catch
-                    {
-                        continue;
-                    }
+                    var belowPos = basePos.Copy();
+                    belowPos.Y = basePos.Y - dy - 1;
+                    var below = ba.GetBlock(belowPos);
+                    if (below == null) continue;
+                    if (!below.SideSolid[BlockFacing.UP.Index]) continue;
                 }
 
                 pos = new Vec3d(testPos.X, testPos.Y - 1.0, testPos.Z);
@@ -573,76 +371,16 @@ namespace VsQuest
         {
             if (target == null || pos == null) return;
 
-            try
-            {
-                target.IsTeleport = true;
-            }
-            catch
-            {
-            }
-
+            target.IsTeleport = true;
             target.Pos.SetPosWithDimension(new Vec3d(pos.X, pos.Y + dim * 32768.0, pos.Z));
             target.Pos.SetFrom(target.Pos);
-
-            try
-            {
-                target.Pos.Motion.Set(0, 0, 0);
-            }
-            catch
-            {
-            }
-        }
-
-        private void TryPlayAnimation(string animation)
-        {
-            if (string.IsNullOrWhiteSpace(animation)) return;
-
-            try
-            {
-                entity?.AnimManager?.StartAnimation(animation);
-            }
-            catch
-            {
-            }
+            target.Pos.Motion.Set(0, 0, 0);
         }
 
         private void TryPlaySound(Stage stage)
         {
-            if (sapi == null || stage == null) return;
-            if (string.IsNullOrWhiteSpace(stage.sound)) return;
-
-            AssetLocation soundLoc = AssetLocation.Create(stage.sound, "game").WithPathPrefixOnce("sounds/");
-            if (soundLoc == null) return;
-
-            float volume = stage.soundVolume;
-            if (volume <= 0f) volume = 1f;
-            float range = stage.soundRange > 0f ? stage.soundRange : 32f;
-
-            if (stage.soundStartMs > 0)
-            {
-                sapi.Event.RegisterCallback(_ =>
-                {
-                    try
-                    {
-                        float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                        sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, volume);
-                    }
-                    catch
-                    {
-                    }
-                }, stage.soundStartMs);
-            }
-            else
-            {
-                try
-                {
-                    float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                    sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, volume);
-                }
-                catch
-                {
-                }
-            }
+            if (Sapi == null || stage == null) return;
+            TryPlaySound(stage.sound, stage.soundRange, stage.soundStartMs, stage.soundVolume);
         }
     }
 }

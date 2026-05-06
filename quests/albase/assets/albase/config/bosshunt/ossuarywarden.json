@@ -1,15 +1,9 @@
 {
   "bossKey": "albase:bosshunt:ossuarywarden",
   "questId": "albase:bosshunt-ossuarywarden",
-  "points": [
-    "0,0,0,0",
-    "0,0,0,0",
-    "0,0,0,0"
-  ],
   "relocateIntervalHours": 168,
   "respawnInGameHours": 24,
   "noRelocateAfterDamageMinutes": 10,
-  "spawnDelaySeconds": 10,
   "rotationDays": 365,
   "activationRange": 160,
   "playerLockRange": 0

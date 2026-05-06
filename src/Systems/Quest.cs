@@ -139,6 +139,11 @@ namespace VsQuest
         public List<string> positions { get; set; }
         public bool removeAfterFinished { get; set; }
         public List<ActionWithArgs> actionRewards { get; set; } = new List<ActionWithArgs>();
+
+        // Sound properties for kill objectives
+        public string completeSound { get; set; }
+        public float completePitch { get; set; } = 1f;
+        public float completeVolume { get; set; } = 1f;
     }
 
     public class ItemReward

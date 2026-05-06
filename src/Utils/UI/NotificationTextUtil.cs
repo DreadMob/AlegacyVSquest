@@ -17,7 +17,7 @@ namespace VsQuest
                 string translated = LocalizationUtils.GetSafe(message.Template, message.Need, mobName);
                 if (translated == message.Template)
                 {
-                    return string.Format(message.Template, message.Need, mobName);
+                    return $"{message.Template} ({message.Need}, {mobName})";
                 }
                 return translated;
             }

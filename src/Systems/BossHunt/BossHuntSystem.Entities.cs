@@ -13,7 +13,7 @@ namespace VsQuest
         {
             if (sapi == null || cfg == null) return;
 
-            var bossEntity = FindBossEntityImmediateAny(cfg.bossKey);
+            var bossEntity = entityTracker?.GetTrackedEntityAny(cfg.bossKey) ?? FindBossEntityImmediateAny(cfg.bossKey);
             if (bossEntity == null) return;
 
             if (!bossEntity.Alive)
@@ -73,123 +73,6 @@ namespace VsQuest
             return null;
         }
 
-        private Entity FindBossEntityImmediate(string bossTargetId)
-        {
-            if (sapi == null) return null;
-            if (string.IsNullOrWhiteSpace(bossTargetId)) return null;
-
-            var loaded = sapi.World?.LoadedEntities;
-            if (loaded == null) return null;
-
-            try
-            {
-                Entity bestMatch = null;
-                foreach (var e in loaded.Values)
-                {
-                    if (e == null || !e.Alive) continue;
-                    var qt = e.GetBehavior<EntityBehaviorQuestTarget>();
-                    if (qt == null) continue;
-
-                    if (string.Equals(qt.TargetId, bossTargetId, StringComparison.OrdinalIgnoreCase))
-                    {
-                        // Prefer entities that are NOT in rebirth transition (no next phase pending)
-                        var rebirth = e.GetBehavior<EntityBehaviorBossRebirth2>();
-                        if (rebirth != null && !rebirth.IsFinalStage)
-                        {
-                            // This is a phase 1 boss that will spawn phase 2
-                            // Use it if we don't have anything better, but prefer phase 2 if exists
-                            if (bestMatch == null)
-                                bestMatch = e;
-                            continue;
-                        }
-
-                        // This is either final stage or no rebirth - best match
-                        return e;
-                    }
-                }
-
-                return bestMatch;
-            }
-            catch
-            {
-            }
-
-            return null;
-        }
-
-        private Entity FindBossEntity(BossHuntConfig cfg, double nowHours)
-        {
-            if (cfg == null) return null;
-
-            var bossTargetId = cfg.bossKey;
-
-            if (cachedBossEntity != null && cachedBossEntity.Alive)
-            {
-                var qtCached = cachedBossEntity.GetBehavior<EntityBehaviorQuestTarget>();
-                if (qtCached != null && string.Equals(qtCached.TargetId, bossTargetId, StringComparison.OrdinalIgnoreCase))
-                {
-                    return cachedBossEntity;
-                }
-
-                cachedBossEntity = null;
-                // Force immediate scan when cache is invalidated - prevents spawning duplicate boss
-                nextBossEntityScanTotalHours = 0;
-            }
-
-            if (cachedBossKey == null || !string.Equals(cachedBossKey, bossTargetId, StringComparison.OrdinalIgnoreCase))
-            {
-                cachedBossKey = bossTargetId;
-                nextBossEntityScanTotalHours = 0;
-            }
-
-            if (nowHours < nextBossEntityScanTotalHours)
-            {
-                return null;
-            }
-
-            double scanInterval = bossEntityScanIntervalHours;
-            if (scanInterval <= 0) scanInterval = 1.0 / 60.0;
-            nextBossEntityScanTotalHours = nowHours + scanInterval;
-
-            var loaded = sapi?.World?.LoadedEntities;
-            if (loaded == null) return null;
-
-            try
-            {
-                Entity deadMatch = null;
-                foreach (var e in loaded.Values)
-                {
-                    if (e == null) continue;
-                    var qt = e.GetBehavior<EntityBehaviorQuestTarget>();
-                    if (qt == null) continue;
-
-                    if (string.Equals(qt.TargetId, bossTargetId, StringComparison.OrdinalIgnoreCase))
-                    {
-                        // Prefer a live entity if one exists. During multi-phase rebirth there can be a short
-                        // overlap where a corpse and the reborn phase share the same targetId.
-                        if (e.Alive)
-                        {
-                            cachedBossEntity = e;
-                            return e;
-                        }
-
-                        // Keep the corpse as a fallback only if no living boss is found.
-                        deadMatch ??= e;
-                    }
-                }
-
-                if (deadMatch != null)
-                {
-                    cachedBossEntity = deadMatch;
-                    return deadMatch;
-                }
-            }
-            catch
-            {
-            }
-
-            return null;
-        }
 
         private void TrySpawnBoss(BossHuntConfig cfg, Vec3d point, int dim, BossHuntAnchorPoint anchorPoint)
         {
@@ -197,18 +80,15 @@ namespace VsQuest
             if (point == null) return;
 
             // Safety: do not spawn a new boss if a living one with the same targetId already exists.
-            // This can happen during multi-phase rebirth or if a corpse is detected first.
-            try
+            var existing = entityTracker?.GetTrackedEntity(cfg.bossKey);
+            if (existing != null && existing.Alive)
             {
-                var existing = FindBossEntityImmediate(cfg.bossKey);
-                if (existing != null && existing.Alive)
-                {
-                    return;
-                }
+                return;
             }
-            catch
-            {
-            }
+
+            double nowHours = sapi.World?.Calendar?.TotalHours ?? 0;
+            var stateMachine = GetOrCreateStateMachine(cfg.bossKey);
+            stateMachine?.OnSpawn(nowHours);
 
             try
             {
@@ -230,11 +110,6 @@ namespace VsQuest
                 {
                     entity.WatchedAttributes.SetString("alegacyvsquest:killaction:targetid", cfg.bossKey);
                     entity.WatchedAttributes.MarkPathDirty("alegacyvsquest:killaction:targetid");
-
-                    // Track spawn time for soft reset logic (handles phase 2 bosses that never get damaged)
-                    double nowHours = sapi.World?.Calendar?.TotalHours ?? 0;
-                    entity.WatchedAttributes.SetDouble(BossSpawnedAtTotalHoursKey, nowHours);
-                    entity.WatchedAttributes.MarkPathDirty(BossSpawnedAtTotalHoursKey);
                 }
 
                 EntityBehaviorQuestTarget.SetSpawnerAnchor(entity, new BlockPos((int)point.X, (int)point.Y, (int)point.Z, dim));
@@ -255,13 +130,8 @@ namespace VsQuest
 
                 sapi.World.SpawnEntity(entity);
 
-                // Avoid repeated spawns: FindBossEntity() is throttled to scan loaded entities only once per minute.
-                // Cache the newly spawned boss immediately.
-                cachedBossEntity = entity;
-                cachedBossKey = cfg.bossKey;
-                double scanInterval = bossEntityScanIntervalHours;
-                if (scanInterval <= 0) scanInterval = 1.0 / 60.0;
-                nextBossEntityScanTotalHours = (sapi.World?.Calendar?.TotalHours ?? 0) + scanInterval;
+                // Force entity tracker to scan immediately for the new entity
+                entityTracker?.ForceScan();
             }
             catch
             {
@@ -343,6 +213,16 @@ namespace VsQuest
         {
             if (bossEntity == null) return true;
 
+            var stateMachine = GetOrCreateStateMachine(cfg.bossKey);
+            if (stateMachine == null) return true;
+
+            // Don't relocate if boss is currently in combat
+            if (stateMachine.CurrentState == BossCombatState.InCombat)
+            {
+                return false;
+            }
+
+            // Check if damage occurred recently (legacy logic for no relocate after damage)
             double lastDamage = bossEntity.WatchedAttributes.GetDouble(LastBossDamageTotalHoursKey, double.NaN);
             if (!double.IsNaN(lastDamage))
             {
@@ -375,6 +255,9 @@ namespace VsQuest
                 if (!string.Equals(qt.TargetId, bossTargetId, StringComparison.OrdinalIgnoreCase)) continue;
 
                 var st = GetOrCreateState(cfg.bossKey);
+                var stateMachine = GetOrCreateStateMachine(cfg.bossKey);
+
+                stateMachine?.OnDeath();
 
                 double nowHours = sapi.World.Calendar.TotalHours;
                 st.deadUntilTotalHours = nowHours + cfg.GetRespawnHours();

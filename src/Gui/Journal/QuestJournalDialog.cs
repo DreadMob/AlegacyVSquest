@@ -18,13 +18,8 @@ namespace VsQuest.Gui.Journal
         private const double ListHeight = 500.0;
         private const double ListWidth = 500.0;
 
-        private Dictionary<string, int> pageNumberByPageCode = new Dictionary<string, int>();
-        private List<JournalPage> allPages = new List<JournalPage>();
         private List<IJournalPage> shownPages = new List<IJournalPage>();
-        private List<QuestGiverPage> noteGiverPages = new List<QuestGiverPage>();
-        private List<QuestPage> notePages = new List<QuestPage>();
-        private Dictionary<string, QuestPage> questPagesByLoreCode = new Dictionary<string, QuestPage>(StringComparer.OrdinalIgnoreCase);
-        private Dictionary<string, QuestPage> notePagesByLoreCode = new Dictionary<string, QuestPage>(StringComparer.OrdinalIgnoreCase);
+        private JournalEntryManager entryManager;
         private Stack<BrowseHistoryElement> browseHistory = new Stack<BrowseHistoryElement>();
 
         private string currentSearchText;
@@ -35,235 +30,72 @@ namespace VsQuest.Gui.Journal
         private GuiComposer detailViewGui;
         private JournalTab[] tabs;
 
-        private IClientPlayer player;
-        private List<QuestJournalEntry> allEntries;
-
         public override string ToggleKeyCombinationCode => null;
         public override double DrawOrder => 0.2;
         public override bool PrefersUngrabbedMouse => true;
 
         public QuestJournalDialog(ICoreClientAPI capi) : base(capi)
         {
-            player = capi.World.Player;
-            LoadEntries();
+            entryManager = new JournalEntryManager(capi);
+            entryManager.LoadEntries();
             InitOverviewGui();
         }
 
         public void Refresh()
         {
-            LoadEntries();
+            entryManager.LoadEntries();
             InitOverviewGui();
             FilterItems();
         }
 
         private void LoadEntries()
         {
-            allPages.Clear();
-            pageNumberByPageCode.Clear();
-            noteGiverPages.Clear();
-            notePages.Clear();
-            questPagesByLoreCode.Clear();
-            notePagesByLoreCode.Clear();
-
-            if (player?.Entity?.WatchedAttributes == null)
-            {
-                allEntries = new List<QuestJournalEntry>();
-                return;
-            }
-
-            allEntries = QuestJournalEntry.Load(player.Entity.WatchedAttributes)
-                .Where(e => e != null && !string.IsNullOrWhiteSpace(e.QuestId))
-                .ToList();
-
-            bool entriesChanged = false;
-            var questSystem = capi?.ModLoader?.GetModSystem<QuestSystem>();
-            foreach (var entry in allEntries)
-            {
-                if (entry == null) continue;
-
-                string originalTitle = entry.Title;
-                bool titleWasNote = string.Equals(originalTitle, "note", StringComparison.OrdinalIgnoreCase);
-                bool titleWasQuest = string.Equals(originalTitle, "quest", StringComparison.OrdinalIgnoreCase);
-                bool titleWasOverwrite = string.Equals(originalTitle, "overwrite", StringComparison.OrdinalIgnoreCase);
-
-                if ((titleWasNote || titleWasQuest || titleWasOverwrite)
-                    && entry.Chapters != null
-                    && entry.Chapters.Count > 0
-                    && !string.IsNullOrWhiteSpace(entry.Chapters[0]))
-                {
-                    string candidateTitle = entry.Chapters[0];
-                    if (candidateTitle.Length <= 120 && !candidateTitle.Contains("\n"))
-                    {
-                        entry.Title = candidateTitle;
-                        entriesChanged = true;
-                        if (entry.Chapters.Count > 1)
-                        {
-                            entry.Chapters.RemoveAt(0);
-                            entriesChanged = true;
-                        }
-                    }
-
-                    if (titleWasNote && !entry.IsNote)
-                    {
-                        entry.IsNote = true;
-                        entriesChanged = true;
-                    }
-                    else if (titleWasQuest && entry.IsNote)
-                    {
-                        entry.IsNote = false;
-                        entriesChanged = true;
-                    }
-                }
-
-                if (entry.IsNote && questSystem?.QuestRegistry != null)
-                {
-                    bool hasQuestById = !string.IsNullOrWhiteSpace(entry.QuestId)
-                        && questSystem.QuestRegistry.ContainsKey(entry.QuestId);
-                    bool hasQuestByLore = !string.IsNullOrWhiteSpace(entry.LoreCode)
-                        && questSystem.QuestRegistry.ContainsKey(entry.LoreCode);
-                    if (hasQuestById || hasQuestByLore)
-                    {
-                        entry.IsNote = false;
-                        entriesChanged = true;
-                    }
-                }
-            }
-
-            if (entriesChanged)
-            {
-                QuestJournalEntry.Save(player.Entity.WatchedAttributes, allEntries);
-                player.Entity.WatchedAttributes.MarkPathDirty(QuestJournalEntry.JournalEntriesKey);
-            }
-
-            var questEntries = allEntries.Where(e => !IsNoteEntry(e)).ToList();
-            var noteEntries = allEntries.Where(e => IsNoteEntry(e)).ToList();
-
-            BuildQuestGiverPages(questEntries);
-            BuildQuestPages(questEntries);
-            BuildNoteGiverPages(noteEntries);
-            BuildNotePages(noteEntries);
-
-            for (int i = 0; i < allPages.Count; i++)
-            {
-                allPages[i].PageNumber = i;
-                pageNumberByPageCode[allPages[i].PageCode] = i;
-            }
+            // Empty - handled by entryManager
         }
 
         private void BuildQuestGiverPages(List<QuestJournalEntry> entries)
         {
-            var questGivers = entries
-                .GroupBy(e => e.QuestId, StringComparer.OrdinalIgnoreCase)
-                .Select(g => new { QuestId = g.Key, Count = g.Count() })
-                .OrderBy(g => g.QuestId, StringComparer.OrdinalIgnoreCase);
-
-            foreach (var giver in questGivers)
-            {
-                string title = GetQuestGiverTitle(giver.QuestId);
-                allPages.Add(new QuestGiverPage(capi, giver.QuestId, title, giver.Count));
-            }
+            // Empty - handled by entryManager
         }
 
         private void BuildQuestPages(List<QuestJournalEntry> entries)
         {
-            foreach (var entry in entries)
-            {
-                string entryTitle = GetEntryTitle(entry);
-                var page = new QuestPage(capi, entry.QuestId, entry.LoreCode, entryTitle);
-                allPages.Add(page);
-                if (!string.IsNullOrWhiteSpace(entry?.LoreCode))
-                {
-                    questPagesByLoreCode[entry.LoreCode] = page;
-                }
-            }
+            // Empty - handled by entryManager
         }
 
         private void BuildNoteGiverPages(List<QuestJournalEntry> entries)
         {
-            var noteGivers = entries
-                .GroupBy(e => e.QuestId, StringComparer.OrdinalIgnoreCase)
-                .Select(g => new { QuestId = g.Key, Count = g.Count() })
-                .OrderBy(g => g.QuestId, StringComparer.OrdinalIgnoreCase);
-
-            foreach (var giver in noteGivers)
-            {
-                string title = GetQuestGiverTitle(giver.QuestId);
-                noteGiverPages.Add(new QuestGiverPage(capi, giver.QuestId, title, giver.Count));
-            }
+            // Empty - handled by entryManager
         }
 
         private void BuildNotePages(List<QuestJournalEntry> entries)
         {
-            foreach (var entry in entries)
-            {
-                string entryTitle = GetEntryTitle(entry);
-                var page = new QuestPage(capi, entry.QuestId, entry.LoreCode, entryTitle);
-                notePages.Add(page);
-                if (!string.IsNullOrWhiteSpace(entry?.LoreCode))
-                {
-                    notePagesByLoreCode[entry.LoreCode] = page;
-                }
-            }
+            // Empty - handled by entryManager
         }
 
         private string GetQuestGiverTitle(string questId)
         {
-            if (string.IsNullOrWhiteSpace(questId)) return "";
-            string title = Lang.Get(questId + "-title");
-            if (title == questId + "-title")
-            {
-                int colonIndex = questId.LastIndexOf(':');
-                if (colonIndex > 0 && colonIndex < questId.Length - 1)
-                {
-                    return questId.Substring(colonIndex + 1);
-                }
-                return questId;
-            }
-            return title;
+            return entryManager.GetQuestGiverTitle(questId);
         }
 
         private string GetEntryTitle(QuestJournalEntry entry)
         {
-            if (entry == null) return "";
-            if (!string.IsNullOrWhiteSpace(entry.Title)) return entry.Title;
-            return entry.LoreCode ?? "";
+            return entryManager.GetEntryTitle(entry);
         }
 
         private bool IsNoteEntry(QuestJournalEntry entry)
         {
-            if (entry == null) return false;
-            return entry.IsNote;
+            return entry?.IsNote ?? false;
         }
 
         private QuestPage GetEntryPageForEntry(QuestJournalEntry entry)
         {
-            if (entry == null || string.IsNullOrWhiteSpace(entry.LoreCode)) return null;
-
-            if (IsNoteEntry(entry) && notePagesByLoreCode.TryGetValue(entry.LoreCode, out var notePage))
-            {
-                return notePage;
-            }
-
-            if (questPagesByLoreCode.TryGetValue(entry.LoreCode, out var questPage))
-            {
-                return questPage;
-            }
-
-            return null;
+            return entryManager.GetEntryPageForEntry(entry);
         }
 
         private IEnumerable<QuestPage> GetAllEntryPagesInRecentOrder()
         {
-            if (allEntries == null) yield break;
-
-            for (int i = allEntries.Count - 1; i >= 0; i--)
-            {
-                var page = GetEntryPageForEntry(allEntries[i]);
-                if (page != null)
-                {
-                    yield return page;
-                }
-            }
+            return entryManager.GetAllEntryPagesInRecentOrder();
         }
 
         private JournalTab[] GenerateTabs(out int currentTabIndex)
@@ -451,12 +283,12 @@ namespace VsQuest.Gui.Journal
 
             if (page is QuestPage questPage)
             {
-                var entry = allEntries.FirstOrDefault(e =>
+                var entry = entryManager.AllEntries.FirstOrDefault(e =>
                     string.Equals(e.LoreCode, questPage.QuestId, StringComparison.OrdinalIgnoreCase));
 
                 if (entry != null)
                 {
-                    var entryPage = new QuestEntryPage(capi, entry.QuestId, GetEntryTitle(entry), entry.Chapters);
+                    var entryPage = new QuestEntryPage(capi, entry.QuestId, entryManager.GetEntryTitle(entry), entry.Chapters);
                     browseHistory.Push(new BrowseHistoryElement { Page = entryPage });
                     InitDetailGui();
                 }
@@ -487,7 +319,7 @@ namespace VsQuest.Gui.Journal
             {
                 if (string.IsNullOrEmpty(currentQuestGiverFilter))
                 {
-                    foreach (var page in noteGiverPages)
+                    foreach (var page in entryManager.NoteGiverPages)
                     {
                         if (string.IsNullOrEmpty(searchLower) || page.GetTextMatchWeight(searchLower) > 0)
                         {
@@ -495,7 +327,7 @@ namespace VsQuest.Gui.Journal
                             continue;
                         }
 
-                        bool hasMatchingNote = notePages.Any(notePage =>
+                        bool hasMatchingNote = entryManager.NotePages.Any(notePage =>
                             string.Equals(notePage.QuestGiverId, page.QuestGiverId, StringComparison.OrdinalIgnoreCase)
                             && notePage.GetTextMatchWeight(searchLower) > 0);
 
@@ -507,7 +339,7 @@ namespace VsQuest.Gui.Journal
                 }
                 else
                 {
-                    foreach (var page in notePages)
+                    foreach (var page in entryManager.NotePages)
                     {
                         if (string.Equals(page.QuestGiverId, currentQuestGiverFilter, StringComparison.OrdinalIgnoreCase))
                         {
@@ -521,7 +353,7 @@ namespace VsQuest.Gui.Journal
             }
             else if (currentCategoryCode == "all")
             {
-                foreach (var page in GetAllEntryPagesInRecentOrder())
+                foreach (var page in entryManager.GetAllEntryPagesInRecentOrder())
                 {
                     if (string.IsNullOrEmpty(searchLower) || page.GetTextMatchWeight(searchLower) > 0)
                     {
@@ -533,7 +365,7 @@ namespace VsQuest.Gui.Journal
             {
                 if (string.IsNullOrEmpty(currentQuestGiverFilter))
                 {
-                    foreach (var page in allPages.OfType<QuestGiverPage>())
+                    foreach (var page in entryManager.AllPages.OfType<QuestGiverPage>())
                     {
                         if (string.IsNullOrEmpty(searchLower) || page.GetTextMatchWeight(searchLower) > 0)
                         {
@@ -541,7 +373,7 @@ namespace VsQuest.Gui.Journal
                             continue;
                         }
 
-                        bool hasMatchingQuest = allPages.OfType<QuestPage>().Any(questPage =>
+                        bool hasMatchingQuest = entryManager.AllPages.OfType<QuestPage>().Any(questPage =>
                             string.Equals(questPage.QuestGiverId, page.QuestGiverId, StringComparison.OrdinalIgnoreCase)
                             && questPage.GetTextMatchWeight(searchLower) > 0);
 
@@ -553,7 +385,7 @@ namespace VsQuest.Gui.Journal
                 }
                 else
                 {
-                    foreach (var page in allPages.OfType<QuestPage>())
+                    foreach (var page in entryManager.AllPages.OfType<QuestPage>())
                     {
                         if (string.Equals(page.QuestGiverId, currentQuestGiverFilter, StringComparison.OrdinalIgnoreCase))
                         {
@@ -700,10 +532,7 @@ namespace VsQuest.Gui.Journal
 
         public override void Dispose()
         {
-            foreach (var page in allPages)
-            {
-                page?.Dispose();
-            }
+            entryManager?.Dispose();
             overviewGui?.Dispose();
             detailViewGui?.Dispose();
         }

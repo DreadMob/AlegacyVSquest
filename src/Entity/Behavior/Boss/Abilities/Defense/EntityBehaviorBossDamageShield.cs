@@ -9,17 +9,19 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossDamageShield : EntityBehavior
+    public class EntityBehaviorBossDamageShield : BossAbilityBase
     {
         private const string ShieldStageKey = "alegacyvsquest:bossdamageshield:stage";
-        private const string LastShieldStartMsKey = "alegacyvsquest:bossdamageshield:lastStartMs";
 
-        private class ShieldStage
+        protected override string CooldownKey => "alegacyvsquest:bossdamageshield:lastStartMs";
+        protected override bool UseHealthBasedStages() => false;
+        protected override bool RequiresTarget() => false;
+        protected override int CheckIntervalMs => 200;
+
+        private class Stage : BossAbilityStage
         {
-            public float whenHealthRelBelow;
             public int shieldMs;
             public int windupMs;
-            public float cooldownSeconds;
 
             public bool repeatable;
             public bool immobileDuringShield;
@@ -44,12 +46,39 @@ namespace VsQuest
             public int particleCountMax;
             public float particleSize;
             public int particleLifeMs;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                shieldMs = json["shieldMs"].AsInt(2500);
+                windupMs = json["windupMs"].AsInt(0);
+                repeatable = json["repeatable"].AsBool(false);
+                immobileDuringShield = json["immobile"].AsBool(false);
+                lockYawDuringShield = json["lockYaw"].AsBool(false);
+                incomingDamageMultiplier = json["incomingDamageMultiplier"].AsFloat(0.25f);
+                animation = json["animation"].AsString(null);
+                animationStopMs = json["animationStopMs"].AsInt(0);
+                sound = json["sound"].AsString(null);
+                soundRange = json["soundRange"].AsFloat(24f);
+                soundStartMs = json["soundStartMs"].AsInt(0);
+                loopSound = json["loopSound"].AsString(null);
+                loopSoundRange = json["loopSoundRange"].AsFloat(24f);
+                loopSoundIntervalMs = json["loopSoundIntervalMs"].AsInt(900);
+                particleColorRgba = json["particleColorRgba"].AsInt(0x6496DCFF);
+                particleCountMin = json["particleCountMin"].AsInt(3);
+                particleCountMax = json["particleCountMax"].AsInt(6);
+                particleSize = json["particleSize"].AsFloat(0.5f);
+                particleLifeMs = json["particleLifeMs"].AsInt(800);
+
+                if (shieldMs <= 0) shieldMs = 500;
+                if (windupMs < 0) windupMs = 0;
+                if (incomingDamageMultiplier < 0f) incomingDamageMultiplier = 0f;
+                if (incomingDamageMultiplier > 1f) incomingDamageMultiplier = 1f;
+            }
         }
 
-        private ICoreServerAPI sapi;
-        private readonly List<ShieldStage> stages = new List<ShieldStage>();
+        private List<Stage> stages = new List<Stage>();
 
-        private bool shieldActive;
         private long shieldEndsAtMs;
         private long shieldStartedAtMs;
         private int activeStageIndex = -1;
@@ -69,125 +98,45 @@ namespace VsQuest
 
         public override string PropertyName() => "bossdamageshield";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-
-            stages.Clear();
-            try
-            {
-                foreach (var stageObj in attributes["stages"].AsArray())
-                {
-                    if (stageObj == null || !stageObj.Exists) continue;
-
-                    var stage = new ShieldStage
-                    {
-                        whenHealthRelBelow = stageObj["whenHealthRelBelow"].AsFloat(1f),
-                        shieldMs = stageObj["shieldMs"].AsInt(2500),
-                        windupMs = stageObj["windupMs"].AsInt(0),
-                        cooldownSeconds = stageObj["cooldownSeconds"].AsFloat(0f),
-
-                        repeatable = stageObj["repeatable"].AsBool(false),
-                        immobileDuringShield = stageObj["immobile"].AsBool(false),
-                        lockYawDuringShield = stageObj["lockYaw"].AsBool(false),
-
-                        incomingDamageMultiplier = stageObj["incomingDamageMultiplier"].AsFloat(0.25f),
-
-                        animation = stageObj["animation"].AsString(null),
-                        animationStopMs = stageObj["animationStopMs"].AsInt(0),
-
-                        sound = stageObj["sound"].AsString(null),
-                        soundRange = stageObj["soundRange"].AsFloat(24f),
-                        soundStartMs = stageObj["soundStartMs"].AsInt(0),
-
-                        loopSound = stageObj["loopSound"].AsString(null),
-                        loopSoundRange = stageObj["loopSoundRange"].AsFloat(24f),
-                        loopSoundIntervalMs = stageObj["loopSoundIntervalMs"].AsInt(900),
-
-                        // Particle settings
-                        particleColorRgba = stageObj["particleColorRgba"].AsInt(0x6496DCFF), // Light blue default
-                        particleCountMin = stageObj["particleCountMin"].AsInt(3),
-                        particleCountMax = stageObj["particleCountMax"].AsInt(6),
-                        particleSize = stageObj["particleSize"].AsFloat(0.5f),
-                        particleLifeMs = stageObj["particleLifeMs"].AsInt(800),
-                    };
-
-                    if (stage.shieldMs <= 0) stage.shieldMs = 500;
-                    if (stage.windupMs < 0) stage.windupMs = 0;
-                    if (stage.cooldownSeconds < 0f) stage.cooldownSeconds = 0f;
-
-                    if (stage.incomingDamageMultiplier < 0f) stage.incomingDamageMultiplier = 0f;
-                    if (stage.incomingDamageMultiplier > 1f) stage.incomingDamageMultiplier = 1f;
-
-                    stages.Add(stage);
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in parsing stages: {ex}");
-            }
+            stages = ParseStages<Stage>(attributes);
         }
 
-        public override void OnGameTick(float dt)
+        protected override bool ShouldCheckAbility() => !IsAbilityActive;
+
+        protected override void StopAbility()
         {
-            base.OnGameTick(dt);
-            if (sapi == null || entity == null) return;
-            if (stages.Count == 0) return;
+            StopShield();
+        }
 
-            if (!entity.Alive)
+        protected override bool OnAbilityTick(float dt)
+        {
+            if (!IsAbilityActive) return false;
+
+            if (immobileDuringShield)
             {
-                StopShield();
-                return;
+                BossBehaviorUtils.StopAiAndFreeze(entity);
             }
 
-            if (shieldActive)
+            if (lockYawDuringShield)
             {
-                if (immobileDuringShield)
-                {
-                    BossBehaviorUtils.StopAiAndFreeze(entity);
-                }
-
-                if (lockYawDuringShield)
-                {
-                    BossBehaviorUtils.ApplyRotationLock(entity, ref yawLocked, ref lockedYaw);
-                }
-
-                if (sapi.World.ElapsedMilliseconds >= shieldEndsAtMs)
-                {
-                    StopShield();
-                }
-
-                return;
+                BossBehaviorUtils.ApplyRotationLock(entity, ref yawLocked, ref lockedYaw);
             }
 
-            if (!BossBehaviorUtils.TryGetHealthFraction(entity, out float frac)) return;
-
-            int stageProgress = entity.WatchedAttributes?.GetInt(ShieldStageKey, 0) ?? 0;
-            for (int i = stageProgress; i < stages.Count; i++)
+            if (Sapi.World.ElapsedMilliseconds >= shieldEndsAtMs)
             {
-                var stage = stages[i];
-                if (frac <= stage.whenHealthRelBelow)
-                {
-                    if (!BossBehaviorUtils.IsCooldownReady(sapi, entity, LastShieldStartMsKey, stage.cooldownSeconds)) return;
-
-                    if (!stage.repeatable)
-                    {
-                        entity.WatchedAttributes.SetInt(ShieldStageKey, i + 1);
-                        entity.WatchedAttributes.MarkPathDirty(ShieldStageKey);
-                    }
-
-                    StartShield(stage, i);
-                    break;
-                }
+                return false;
             }
+
+            return true;
         }
 
         public override void OnEntityReceiveDamage(DamageSource damageSource, ref float damage)
         {
             base.OnEntityReceiveDamage(damageSource, ref damage);
 
-            if (!shieldActive) return;
+            if (!IsAbilityActive) return;
             if (activeStageIndex < 0 || activeStageIndex >= stages.Count) return;
 
             float mult = stages[activeStageIndex].incomingDamageMultiplier;
@@ -209,22 +158,35 @@ namespace VsQuest
             base.OnEntityDespawn(despawn);
         }
 
-        private void StartShield(ShieldStage stage, int stageIndex)
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
-            if (sapi == null || entity == null || stage == null) return;
+            if (stageObj is not Stage stage) return;
 
-            BossBehaviorUtils.MarkCooldownStart(sapi, entity, LastShieldStartMsKey);
+            MarkCooldownStart();
 
-            shieldActive = true;
+            if (!stage.repeatable)
+            {
+                entity.WatchedAttributes.SetInt(ShieldStageKey, stageIndex + 1);
+                entity.WatchedAttributes.MarkPathDirty(ShieldStageKey);
+            }
+
+            StartShield(stage, stageIndex);
+        }
+
+        private void StartShield(Stage stage, int stageIndex)
+        {
+            if (IsAbilityActive) return;
+
+            SetAbilityActive(true);
             activeStageIndex = stageIndex;
             immobileDuringShield = stage.immobileDuringShield;
             lockYawDuringShield = stage.lockYawDuringShield;
             yawLocked = false;
 
-            shieldStartedAtMs = sapi.World.ElapsedMilliseconds;
+            shieldStartedAtMs = Sapi.World.ElapsedMilliseconds;
             shieldEndsAtMs = shieldStartedAtMs + Math.Max(200, stage.windupMs + stage.shieldMs);
 
-            BossBehaviorUtils.UnregisterCallbackSafe(sapi, ref startShieldCallbackId);
+            UnregisterCallbackSafe(ref startShieldCallbackId);
 
             TryPlaySound(stage);
             TryStartLoopSound(stage);
@@ -242,7 +204,7 @@ namespace VsQuest
 
             if (stage.windupMs > 0)
             {
-                startShieldCallbackId = sapi.Event.RegisterCallback(_ =>
+                startShieldCallbackId = Sapi.Event.RegisterCallback(_ =>
                 {
                     TryPlayAnimation(stage);
                 }, stage.windupMs);
@@ -255,10 +217,10 @@ namespace VsQuest
 
         private void StopShield()
         {
-            BossBehaviorUtils.UnregisterCallbackSafe(sapi, ref startShieldCallbackId);
-            BossBehaviorUtils.UnregisterCallbackSafe(sapi, ref particleCallbackId);
+            UnregisterCallbackSafe(ref startShieldCallbackId);
+            UnregisterCallbackSafe(ref particleCallbackId);
 
-            shieldActive = false;
+            SetAbilityActive(false);
             immobileDuringShield = false;
             lockYawDuringShield = false;
             yawLocked = false;
@@ -273,64 +235,34 @@ namespace VsQuest
                 var stage = stages[activeStageIndex];
                 if (!string.IsNullOrWhiteSpace(stage.animation))
                 {
-                    try
-                    {
-                        entity?.AnimManager?.StopAnimation(stage.animation);
-                    }
-                    catch (Exception ex)
-                    {
-                        entity?.Api?.Logger?.Error($"[vsquest] Exception in StopShield StopAnimation: {ex}");
-                    }
+                    entity?.AnimManager?.StopAnimation(stage.animation);
                 }
             }
 
             activeStageIndex = -1;
         }
 
-        private void TryPlayAnimation(ShieldStage stage)
+        private void TryPlayAnimation(Stage stage)
         {
-            if (stage == null) return;
-            if (string.IsNullOrWhiteSpace(stage.animation)) return;
+            if (stage == null || string.IsNullOrWhiteSpace(stage.animation)) return;
 
-            try
-            {
-                entity?.AnimManager?.StartAnimation(stage.animation);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlayAnimation Start: {ex}");
-            }
+            entity?.AnimManager?.StartAnimation(stage.animation);
 
             int stopMs = stage.animationStopMs;
             if (stopMs <= 0) return;
 
-            try
+            if (Sapi != null)
             {
-                if (sapi != null)
+                Sapi.Event.RegisterCallback(_ =>
                 {
-                    sapi.Event.RegisterCallback(_ =>
-                    {
-                        try
-                        {
-                            entity?.AnimManager?.StopAnimation(stage.animation);
-                        }
-                        catch (Exception ex)
-                        {
-                            entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlayAnimation callback Stop: {ex}");
-                        }
-                    }, stopMs);
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlayAnimation RegisterCallback: {ex}");
+                    entity?.AnimManager?.StopAnimation(stage.animation);
+                }, stopMs);
             }
         }
 
-        private void TryPlaySound(ShieldStage stage)
+        private void TryPlaySound(Stage stage)
         {
-            if (sapi == null || stage == null) return;
-            if (string.IsNullOrWhiteSpace(stage.sound)) return;
+            if (Sapi == null || stage == null || string.IsNullOrWhiteSpace(stage.sound)) return;
             float range = stage.soundRange > 0f ? stage.soundRange : 24f;
 
             AssetLocation soundLoc = AssetLocation.Create(stage.sound, "game").WithPathPrefixOnce("sounds/");
@@ -338,90 +270,75 @@ namespace VsQuest
 
             if (stage.soundStartMs > 0)
             {
-                sapi.Event.RegisterCallback(_ =>
+                Sapi.Event.RegisterCallback(_ =>
                 {
-                    try
-                    {
-                        if (!shieldActive || entity == null || !entity.Alive) return;
-                        float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                        sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, 1f);
-                    }
-                    catch (Exception ex)
-                    {
-                        entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlaySound callback: {ex}");
-                    }
+                    if (!IsAbilityActive || entity == null || !entity.Alive) return;
+                    float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
+                    Sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, 1f);
                 }, stage.soundStartMs);
             }
             else
             {
-                try
-                {
-                    if (!shieldActive || entity == null || !entity.Alive) return;
-                    float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                    sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, 1f);
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in TryPlaySound immediate: {ex}");
-                }
+                if (!IsAbilityActive || entity == null || !entity.Alive) return;
+                float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
+                Sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, 1f);
             }
         }
 
-        private void TryStartLoopSound(ShieldStage stage)
+        private void TryStartLoopSound(Stage stage)
         {
-            if (sapi == null || stage == null) return;
+            if (Sapi == null || stage == null) return;
             if (string.IsNullOrWhiteSpace(stage.loopSound)) return;
 
-            loopSoundPlayer.Start(sapi, entity, stage.loopSound, stage.loopSoundRange, stage.loopSoundIntervalMs);
+            loopSoundPlayer.Start(Sapi, entity, stage.loopSound, stage.loopSoundRange, stage.loopSoundIntervalMs);
         }
 
-        private void StartParticles(ShieldStage stage)
+        private void StartParticles(Stage stage)
         {
-            if (sapi == null || entity == null || stage == null) return;
+            if (Sapi == null || entity == null || stage == null) return;
             if (stage.particleCountMax <= 0) return;
 
             SpawnShieldParticles(stage);
 
             // Schedule recurring particles while shield is active
-            particleCallbackId = sapi.Event.RegisterCallback(_ =>
+            particleCallbackId = Sapi.Event.RegisterCallback(_ =>
             {
-                if (shieldActive && entity != null && entity.Alive)
+                if (IsAbilityActive && entity != null && entity.Alive)
                 {
                     SpawnShieldParticles(stage);
-                    StartParticles(stage); // Re-register for next tick
                 }
-            }, 200); // Every 200ms
+            }, 400);
         }
 
-        private void SpawnShieldParticles(ShieldStage stage)
+        private void SpawnShieldParticles(Stage stage)
         {
-            if (sapi == null || entity == null || stage == null) return;
+            if (Sapi == null || entity == null || stage == null) return;
 
-            try
-            {
-                var pos = entity.Pos.XYZ.Add(0, 1.5, 0); // Center of boss
+            var pos = entity.Pos.XYZ.Add(0, 1.5, 0); // Center of boss
 
-                sapi.World.SpawnParticles(
-                    new SimpleParticleProperties(
-                        stage.particleCountMin,
-                        stage.particleCountMax,
-                        stage.particleColorRgba,
-                        pos.AddCopy(-0.5, -0.5, -0.5),
-                        pos.AddCopy(0.5, 0.5, 0.5),
-                        new Vec3f(-0.5f, 0.5f, -0.5f),
-                        new Vec3f(0.5f, 1.5f, 0.5f),
-                        stage.particleLifeMs / 1000f,
-                        0f,
-                        stage.particleSize,
-                        stage.particleSize,
-                        EnumParticleModel.Quad
-                    )
-                );
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in SpawnShieldParticles: {ex}");
-            }
+            Sapi.World.SpawnParticles(
+                new SimpleParticleProperties(
+                    stage.particleCountMin,
+                    stage.particleCountMax,
+                    stage.particleColorRgba,
+                    pos.AddCopy(-0.5, -0.5, -0.5),
+                    pos.AddCopy(0.5, 0.5, 0.5),
+                    new Vec3f(-0.5f, 0.5f, -0.5f),
+                    new Vec3f(0.5f, 1.5f, 0.5f),
+                    stage.particleLifeMs / 1000f,
+                    0f,
+                    stage.particleSize,
+                    stage.particleSize,
+                    EnumParticleModel.Quad
+                )
+            );
         }
+
+        // Required abstract overrides for BossAbilityBase (event-driven mode)
+        protected override int GetStageCount() => stages.Count;
+        protected override object GetStage(int index) => index >= 0 && index < stages.Count ? stages[index] : null;
+        protected override float GetStageHealthThreshold(object stage) => stage is Stage s ? s.whenHealthRelBelow : 1f;
+        protected override float GetStageCooldown(object stage) => stage is Stage s ? s.cooldownSeconds : 0f;
+        protected override float GetMaxTargetRange(object stage) => 0f;
     }
 }

@@ -9,25 +9,37 @@ using Vintagestory.GameContent;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossWoundedMark : EntityBehavior
+    public class EntityBehaviorBossWoundedMark : BossAbilityBase
     {
-        private const string WoundedMarkKey = "alegacyvsquest:bosswoundedmark:marked";
-        private const string LastExplosionKey = "alegacyvsquest:bosswoundedmark:lastExplosion";
+        protected override string CooldownKey => "alegacyvsquest:bosswoundedmark:lastCastMs";
+        protected override bool UseHealthBasedStages() => false;
+        protected override bool RequiresTarget() => false;
+        protected override int CheckIntervalMs => 750;
 
-        private ICoreServerAPI sapi;
-        private float triggerHpPercent;
-        private float explosionDamage;
-        private float explosionRange;
-        private int cooldownMs;
-        private int maxTargets;
-        private float detectionRange;
-        private int markDurationMs = 15000;
+        private class Stage : BossAbilityStage
+        {
+            public float triggerHpPercent;
+            public float explosionDamage;
+            public float explosionRange;
+            public int maxTargets;
+            public float detectionRange;
+            public int markDurationMs;
 
-        private long lastCastMs;
-        private long lastTickCheckMs;
-        private long lastParticleTickMs;
-        private const int TickCheckIntervalMs = 750;
-        private const int ParticleTickIntervalMs = 500;
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                triggerHpPercent = json["triggerHp"].AsFloat(0.45f);
+                explosionDamage = json["explosionDamage"].AsFloat(210f);
+                explosionRange = json["range"].AsFloat(10f);
+                maxTargets = json["maxTargets"].AsInt(2);
+                detectionRange = json["detectionRange"].AsFloat(40f);
+                markDurationMs = json["markDurationSeconds"].AsInt(15) * 1000;
+                whenHealthRelBelow = json["whenHealthRelBelow"].AsFloat(0.5f);
+                cooldownSeconds = json["cooldownSeconds"].AsFloat(18f);
+            }
+        }
+
+        private List<Stage> stages = new List<Stage>();
         private Dictionary<long, long> woundedPlayers = new Dictionary<long, long>();
 
         public EntityBehaviorBossWoundedMark(Entity entity) : base(entity)
@@ -36,66 +48,71 @@ namespace VsQuest
 
         public override string PropertyName() => "bosswoundedmark";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-            triggerHpPercent = attributes["triggerHp"].AsFloat(0.45f);
-            explosionDamage = attributes["explosionDamage"].AsFloat(210f); // 35 * 6 = increased for less frequent ticks
-            explosionRange = attributes["range"].AsFloat(10f);
-            cooldownMs = attributes["cooldownSeconds"].AsInt(18) * 1000;
-            maxTargets = attributes["maxTargets"].AsInt(2);
-            detectionRange = attributes["detectionRange"].AsFloat(40f);
-            markDurationMs = attributes["markDurationSeconds"].AsInt(15) * 1000;
-
-            lastCastMs = 0;
+            stages = ParseStages<Stage>(attributes);
         }
 
-        public override void OnGameTick(float dt)
+        protected override int GetStageCount() => stages.Count;
+
+        protected override object GetStage(int index) => stages[index];
+
+        protected override float GetStageHealthThreshold(object stage) => ((Stage)stage).whenHealthRelBelow;
+
+        protected override float GetStageCooldown(object stage) => ((Stage)stage).cooldownSeconds;
+
+        protected override float GetMaxTargetRange(object stage) => ((Stage)stage).detectionRange;
+
+        protected override bool ShouldCheckAbility() => !IsAbilityActive && woundedPlayers.Count == 0;
+
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
-            base.OnGameTick(dt);
-
-            if (sapi == null || !entity.Alive) return;
-
-            long now = sapi.World.ElapsedMilliseconds;
-
-            // Try to apply mark
-            if (now - lastCastMs >= cooldownMs)
-            {
-                TryApplyMark(now);
-            }
-
-            // Check for healing explosions - only every 750ms instead of every tick
-            if (now - lastTickCheckMs >= TickCheckIntervalMs)
-            {
-                lastTickCheckMs = now;
-                CheckForHealingExplosions();
-            }
-
-            // Spawn particles on marked players - every 500ms
-            if (now - lastParticleTickMs >= ParticleTickIntervalMs)
-            {
-                lastParticleTickMs = now;
-                SpawnParticlesOnMarkedPlayers(now);
-            }
+            if (stageObj is not Stage stage) return;
+            MarkCooldownStart();
+            SetAbilityActive(true);
+            TryApplyMark(stage, Sapi.World.ElapsedMilliseconds);
         }
 
-        private void TryApplyMark(long now)
+        protected override void StopAbility()
+        {
+            woundedPlayers.Clear();
+            SetAbilityActive(false);
+        }
+
+        protected override bool OnAbilityTick(float dt)
+        {
+            if (!IsAbilityActive) return false;
+            if (stages.Count == 0) return false;
+            var stage = stages[0];
+
+            long now = Sapi.World.ElapsedMilliseconds;
+            CheckForHealingExplosions(stage, now);
+            SpawnParticlesOnMarkedPlayers(now);
+            
+            bool anyMarked = woundedPlayers.Count > 0;
+            if (!anyMarked)
+            {
+                SetAbilityActive(false);
+            }
+            return anyMarked;
+        }
+
+        private void TryApplyMark(Stage stage, long now)
         {
             List<EntityPlayer> targets = new List<EntityPlayer>();
 
-            foreach (var player in sapi.World.AllOnlinePlayers)
+            foreach (var player in Sapi.World.AllOnlinePlayers)
             {
                 if (player.Entity?.Pos == null) continue;
                 if (player.Entity.Pos.Dimension != entity.Pos.Dimension) continue;
-                if (player.Entity.Pos.DistanceTo(entity.Pos) > detectionRange) continue;
+                if (player.Entity.Pos.DistanceTo(entity.Pos) > stage.detectionRange) continue;
 
                 // Check HP threshold
                 var health = player.Entity.GetBehavior<EntityBehaviorHealth>();
                 if (health == null) continue;
 
                 float hpPercent = health.Health / health.MaxHealth;
-                if (hpPercent > triggerHpPercent) continue;
+                if (hpPercent > stage.triggerHpPercent) continue;
 
                 // Check if already marked
                 if (woundedPlayers.ContainsKey(player.Entity.EntityId)) continue;
@@ -107,7 +124,7 @@ namespace VsQuest
 
             // Select random targets up to maxTargets
             Random rand = new Random((int)now);
-            int toMark = Math.Min(maxTargets, targets.Count);
+            int toMark = Math.Min(stage.maxTargets, targets.Count);
 
             for (int i = 0; i < toMark; i++)
             {
@@ -115,11 +132,11 @@ namespace VsQuest
                 var target = targets[idx];
                 targets.RemoveAt(idx);
 
-                woundedPlayers[target.EntityId] = now + markDurationMs; // Store expiry time
+                woundedPlayers[target.EntityId] = now + stage.markDurationMs; // Store expiry time
 
                 // Visual effect - pulsing red aura
                 var targetPos = target.Pos.XYZ;
-                sapi.World.SpawnParticles(
+                Sapi.World.SpawnParticles(
                     new SimpleParticleProperties(
                         30, 40,
                         ColorUtil.ToRgba(200, 255, 50, 50),
@@ -137,14 +154,11 @@ namespace VsQuest
 
                 entity.Api.Logger.Debug($"[BossWoundedMark] Applied mark to player {target.EntityId}");
             }
-
-            lastCastMs = now;
         }
 
-        private void CheckForHealingExplosions()
+        private void CheckForHealingExplosions(Stage stage, long now)
         {
             List<long> toRemove = new List<long>();
-            long now = sapi.World.ElapsedMilliseconds;
 
             foreach (var kvp in woundedPlayers)
             {
@@ -155,19 +169,30 @@ namespace VsQuest
                     continue;
                 }
 
-                var player = sapi.World.PlayerByUid(kvp.Key.ToString())?.Entity;
-                if (player == null)
+                // Correctly find player entity from EntityId
+                EntityPlayer player = null;
+                foreach (var onlinePlayer in Sapi.World.AllOnlinePlayers)
+                {
+                    if (onlinePlayer.Entity?.EntityId == kvp.Key)
+                    {
+                        player = onlinePlayer.Entity;
+                        break;
+                    }
+                }
+
+                if (player == null || !player.Alive)
                 {
                     toRemove.Add(kvp.Key);
                     continue;
                 }
 
                 // Check if player healed (health increased)
+                // Note: Improved detection logic using lastHealMs from vsquest if available
                 float healRate = player.Stats.GetBlended("healrate");
                 if (healRate > 0 && player.WatchedAttributes.GetLong("lastHealMs", 0) > now - 1000)
                 {
                     // Explosion!
-                    ExplodeOnPlayer(player);
+                    ExplodeOnPlayer(stage, player);
                     toRemove.Add(kvp.Key);
                 }
             }
@@ -184,11 +209,20 @@ namespace VsQuest
             {
                 if (now >= kvp.Value) continue; // Skip expired
 
-                var player = sapi.World.PlayerByUid(kvp.Key.ToString())?.Entity;
+                EntityPlayer player = null;
+                foreach (var onlinePlayer in Sapi.World.AllOnlinePlayers)
+                {
+                    if (onlinePlayer.Entity?.EntityId == kvp.Key)
+                    {
+                        player = onlinePlayer.Entity;
+                        break;
+                    }
+                }
+                
                 if (player?.Pos == null) continue;
 
                 var targetPos = player.Pos.XYZ;
-                sapi.World.SpawnParticles(
+                Sapi.World.SpawnParticles(
                     new SimpleParticleProperties(
                         8, 12,
                         ColorUtil.ToRgba(200, 255, 50, 80),
@@ -206,12 +240,12 @@ namespace VsQuest
             }
         }
 
-        private void ExplodeOnPlayer(EntityPlayer player)
+        private void ExplodeOnPlayer(Stage stage, EntityPlayer player)
         {
             var pos = player.Pos.XYZ;
 
             // Damage in AoE
-            var nearbyEntities = sapi.World.GetEntitiesAround(pos, explosionRange, explosionRange, (e) => e is EntityPlayer);
+            var nearbyEntities = Sapi.World.GetEntitiesAround(pos, stage.explosionRange, stage.explosionRange, (e) => e is EntityPlayer);
             foreach (var e in nearbyEntities)
             {
                 if (e is EntityPlayer p)
@@ -223,18 +257,18 @@ namespace VsQuest
                             SourceEntity = entity,
                             Type = EnumDamageType.PiercingAttack
                         },
-                        explosionDamage
+                        stage.explosionDamage
                     );
                 }
             }
 
             // Visual explosion effect
-            sapi.World.SpawnParticles(
+            Sapi.World.SpawnParticles(
                 new SimpleParticleProperties(
                     50, 80,
                     ColorUtil.ToRgba(255, 255, 100, 50),
-                    pos.Add(-explosionRange, 0, -explosionRange),
-                    pos.Add(explosionRange, explosionRange, explosionRange),
+                    pos.Add(-stage.explosionRange, 0, -stage.explosionRange),
+                    pos.Add(stage.explosionRange, stage.explosionRange, stage.explosionRange),
                     new Vec3f(-0.5f, 0.3f, -0.5f),
                     new Vec3f(0.5f, 0.8f, 0.5f),
                     1.0f,
@@ -246,7 +280,7 @@ namespace VsQuest
             );
 
             // Sound effect
-            sapi.World.PlaySoundAt(
+            Sapi.World.PlaySoundAt(
                 new AssetLocation("effect/smallexplosion"),
                 pos.X, pos.Y, pos.Z,
                 null, false, 32, 0.5f

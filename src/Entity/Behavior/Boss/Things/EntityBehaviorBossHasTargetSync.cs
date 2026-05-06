@@ -62,7 +62,7 @@ namespace VsQuest
                 hasTarget = false;
             }
 
-            BossBehaviorUtils.SetWatchedBoolDirty(entity, BossBehaviorUtils.HasTargetKey, hasTarget);
+            entity.SetWatchedBoolDirty(BossBehaviorUtils.HasTargetKey, hasTarget);
         }
 
         public override void OnEntityDespawn(EntityDespawnData despawn)
@@ -72,7 +72,7 @@ namespace VsQuest
                 var wa = entity?.WatchedAttributes;
                 if (wa != null)
                 {
-                    BossBehaviorUtils.SetWatchedBoolDirty(entity, BossBehaviorUtils.HasTargetKey, false);
+                    entity.SetWatchedBoolDirty(BossBehaviorUtils.HasTargetKey, false);
                 }
             }
             catch

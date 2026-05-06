@@ -2,13 +2,14 @@ using System;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
+using Vintagestory.API.MathTools;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossMusicUrlController : EntityBehavior
+    public class EntityBehaviorBossMusicUrlController : EntityBehaviorBossBase
     {
         private const string QuestlandMusicAttributeKey = "alegacyvsquest:questlandmusic";
-        private ICoreClientAPI capi;
+        private ICoreClientAPI clientApi;
 
         private float range;
         private float startRange;
@@ -18,7 +19,6 @@ namespace VsQuest
         private bool phaseSwitching;
 
         private float fadeOutSeconds;
-
         private float startAtSeconds;
 
         private class MusicPhase
@@ -50,6 +50,7 @@ namespace VsQuest
 
         public EntityBehaviorBossMusicUrlController(Entity entity) : base(entity)
         {
+            clientApi = entity?.Api as ICoreClientAPI;
         }
 
         public override string PropertyName() => "bossmusicurl";
@@ -57,8 +58,6 @@ namespace VsQuest
         public override void Initialize(EntityProperties properties, Vintagestory.API.Datastructures.JsonObject attributes)
         {
             base.Initialize(properties, attributes);
-
-            capi = entity?.Api as ICoreClientAPI;
 
             range = attributes?["range"].AsFloat(60f) ?? 60f;
             startRange = attributes?["startRange"].AsFloat(0f) ?? 0f;
@@ -117,53 +116,33 @@ namespace VsQuest
         {
             base.OnGameTick(dt);
 
-            if (capi == null || entity == null || !entity.Alive)
+            if (clientApi == null || entity == null || !entity.Alive)
             {
                 ApplyShouldPlay(false, fadeOutSeconds > 0f ? fadeOutSeconds : DeathFadeOutSeconds);
                 return;
             }
 
-            var player = capi.World?.Player?.Entity;
-            if (player == null || !player.Alive)
+            var playerEntity = clientApi.World?.Player?.Entity;
+            if (playerEntity == null || !playerEntity.Alive)
             {
                 ApplyShouldPlay(false, fadeOutSeconds);
                 return;
             }
 
-            bool inRange;
-            double distanceToPlayer = 0;
-            try
-            {
-                distanceToPlayer = player.Pos.DistanceTo(entity.Pos);
-                inRange = (float)distanceToPlayer <= range;
-            }
-            catch
-            {
-                distanceToPlayer = 0;
-                inRange = false;
-            }
+            double distanceToPlayer = playerEntity.Pos.DistanceTo(entity.Pos);
+            bool inRange = (float)distanceToPlayer <= range;
 
             if (!inRange)
             {
-                bool inQuestland = false;
-                try
-                {
-                    inQuestland = player?.WatchedAttributes?.HasAttribute(QuestlandMusicAttributeKey) == true;
-                }
-                catch
-                {
-                    inQuestland = false;
-                }
-
-                if (inQuestland)
+                if (playerEntity.WatchedAttributes.HasAttribute(QuestlandMusicAttributeKey))
                 {
                     return;
                 }
 
-                long now = Environment.TickCount64;
-                if (outOfRangeSinceMs <= 0) outOfRangeSinceMs = now;
+                long nowMs = Environment.TickCount64;
+                if (outOfRangeSinceMs <= 0) outOfRangeSinceMs = nowMs;
 
-                if (now - outOfRangeSinceMs >= OutOfRangeStopDelayMs)
+                if (nowMs - outOfRangeSinceMs >= OutOfRangeStopDelayMs)
                 {
                     ApplyShouldPlay(false, fadeOutSeconds);
                 }
@@ -175,37 +154,17 @@ namespace VsQuest
 
             outOfRangeSinceMs = 0;
 
-            long lastDamageMs = 0;
-            try
+            long lastDamageMs = entity.WatchedAttributes.GetLong(EntityBehaviorBossHuntCombatMarker.BossHuntLastDamageMsKey, 0);
+            if (lastDamageMs <= 0)
             {
-                var wa = entity.WatchedAttributes;
-                if (wa != null)
-                {
-                    lastDamageMs = wa.GetLong(EntityBehaviorBossHuntCombatMarker.BossHuntLastDamageMsKey, 0);
-                    if (lastDamageMs <= 0)
-                    {
-                        lastDamageMs = wa.GetLong(EntityBehaviorBossCombatMarker.BossCombatLastDamageMsKey, 0);
-                    }
-                }
-            }
-            catch
-            {
-                lastDamageMs = 0;
+                lastDamageMs = entity.WatchedAttributes.GetLong(EntityBehaviorBossCombatMarker.BossCombatLastDamageMsKey, 0);
             }
 
             bool hasTrigger = lastDamageMs > 0;
             bool inStartRange = startRange > 0f ? distanceToPlayer <= startRange : inRange;
             bool inKeepRange = distanceToPlayer <= keepRange;
 
-            bool aiHasTarget = false;
-            try
-            {
-                aiHasTarget = entity?.WatchedAttributes?.GetBool(BossBehaviorUtils.HasTargetKey, false) ?? false;
-            }
-            catch
-            {
-                aiHasTarget = false;
-            }
+            bool aiHasTarget = entity.WatchedAttributes.GetBool(BossBehaviorUtils.HasTargetKey, false);
 
             bool recentDamage = false;
             if (combatTimeoutMs <= 0)
@@ -214,29 +173,18 @@ namespace VsQuest
             }
             else if (hasTrigger)
             {
-                try
-                {
-                    long now = capi.World.ElapsedMilliseconds;
-                    long dtMs = now - lastDamageMs;
-                    recentDamage = dtMs >= 0 && dtMs <= combatTimeoutMs;
-                }
-                catch
-                {
-                    recentDamage = false;
-                }
+                long dtMs = clientApi.World.ElapsedMilliseconds - lastDamageMs;
+                recentDamage = dtMs >= 0 && dtMs <= combatTimeoutMs;
             }
 
             bool combatCore = aiHasTarget || recentDamage;
 
             // If combat has already started, keep playing as long as player stays in keepRange.
-            // This prevents brief target/LoS drops from killing the music.
             if (wasInCombat && inKeepRange)
             {
                 combatCore = true;
             }
 
-            // Start only when entering combat, optionally gated by startRange. After combat has started,
-            // keep playing while combat remains active (has target OR recent damage).
             bool combatNow = combatCore && (wasInCombat || inStartRange);
 
             long tickNow = Environment.TickCount64;
@@ -269,12 +217,9 @@ namespace VsQuest
 
         private void ApplyShouldPlay(bool shouldPlay, float fadeOutSeconds = -1f)
         {
-            // We intentionally allow resolving desired music while playing (for HP phases),
-            // but we must not spam Stop/Start each tick.
-
             try
             {
-                var sys = capi?.ModLoader?.GetModSystem<BossMusicUrlSystem>();
+                var sys = clientApi?.ModLoader?.GetModSystem<BossMusicUrlSystem>();
                 if (sys == null) return;
 
                 if (shouldPlay)
@@ -287,7 +232,6 @@ namespace VsQuest
                     {
                         lastResolveMs = now;
 
-                        // Important: phases can depend on current HP, so we recompute while playing.
                         ResolveDesiredMusic(sys, out var url, out var offset);
 
                         bool changed = !string.Equals(lastResolvedUrl ?? "", url ?? "", StringComparison.OrdinalIgnoreCase)
@@ -324,7 +268,6 @@ namespace VsQuest
             url = preferKey ? null : musicUrl;
             offset = startAtSeconds;
 
-            // Resolve URL from key early so we can use it for phase offset calculation
             if (preferKey && sys != null)
             {
                 url = sys.ResolveUrl(musicKey);
@@ -332,49 +275,34 @@ namespace VsQuest
 
             if (usePhases && phases.Count > 0)
             {
-                float frac = 1f;
-                try
+                if (TryGetHealthFraction(out float frac))
                 {
-                    var ht = entity?.WatchedAttributes?.GetTreeAttribute("health");
-                    if (ht != null)
+                    MusicPhase best = null;
+                    float bestThr = 999f;
+                    for (int i = 0; i < phases.Count; i++)
                     {
-                        float cur = ht.GetFloat("currenthealth", 0f);
-                        float max = ht.GetFloat("maxhealth", 0f);
-                        if (max > 0f) frac = cur / max;
-                    }
-                }
-                catch
-                {
-                    frac = 1f;
-                }
-
-                MusicPhase best = null;
-                float bestThr = 999f;
-                for (int i = 0; i < phases.Count; i++)
-                {
-                    var ph = phases[i];
-                    if (ph == null) continue;
-                    if (frac <= ph.whenHealthRelBelow && ph.whenHealthRelBelow < bestThr)
-                    {
-                        best = ph;
-                        bestThr = ph.whenHealthRelBelow;
-                    }
-                }
-
-                if (best != null)
-                {
-                    if (!preferKey && !string.IsNullOrWhiteSpace(best.url)) url = best.url;
-                    offset = best.startAtSeconds;
-
-                    if (best.startAtRel >= 0f)
-                    {
-                        float rel = best.startAtRel;
-                        if (rel < 0f) rel = 0f;
-                        if (rel > 1f) rel = 1f;
-
-                        if (!string.IsNullOrWhiteSpace(url) && sys != null && sys.TryGetDurationSeconds(url, out var seconds) && seconds > 0.01f)
+                        var ph = phases[i];
+                        if (ph == null) continue;
+                        if (frac <= ph.whenHealthRelBelow && ph.whenHealthRelBelow < bestThr)
                         {
-                            offset = seconds * rel;
+                            best = ph;
+                            bestThr = ph.whenHealthRelBelow;
+                        }
+                    }
+
+                    if (best != null)
+                    {
+                        if (!preferKey && !string.IsNullOrWhiteSpace(best.url)) url = best.url;
+                        offset = best.startAtSeconds;
+
+                        if (best.startAtRel >= 0f)
+                        {
+                            float rel = GameMath.Clamp(best.startAtRel, 0f, 1f);
+
+                            if (!string.IsNullOrWhiteSpace(url) && sys != null && sys.TryGetDurationSeconds(url, out var seconds) && seconds > 0.01f)
+                            {
+                                offset = seconds * rel;
+                            }
                         }
                     }
                 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
@@ -8,18 +9,38 @@ using Vintagestory.GameContent;
 
 namespace VsQuest
 {
-    public class EntityBehaviorExplodeOnDeath : EntityBehavior
+    public class EntityBehaviorExplodeOnDeath : BossAbilityBase
     {
-        private ICoreServerAPI sapi;
-        private int fuseMs;
-        private float explosionRadius;
-        private float explosionDamage;
-        private int damageTier;
-        private EnumDamageType damageType;
-        private AssetLocation explodeSound;
-        private float explodeSoundRange;
-        private float explodeSoundVolume;
-        
+        protected override string CooldownKey => "alegacyvsquest:explodeondeath:lastExplode";
+        protected override bool UseHealthBasedStages() => false;
+        protected override bool RequiresTarget() => false;
+        protected override bool ShouldCheckAbility() => false; // Only activates on death
+        private class Stage : BossAbilityStage
+        {
+            public int fuseMs;
+            public float explosionRadius;
+            public float explosionDamage;
+            public int damageTier;
+            public EnumDamageType damageType;
+            public AssetLocation explodeSound;
+            public float explodeSoundVolume;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                fuseMs = json["fuseMs"].AsInt(2000);
+                explosionRadius = json["explosionRadius"].AsFloat(3f);
+                explosionDamage = json["explosionDamage"].AsFloat(10f);
+                damageTier = json["damageTier"].AsInt(1);
+                damageType = (EnumDamageType)json["damageType"].AsInt((int)EnumDamageType.PiercingAttack);
+                
+                string soundPath = json["explodeSound"].AsString("effect/smallexplosion");
+                explodeSound = new AssetLocation(soundPath);
+                explodeSoundVolume = json["explodeSoundVolume"].AsFloat(0.5f);
+            }
+        }
+
+        private List<Stage> stages = new List<Stage>();
         private bool scheduled;
         private long explodeCallbackId;
 
@@ -29,56 +50,62 @@ namespace VsQuest
 
         public override string PropertyName() => "explodeondeath";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-            
-            fuseMs = attributes["fuseMs"].AsInt(2000);
-            explosionRadius = attributes["explosionRadius"].AsFloat(3f);
-            explosionDamage = attributes["explosionDamage"].AsFloat(10f);
-            damageTier = attributes["damageTier"].AsInt(1);
-            damageType = (EnumDamageType)attributes["damageType"].AsInt((int)EnumDamageType.PiercingAttack);
-            
-            string soundPath = attributes["explodeSound"].AsString("effect/smallexplosion");
-            explodeSound = new AssetLocation(soundPath);
-            explodeSoundRange = attributes["explodeSoundRange"].AsFloat(16f);
-            explodeSoundVolume = attributes["explodeSoundVolume"].AsFloat(0.5f);
+            stages = ParseStages<Stage>(attributes);
+        }
 
-            scheduled = false;
+        protected override int GetStageCount() => stages.Count;
+
+        protected override object GetStage(int index) => stages[index];
+
+        protected override float GetStageHealthThreshold(object stage) => ((Stage)stage).whenHealthRelBelow;
+
+        protected override float GetStageCooldown(object stage) => ((Stage)stage).cooldownSeconds;
+
+        protected override float GetMaxTargetRange(object stage) => ((Stage)stage).explosionRadius;
+
+        protected override void ActivateAbility(object stage, int stageIndex, EntityPlayer target)
+        {
+        }
+
+        protected override void StopAbility()
+        {
         }
 
         public override void OnEntityDeath(DamageSource damageSourceForDeath)
         {
             base.OnEntityDeath(damageSourceForDeath);
             
-            if (sapi == null || scheduled) return;
+            if (Sapi == null || scheduled || stages.Count == 0) return;
             
+            var stage = stages[0];
             // Schedule explosion after fuse time
             scheduled = true;
-            explodeCallbackId = sapi.Event.RegisterCallback((_) =>
+            explodeCallbackId = Sapi.Event.RegisterCallback((_) =>
             {
-                TryExplode();
-            }, fuseMs);
+                TryExplode(stage);
+            }, stage.fuseMs);
             
             // Play ticking fuse sound periodically
             int tickInterval = 500; // ms
-            int totalTicks = fuseMs / tickInterval;
+            int totalTicks = stage.fuseMs / tickInterval;
             for (int i = 1; i <= totalTicks; i++)
             {
                 int tickDelay = i * tickInterval;
-                if (tickDelay < fuseMs)
+                if (tickDelay < stage.fuseMs)
                 {
-                    sapi.Event.RegisterCallback((_) =>
+                    Sapi.Event.RegisterCallback((_) =>
                     {
                         if (entity != null && entity.Alive == false)
                         {
-                            float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                            sapi.World.PlaySoundAt(
+                            float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
+                            Sapi.World.PlaySoundAt(
                                 new AssetLocation("game:sounds/tick"),
                                 entity,
                                 null,
                                 pitch,
+                                32,
                                 0.3f
                             );
                         }
@@ -87,28 +114,29 @@ namespace VsQuest
             }
         }
 
-        private void TryExplode()
+        private void TryExplode(Stage stage)
         {
-            if (sapi == null) return;
+            if (Sapi == null || stage == null) return;
             
             var pos = entity.Pos.XYZ;
             
             // Play explosion sound
-            sapi.World.PlaySoundAt(
-                explodeSound,
+            Sapi.World.PlaySoundAt(
+                stage.explodeSound,
                 entity,
                 null,
                 1f,
-                explodeSoundVolume
+                32,
+                stage.explodeSoundVolume
             );
             
             // Create explosion
             var blockPos = new BlockPos((int)pos.X, (int)pos.Y, (int)pos.Z);
-            sapi.World.CreateExplosion(
+            Sapi.World.CreateExplosion(
                 blockPos, 
                 EnumBlastType.EntityBlast, 
-                explosionRadius, 
-                explosionDamage
+                stage.explosionRadius, 
+                stage.explosionDamage
             );
             
             // Remove the entity

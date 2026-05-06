@@ -3,10 +3,14 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.Server;
-using Vintagestory.GameContent;
 
 namespace VsQuest
 {
+    /// <summary>
+    /// Utility methods for boss behaviors that require ICoreServerAPI as the primary parameter
+    /// or are not suitable as Entity extension methods.
+    /// Entity-centric methods have been moved to <see cref="EntityExtensions"/>.
+    /// </summary>
     public static class BossBehaviorUtils
     {
         public const string HasTargetKey = "alegacyvsquest:boss:hasTarget";
@@ -41,97 +45,11 @@ namespace VsQuest
             return ShouldPlaySoundLimited(key, cooldownMs);
         }
 
-        public static void SetWatchedBoolDirty(Entity entity, string key, bool value)
-        {
-            try
-            {
-                var wa = entity?.WatchedAttributes;
-                if (wa == null) return;
+        public static bool TryGetHealth(Entity entity, out ITreeAttribute healthTree, out float currentHealth, out float maxHealth) => entity.TryGetHealth(out healthTree, out currentHealth, out maxHealth);
 
-                bool prev = wa.GetBool(key, false);
-                if (prev == value) return;
+        public static void StopAiAndFreeze(Entity entity) => entity.StopAiAndFreeze();
 
-                wa.SetBool(key, value);
-                wa.MarkPathDirty(key);
-            }
-            catch
-            {
-            }
-        }
-
-        public static bool TryGetHealthFraction(Entity entity, out float fraction)
-        {
-            fraction = 1f;
-            var wa = entity?.WatchedAttributes;
-            if (wa == null) return false;
-
-            var healthTree = wa.GetTreeAttribute("health");
-            if (healthTree == null) return false;
-
-            float maxHealth = healthTree.GetFloat("maxhealth", 0f);
-            if (maxHealth <= 0f)
-            {
-                maxHealth = healthTree.GetFloat("basemaxhealth", 0f);
-            }
-
-            float curHealth = healthTree.GetFloat("currenthealth", 0f);
-            if (maxHealth <= 0f || curHealth <= 0f) return false;
-
-            fraction = curHealth / maxHealth;
-            return true;
-        }
-
-        public static bool TryGetHealth(Entity entity, out ITreeAttribute healthTree, out float currentHealth, out float maxHealth)
-        {
-            healthTree = null;
-            currentHealth = 0f;
-            maxHealth = 0f;
-
-            var wa = entity?.WatchedAttributes;
-            if (wa == null) return false;
-
-            healthTree = wa.GetTreeAttribute("health");
-            if (healthTree == null) return false;
-
-            maxHealth = healthTree.GetFloat("maxhealth", 0f);
-            if (maxHealth <= 0f)
-            {
-                maxHealth = healthTree.GetFloat("basemaxhealth", 0f);
-            }
-
-            currentHealth = healthTree.GetFloat("currenthealth", 0f);
-            return maxHealth > 0f && currentHealth > 0f;
-        }
-
-        public static void StopAiAndFreeze(Entity entity)
-        {
-            var taskAi = entity?.GetBehavior<EntityBehaviorTaskAI>();
-            taskAi?.TaskManager?.StopTasks();
-
-            entity?.Pos?.Motion?.Set(0, 0, 0);
-            if (entity is EntityAgent agent)
-            {
-                agent.Controls.StopAllMovement();
-            }
-        }
-
-        public static void ApplyRotationLock(Entity entity, ref bool yawLocked, ref float lockedYaw)
-        {
-            if (entity == null) return;
-
-            if (!yawLocked)
-            {
-                lockedYaw = entity.Pos.Yaw;
-                yawLocked = true;
-            }
-
-            entity.Pos.Yaw = lockedYaw;
-            entity.Pos.Yaw = lockedYaw;
-            if (entity is EntityAgent agent)
-            {
-                agent.BodyYaw = lockedYaw;
-            }
-        }
+        public static void ApplyRotationLock(Entity entity, ref bool yawLocked, ref float lockedYaw) => entity.ApplyRotationLock(ref yawLocked, ref lockedYaw);
 
         public static void UnregisterCallbackSafe(ICoreServerAPI sapi, ref long callbackId)
         {
@@ -158,28 +76,12 @@ namespace VsQuest
 
             if (cooldownSeconds <= 0f) return true;
 
-            long cooldownMs;
-            try
-            {
-                cooldownMs = (long)Math.Round(cooldownSeconds * 1000.0);
-            }
-            catch
-            {
-                cooldownMs = 0;
-            }
+            long cooldownMs = (long)Math.Round(cooldownSeconds * 1000.0);
 
             if (cooldownMs <= 0) return true;
 
             long nowMs = sapi.World.ElapsedMilliseconds;
-            long lastStartMs = 0;
-            try
-            {
-                lastStartMs = entity.WatchedAttributes?.GetLong(lastStartKey, 0) ?? 0;
-            }
-            catch
-            {
-                lastStartMs = 0;
-            }
+            long lastStartMs = entity.WatchedAttributes?.GetLong(lastStartKey, 0) ?? 0;
 
             return nowMs - lastStartMs >= cooldownMs;
         }
@@ -189,44 +91,20 @@ namespace VsQuest
             if (sapi == null || entity == null) return;
             if (string.IsNullOrWhiteSpace(lastStartKey)) return;
 
-            try
-            {
-                entity.WatchedAttributes.SetLong(lastStartKey, sapi.World.ElapsedMilliseconds);
-                entity.WatchedAttributes.MarkPathDirty(lastStartKey);
-            }
-            catch
-            {
-            }
+            entity.WatchedAttributes.SetLong(lastStartKey, sapi.World.ElapsedMilliseconds);
+            entity.WatchedAttributes.MarkPathDirty(lastStartKey);
         }
+
+        /// <inheritdoc cref="EntityExtensions.UpdatePlayerWalkSpeed"/>
+        public static bool UpdatePlayerWalkSpeed(EntityPlayer player, float epsilon = 0.001f) => player.UpdatePlayerWalkSpeed(epsilon);
 
         /// <summary>
-        /// Updates player walkSpeed only if it has changed significantly.
-        /// Use this to reduce network sync spam from frequent walkSpeed updates.
+        /// Finds the closest valid player target for a boss entity.
+        /// NOTE: Prefer BossTargetingSystem.TryFindTarget for new code. This static method is retained
+        /// only if external callers need it. Currently unused – marked for future removal.
         /// </summary>
-        /// <param name="player">The player entity</param>
-        /// <param name="epsilon">Minimum change threshold (default 0.001)</param>
-        /// <returns>True if walkSpeed was updated</returns>
-        public static bool UpdatePlayerWalkSpeed(EntityPlayer player, float epsilon = 0.001f)
-        {
-            if (player?.Stats == null) return false;
-
-            try
-            {
-                float targetSpeed = player.Stats.GetBlended("walkspeed");
-                if (float.IsNaN(targetSpeed)) targetSpeed = 0f;
-                
-                if (Math.Abs(player.walkSpeed - targetSpeed) > epsilon)
-                {
-                    player.walkSpeed = targetSpeed;
-                    return true;
-                }
-            }
-            catch
-            {
-            }
-
-            return false;
-        }
+        // TODO: Remove TryFindTarget if no external callers emerge after migration.
+        // public static bool TryFindTarget(Entity entity, ICoreServerAPI sapi, float minRange, float maxRange, out EntityPlayer target, out float distance)
 
         public sealed class LoopSound : IDisposable
         {
@@ -273,8 +151,9 @@ namespace VsQuest
                         float pitch = (float)self.sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
                         self.sapi?.World?.PlaySoundAt(self.soundLoc, self.entity, null, pitch, self.range, self.volume);
                     }
-                    catch
+                    catch (Exception)
                     {
+                        // Sound playback failed - entity may have been removed
                     }
                 }, interval);
             }
@@ -287,8 +166,9 @@ namespace VsQuest
                     {
                         sapi?.Event?.UnregisterGameTickListener(listenerId);
                     }
-                    catch
+                    catch (Exception)
                     {
+                        // Unregister failed - listener may already be disposed
                     }
 
                     listenerId = 0;

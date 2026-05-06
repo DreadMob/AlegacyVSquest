@@ -9,21 +9,16 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossTeleport : EntityBehavior
+    public class EntityBehaviorBossTeleport : BossAbilityBase
     {
-        private const string TeleportStageKey = "alegacyvsquest:bossteleport:stage";
-        private const string LastTeleportStartMsKey = "alegacyvsquest:bossteleport:lastStartMs";
         private const string CloneOwnerIdKey = "alegacyvsquest:bossclone:ownerid";
         private const string CloneFlagKey = "alegacyvsquest:bossclone";
 
-        private class TeleportStage
+        protected override string CooldownKey => "alegacyvsquest:bossteleport:lastStartMs";
+        protected override int CheckIntervalMs => 200;
+
+        private class TeleportStage : BossAbilityStage
         {
-            public float whenHealthRelBelow;
-            public float cooldownSeconds;
-
-            public float minTargetRange;
-            public float maxTargetRange;
-
             public float minRadius;
             public float maxRadius;
             public int tries;
@@ -41,17 +36,35 @@ namespace VsQuest
 
             public bool teleportClones;
             public bool swapWithClones;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                minRadius = json["minRadius"].AsFloat(3f);
+                maxRadius = json["maxRadius"].AsFloat(7f);
+                tries = json["tries"].AsInt(10);
+                windupMs = json["windupMs"].AsInt(250);
+                windupAnimation = json["windupAnimation"].AsString(null);
+                arriveAnimation = json["arriveAnimation"].AsString(null);
+                sound = json["sound"].AsString(null);
+                soundRange = json["soundRange"].AsFloat(24f);
+                soundStartMs = json["soundStartMs"].AsInt(0);
+                soundVolume = json["soundVolume"].AsFloat(1f);
+                requireSolidGround = json["requireSolidGround"].AsBool(true);
+                teleportClones = json["teleportClones"].AsBool(false);
+                swapWithClones = json["swapWithClones"].AsBool(false);
+
+                // Validation
+                if (minRadius < 0f) minRadius = 0f;
+                if (maxRadius < minRadius) maxRadius = minRadius;
+                if (tries <= 0) tries = 1;
+                if (windupMs < 0) windupMs = 0;
+                if (soundVolume <= 0f) soundVolume = 1f;
+            }
         }
 
-        private ICoreServerAPI sapi;
-        private readonly List<TeleportStage> stages = new List<TeleportStage>();
-
-        private const int CheckIntervalMs = 200;
-        private long lastCheckMs;
-
+        private List<TeleportStage> stages = new List<TeleportStage>();
         private long teleportCallbackId;
-        private bool teleportPending;
-        private int pendingStageIndex = -1;
 
         public EntityBehaviorBossTeleport(Entity entity) : base(entity)
         {
@@ -59,145 +72,42 @@ namespace VsQuest
 
         public override string PropertyName() => "bossteleport";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
-
-            stages.Clear();
-            try
-            {
-                foreach (var stageObj in attributes["stages"].AsArray())
-                {
-                    if (stageObj == null || !stageObj.Exists) continue;
-
-                    var stage = new TeleportStage
-                    {
-                        whenHealthRelBelow = stageObj["whenHealthRelBelow"].AsFloat(1f),
-                        cooldownSeconds = stageObj["cooldownSeconds"].AsFloat(0f),
-
-                        minTargetRange = stageObj["minTargetRange"].AsFloat(0f),
-                        maxTargetRange = stageObj["maxTargetRange"].AsFloat(40f),
-
-                        minRadius = stageObj["minRadius"].AsFloat(3f),
-                        maxRadius = stageObj["maxRadius"].AsFloat(7f),
-                        tries = stageObj["tries"].AsInt(10),
-
-                        windupMs = stageObj["windupMs"].AsInt(250),
-                        windupAnimation = stageObj["windupAnimation"].AsString(null),
-                        arriveAnimation = stageObj["arriveAnimation"].AsString(null),
-
-                        sound = stageObj["sound"].AsString(null),
-                        soundRange = stageObj["soundRange"].AsFloat(24f),
-                        soundStartMs = stageObj["soundStartMs"].AsInt(0),
-
-                        soundVolume = stageObj["soundVolume"].AsFloat(1f),
-
-                        requireSolidGround = stageObj["requireSolidGround"].AsBool(true),
-
-                        teleportClones = stageObj["teleportClones"].AsBool(false),
-                        swapWithClones = stageObj["swapWithClones"].AsBool(false),
-                    };
-
-                    if (stage.cooldownSeconds < 0f) stage.cooldownSeconds = 0f;
-                    if (stage.minTargetRange < 0f) stage.minTargetRange = 0f;
-                    if (stage.maxTargetRange < stage.minTargetRange) stage.maxTargetRange = stage.minTargetRange;
-
-                    if (stage.minRadius < 0f) stage.minRadius = 0f;
-                    if (stage.maxRadius < stage.minRadius) stage.maxRadius = stage.minRadius;
-
-                    if (stage.tries <= 0) stage.tries = 1;
-                    if (stage.windupMs < 0) stage.windupMs = 0;
-
-                    if (stage.soundVolume <= 0f) stage.soundVolume = 1f;
-
-                    stages.Add(stage);
-                }
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in parsing stages: {ex}");
-            }
+            stages = ParseStages<TeleportStage>(attributes);
         }
 
-        public override void OnGameTick(float dt)
+        protected override int GetStageCount() => stages.Count;
+
+        protected override object GetStage(int index) => stages[index];
+
+        protected override float GetStageHealthThreshold(object stage) => ((TeleportStage)stage).whenHealthRelBelow;
+
+        protected override float GetStageCooldown(object stage) => ((TeleportStage)stage).cooldownSeconds;
+
+        protected override float GetMaxTargetRange(object stage) => ((TeleportStage)stage).maxTargetRange;
+
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
-            base.OnGameTick(dt);
-            if (sapi == null || entity == null) return;
-            if (entity.Api?.Side != EnumAppSide.Server) return;
-            if (stages.Count == 0) return;
-
-            if (!entity.Alive)
-            {
-                CancelPending();
-                return;
-            }
-
-            if (teleportPending) return;
-
-            long now;
-            try
-            {
-                now = sapi.World.ElapsedMilliseconds;
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in getting ElapsedMilliseconds: {ex}");
-                now = 0;
-            }
-
-            if (now > 0)
-            {
-                if (lastCheckMs != 0 && now - lastCheckMs < CheckIntervalMs) return;
-                lastCheckMs = now;
-            }
-
-            if (!BossBehaviorUtils.TryGetHealthFraction(entity, out float frac)) return;
-
-            int stageIndex = -1;
-            for (int i = 0; i < stages.Count; i++)
-            {
-                var stage = stages[i];
-                if (frac <= stage.whenHealthRelBelow)
-                {
-                    stageIndex = i;
-                }
-            }
-
-            if (stageIndex < 0 || stageIndex >= stages.Count) return;
-
-            var activeStage = stages[stageIndex];
-            if (!BossBehaviorUtils.IsCooldownReady(sapi, entity, LastTeleportStartMsKey, activeStage.cooldownSeconds)) return;
-
-            if (!TryFindTarget(activeStage, out var target, out float dist)) return;
-            if (dist < activeStage.minTargetRange) return;
-            if (dist > activeStage.maxTargetRange) return;
-
-            if (!TryFindTeleportPos(activeStage, target, out var tpPos)) return;
-
-            StartTeleport(activeStage, stageIndex, tpPos);
+            if (target == null || stageObj is not TeleportStage stage) return;
+            StartTeleport(stage, stageIndex, target.Pos.XYZ);
         }
 
-        public override void OnEntityDeath(DamageSource damageSourceForDeath)
+        protected override bool ShouldCheckAbility() => !IsAbilityActive;
+
+        protected override void StopAbility()
         {
             CancelPending();
-            base.OnEntityDeath(damageSourceForDeath);
         }
 
-        public override void OnEntityDespawn(EntityDespawnData despawn)
-        {
-            CancelPending();
-            base.OnEntityDespawn(despawn);
-        }
+        protected override bool OnAbilityTick(float dt) => IsAbilityActive;
 
         private void StartTeleport(TeleportStage stage, int stageIndex, Vec3d targetPos)
         {
-            if (sapi == null || entity == null || stage == null || targetPos == null) return;
+            if (Sapi == null || entity == null || stage == null || targetPos == null) return;
 
-            BossBehaviorUtils.MarkCooldownStart(sapi, entity, LastTeleportStartMsKey);
-
-            teleportPending = true;
-            pendingStageIndex = stageIndex;
+            MarkCooldownStart();
+            SetAbilityActive(true);
 
             BossBehaviorUtils.StopAiAndFreeze(entity);
 
@@ -205,20 +115,13 @@ namespace VsQuest
             TryPlayAnimation(stage.windupAnimation);
 
             int delay = Math.Max(0, stage.windupMs);
-            teleportCallbackId = sapi.Event.RegisterCallback(_ =>
+            UnregisterCallbackSafe(ref teleportCallbackId);
+            teleportCallbackId = Sapi.Event.RegisterCallback(_ =>
             {
-                try
-                {
-                    DoTeleport(stage, targetPos);
-                    TryPlayAnimation(stage.arriveAnimation);
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in StartTeleport callback: {ex}");
-                }
+                DoTeleport(stage, targetPos);
+                TryPlayAnimation(stage.arriveAnimation);
 
-                teleportPending = false;
-                pendingStageIndex = -1;
+                SetAbilityActive(false);
                 teleportCallbackId = 0;
 
             }, delay);
@@ -226,7 +129,7 @@ namespace VsQuest
 
         private void DoTeleport(TeleportStage stage, Vec3d pos)
         {
-            if (sapi == null || entity == null || pos == null) return;
+            if (Sapi == null || entity == null || pos == null) return;
 
             int dim = entity.Pos.Dimension;
 
@@ -235,7 +138,7 @@ namespace VsQuest
 
             if (stage?.swapWithClones == true && clones != null && clones.Count > 0)
             {
-                var chosen = clones[sapi.World.Rand.Next(clones.Count)];
+                var chosen = clones[Sapi.World.Rand.Next(clones.Count)];
                 var clonePos = new Vec3d(chosen.Pos.X, chosen.Pos.Y, chosen.Pos.Z);
 
                 TeleportEntity(chosen, bossOldPos, dim);
@@ -263,62 +166,41 @@ namespace VsQuest
         {
             if (target == null || pos == null) return;
 
-            try
-            {
-                target.IsTeleport = true;
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TeleportEntity IsTeleport: {ex}");
-            }
+            target.IsTeleport = true;
 
             target.Pos.SetPosWithDimension(new Vec3d(pos.X, pos.Y + dim * 32768.0, pos.Z));
             target.Pos.SetFrom(target.Pos);
 
             // Safety: sometimes even a validated spot can become colliding (chunk load timing / selection box quirks).
             // Attempt a quick post-teleport nudge to a nearby free spot.
-            try
+            var world = Sapi?.World;
+            var ba = world?.BlockAccessor;
+            var ct = world?.CollisionTester;
+            var selBox = target.SelectionBox;
+            if (ba != null && ct != null && selBox != null)
             {
-                var world = sapi?.World;
-                var ba = world?.BlockAccessor;
-                var ct = world?.CollisionTester;
-                var selBox = target.SelectionBox;
-                if (ba != null && ct != null && selBox != null)
+                var tmpPos = new Vec3d(target.Pos.X, target.Pos.Y + dim * 32768.0, target.Pos.Z);
+                bool colliding = ct.IsColliding(ba, selBox, tmpPos, alsoCheckTouch: false);
+                if (colliding)
                 {
-                    var tmpPos = new Vec3d(target.Pos.X, target.Pos.Y + dim * 32768.0, target.Pos.Z);
-                    bool colliding = ct.IsColliding(ba, selBox, tmpPos, alsoCheckTouch: false);
-                    if (colliding)
+                    var bp = new BlockPos((int)Math.Floor(target.Pos.X), (int)Math.Floor(target.Pos.Y), (int)Math.Floor(target.Pos.Z), dim);
+                    if (TryFindFreeSpotNear(bp, requireSolidGround: true, out var found))
                     {
-                        var bp = new BlockPos((int)Math.Floor(target.Pos.X), (int)Math.Floor(target.Pos.Y), (int)Math.Floor(target.Pos.Z), dim);
-                        if (TryFindFreeSpotNear(bp, requireSolidGround: true, out var found))
-                        {
-                            target.Pos.SetPosWithDimension(new Vec3d(found.X, found.Y + dim * 32768.0, found.Z));
-                            target.Pos.SetFrom(target.Pos);
-                        }
+                        target.Pos.SetPosWithDimension(new Vec3d(found.X, found.Y + dim * 32768.0, found.Z));
+                        target.Pos.SetFrom(target.Pos);
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TeleportEntity collision check: {ex}");
-            }
 
-            try
-            {
-                target.Pos.Motion.Set(0, 0, 0);
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TeleportEntity Motion: {ex}");
-            }
+            target.Pos.Motion.Set(0, 0, 0);
         }
 
         private List<Entity> FindClones()
         {
             var result = new List<Entity>();
-            if (sapi == null || entity == null) return result;
+            if (Sapi == null || entity == null) return result;
 
-            var loaded = sapi.World?.LoadedEntities;
+            var loaded = Sapi.World?.LoadedEntities;
             if (loaded == null) return result;
 
             long ownerId = entity.EntityId;
@@ -328,19 +210,11 @@ namespace VsQuest
                 if (e == null || !e.Alive) continue;
                 if (e.Pos.Dimension != entity.Pos.Dimension) continue;
 
-                try
-                {
-                    var wa = e.WatchedAttributes;
-                    if (wa == null) continue;
-                    if (!wa.GetBool(CloneFlagKey, false)) continue;
-                    long cloneOwner = wa.GetLong(CloneOwnerIdKey, 0);
-                    if (cloneOwner != ownerId) continue;
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in FindClones: {ex}");
-                    continue;
-                }
+                var wa = e.WatchedAttributes;
+                if (wa == null) continue;
+                if (!wa.GetBool(CloneFlagKey, false)) continue;
+                long cloneOwner = wa.GetLong(CloneOwnerIdKey, 0);
+                if (cloneOwner != ownerId) continue;
 
                 result.Add(e);
             }
@@ -366,78 +240,20 @@ namespace VsQuest
 
         private void CancelPending()
         {
-            if (sapi != null)
-            {
-                BossBehaviorUtils.UnregisterCallbackSafe(sapi, ref teleportCallbackId);
-            }
-
-            teleportPending = false;
-            pendingStageIndex = -1;
-
+            UnregisterCallbackSafe(ref teleportCallbackId);
             teleportCallbackId = 0;
-        }
-
-        private bool TryFindTarget(TeleportStage stage, out Entity target, out float dist)
-        {
-            target = null;
-            dist = 0f;
-
-            if (sapi == null || entity == null) return false;
-            if (entity.Pos == null) return false;
-
-            double range = Math.Max(2.0, stage.maxTargetRange > 0 ? stage.maxTargetRange : 40f);
-            try
-            {
-                var own = entity.Pos.XYZ;
-                float frange = (float)range;
-                var found = sapi.World.GetNearestEntity(own, frange, frange, e => e is EntityPlayer);
-                if (found == null || !found.Alive) return false;
-
-                if (found.Pos.Dimension != entity.Pos.Dimension) return false;
-
-                target = found;
-                dist = (float)found.Pos.DistanceTo(entity.Pos);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                entity?.Api?.Logger?.Error($"[vsquest] Exception in TryFindTarget: {ex}");
-                return false;
-            }
-        }
-
-        private bool TryFindTeleportPos(TeleportStage stage, Entity target, out Vec3d pos)
-        {
-            pos = null;
-            if (sapi == null || entity == null || target == null) return false;
-
-            double minR = Math.Max(0.0, stage.minRadius);
-            double maxR = Math.Max(minR, stage.maxRadius);
-            if (maxR <= 0.01) maxR = 0.01;
-
-            var world = sapi.World;
-            if (world == null) return false;
-
-            var ba = world.BlockAccessor;
-            if (ba == null) return false;
-
-            int tries = Math.Max(1, stage.tries);
-
-            int dim = entity.Pos.Dimension;
-            var targetPos = new Vec3d(target.Pos.X, target.Pos.Y, target.Pos.Z);
-            return TryFindTeleportPos(stage, targetPos, dim, out pos);
         }
 
         private bool TryFindTeleportPos(TeleportStage stage, Vec3d targetPos, int dim, out Vec3d pos)
         {
             pos = null;
-            if (sapi == null || entity == null || targetPos == null || stage == null) return false;
+            if (Sapi == null || entity == null || targetPos == null || stage == null) return false;
 
             double minR = Math.Max(0.0, stage.minRadius);
             double maxR = Math.Max(minR, stage.maxRadius);
             if (maxR <= 0.01) maxR = 0.01;
 
-            var world = sapi.World;
+            var world = Sapi.World;
             if (world == null) return false;
 
             var ba = world.BlockAccessor;
@@ -470,9 +286,9 @@ namespace VsQuest
         private bool TryFindFreeSpotNear(BlockPos basePos, bool requireSolidGround, out Vec3d pos)
         {
             pos = null;
-            if (sapi == null || entity == null || basePos == null) return false;
+            if (Sapi == null || entity == null || basePos == null) return false;
 
-            var world = sapi.World;
+            var world = Sapi.World;
             var ba = world?.BlockAccessor;
             if (ba == null) return false;
 
@@ -487,33 +303,17 @@ namespace VsQuest
                 int y = basePos.Y + dy;
                 var testPos = new Vec3d(basePos.X + 0.5, y + 1.0, basePos.Z + 0.5);
 
-                bool colliding;
-                try
-                {
-                    colliding = ct.IsColliding(ba, selBox, testPos, alsoCheckTouch: false);
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in IsColliding: {ex}");
-                    colliding = true;
-                }
+                bool colliding = ct.IsColliding(ba, selBox, testPos, alsoCheckTouch: false);
 
                 if (colliding) continue;
 
                 if (requireSolidGround)
                 {
-                    try
-                    {
-                        var belowPos = basePos.Copy();
-                        belowPos.Y = basePos.Y + dy - 1;
-                        var below = ba.GetBlock(belowPos);
-                        if (below == null) continue;
-                        if (!below.SideSolid[BlockFacing.UP.Index]) continue;
-                    }
-                    catch
-                    {
-                        continue;
-                    }
+                    var belowPos = basePos.Copy();
+                    belowPos.Y = basePos.Y + dy - 1;
+                    var below = ba.GetBlock(belowPos);
+                    if (below == null) continue;
+                    if (!below.SideSolid[BlockFacing.UP.Index]) continue;
                 }
 
                 pos = new Vec3d(testPos.X, testPos.Y - 1.0, testPos.Z);
@@ -527,33 +327,17 @@ namespace VsQuest
 
                 var testPos = new Vec3d(basePos.X + 0.5, y + 1.0, basePos.Z + 0.5);
 
-                bool colliding;
-                try
-                {
-                    colliding = ct.IsColliding(ba, selBox, testPos, alsoCheckTouch: false);
-                }
-                catch (Exception ex)
-                {
-                    entity?.Api?.Logger?.Error($"[vsquest] Exception in IsColliding: {ex}");
-                    colliding = true;
-                }
+                bool colliding = ct.IsColliding(ba, selBox, testPos, alsoCheckTouch: false);
 
                 if (colliding) continue;
 
                 if (requireSolidGround)
                 {
-                    try
-                    {
-                        var belowPos = basePos.Copy();
-                        belowPos.Y = basePos.Y - dy - 1;
-                        var below = ba.GetBlock(belowPos);
-                        if (below == null) continue;
-                        if (!below.SideSolid[BlockFacing.UP.Index]) continue;
-                    }
-                    catch
-                    {
-                        continue;
-                    }
+                    var belowPos = basePos.Copy();
+                    belowPos.Y = basePos.Y - dy - 1;
+                    var below = ba.GetBlock(belowPos);
+                    if (below == null) continue;
+                    if (!below.SideSolid[BlockFacing.UP.Index]) continue;
                 }
 
                 pos = new Vec3d(testPos.X, testPos.Y - 1.0, testPos.Z);
@@ -563,23 +347,9 @@ namespace VsQuest
             return false;
         }
 
-        private void TryPlayAnimation(string animation)
-        {
-            if (string.IsNullOrWhiteSpace(animation)) return;
-
-            try
-            {
-                entity?.AnimManager?.StartAnimation(animation);
-            }
-            catch
-            {
-            }
-        }
-
         private void TryPlaySound(TeleportStage stage)
         {
-            if (sapi == null || stage == null) return;
-            if (string.IsNullOrWhiteSpace(stage.sound)) return;
+            if (Sapi == null || stage == null || string.IsNullOrWhiteSpace(stage.sound)) return;
 
             // Prevent sound stacking when teleport/clone logic triggers multiple times close together.
             if (!BossBehaviorUtils.ShouldPlaySoundLimited(entity, stage.sound, 500)) return;
@@ -590,69 +360,44 @@ namespace VsQuest
             float volume = stage.soundVolume;
             if (volume <= 0f) volume = 1f;
 
-            try
+            Dictionary<string, float> volumeBySound = entity?.Properties?.Attributes?["SoundVolumeMulBySound"]?.AsObject<Dictionary<string, float>>();
+
+            if (volumeBySound != null && volumeBySound.Count > 0)
             {
-                Dictionary<string, float> volumeBySound = null;
-                try
-                {
-                    volumeBySound = entity?.Properties?.Attributes?["SoundVolumeMulBySound"]?.AsObject<Dictionary<string, float>>();
-                }
-                catch
-                {
-                }
+                string fullKey = soundLoc.ToString();
+                string pathKey = soundLoc.Path;
 
-                if (volumeBySound != null && volumeBySound.Count > 0)
+                foreach (var entry in volumeBySound)
                 {
-                    string fullKey = soundLoc.ToString();
-                    string pathKey = soundLoc.Path;
+                    if (string.IsNullOrWhiteSpace(entry.Key)) continue;
 
-                    foreach (var entry in volumeBySound)
+                    if (string.Equals(entry.Key, fullKey, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(entry.Key, pathKey, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(entry.Key, stage.sound, StringComparison.OrdinalIgnoreCase))
                     {
-                        if (string.IsNullOrWhiteSpace(entry.Key)) continue;
-
-                        if (string.Equals(entry.Key, fullKey, StringComparison.OrdinalIgnoreCase)
-                            || string.Equals(entry.Key, pathKey, StringComparison.OrdinalIgnoreCase)
-                            || string.Equals(entry.Key, stage.sound, StringComparison.OrdinalIgnoreCase))
+                        if (entry.Value > 0f)
                         {
-                            if (entry.Value > 0f)
-                            {
-                                volume *= entry.Value;
-                            }
-                            break;
+                            volume *= entry.Value;
                         }
+                        break;
                     }
                 }
-            }
-            catch
-            {
             }
 
             float range = stage.soundRange > 0f ? stage.soundRange : 32f;
 
             if (stage.soundStartMs > 0)
             {
-                sapi.Event.RegisterCallback(_ =>
+                Sapi.Event.RegisterCallback(_ =>
                 {
-                    try
-                    {
-                        float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                        sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, volume);
-                    }
-                    catch
-                    {
-                    }
+                    float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
+                    Sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, volume);
                 }, stage.soundStartMs);
             }
             else
             {
-                try
-                {
-                    float pitch = (float)sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                    sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, volume);
-                }
-                catch
-                {
-                }
+                float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
+                Sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, volume);
             }
         }
     }

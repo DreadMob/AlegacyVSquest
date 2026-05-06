@@ -453,29 +453,8 @@ namespace VsQuest
                     continue;
                 }
 
-                var key = String.Format("alegacyvsquest:lastaccepted-{0}", questId);
+                var key = $"alegacyvsquest:lastaccepted-{questId}";
                 double lastAccepted = player.WatchedAttributes.GetDouble(key, double.NaN);
-                if (double.IsNaN(lastAccepted))
-                {
-                    // Legacy cooldown storage was kept on the questgiver entity.
-                    // Preserve old progress after updates by reading it and migrating it to the per-player key.
-                    string legacyKey = quest.perPlayer
-                        ? String.Format("lastaccepted-{0}-{1}", questId, player.PlayerUID)
-                        : String.Format("lastaccepted-{0}", questId);
-
-                    if (entity?.WatchedAttributes != null)
-                    {
-                        lastAccepted = entity.WatchedAttributes.GetDouble(legacyKey, double.NaN);
-                        if (!double.IsNaN(lastAccepted))
-                        {
-                            player.WatchedAttributes.SetDouble(key, lastAccepted);
-                            player.WatchedAttributes.MarkPathDirty(key);
-
-                            entity.WatchedAttributes.RemoveAttribute(legacyKey);
-                            entity.WatchedAttributes.MarkPathDirty(legacyKey);
-                        }
-                    }
-                }
 
                 if (double.IsNaN(lastAccepted)) lastAccepted = -quest.cooldown;
 
@@ -622,7 +601,7 @@ namespace VsQuest
                         : string.Empty;
                     requirementText = string.IsNullOrWhiteSpace(list)
                         ? remainingText
-                        : string.Format("{0}\n{1}", remainingText, list);
+                        : $"{remainingText}\n{list}";
                 }
                 else if (eligible && string.IsNullOrWhiteSpace(requirementText))
                 {

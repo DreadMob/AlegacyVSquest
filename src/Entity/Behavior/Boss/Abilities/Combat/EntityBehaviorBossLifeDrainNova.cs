@@ -9,28 +9,39 @@ using Vintagestory.GameContent;
 
 namespace VsQuest
 {
-    public class EntityBehaviorBossLifeDrainNova : EntityBehavior
+    public class EntityBehaviorBossLifeDrainNova : BossAbilityBase
     {
-        private class Stage
+        protected override string CooldownKey => "alegacyvsquest:bosslifedrainnova:lastCastMs";
+
+        private class Stage : BossAbilityStage
         {
-            public float whenHealthRelBelow;
-            public int cooldownMs;
-            public float range;
             public int durationMs;
             public int tickIntervalMs;
             public float drainPerSecond;
             public float healMult;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                durationMs = json["durationMs"].AsInt(5000);
+                tickIntervalMs = json["tickIntervalMs"].AsInt(1000);
+                drainPerSecond = json["drainPerSecond"].AsFloat(10f);
+                healMult = json["healMult"].AsFloat(1.0f);
+
+                // Validation
+                if (durationMs <= 0) durationMs = 500;
+                if (tickIntervalMs < 50) tickIntervalMs = 50;
+                if (drainPerSecond < 0f) drainPerSecond = 0f;
+                if (healMult < 0f) healMult = 0f;
+            }
         }
 
-        private ICoreServerAPI sapi;
         private List<Stage> stages = new List<Stage>();
         private EntityBehaviorHealth healthBehavior;
 
-        private long lastCastMs;
-        private int currentStageIndex;
         private long novaEndMs;
         private long lastTickMs;
-        private bool isNovaActive;
+        private int activeStageIndex;
 
         public EntityBehaviorBossLifeDrainNova(Entity entity) : base(entity)
         {
@@ -38,73 +49,72 @@ namespace VsQuest
 
         public override string PropertyName() => "bosslifedrainnova";
 
-        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        protected override void InitializeStages(JsonObject attributes)
         {
-            base.Initialize(properties, attributes);
-            sapi = entity?.Api as ICoreServerAPI;
             healthBehavior = entity.GetBehavior<EntityBehaviorHealth>();
-
-            stages.Clear();
-            foreach (var stageObj in attributes["stages"].AsArray())
-            {
-                if (stageObj == null || !stageObj.Exists) continue;
-
-                stages.Add(new Stage
-                {
-                    whenHealthRelBelow = stageObj["whenHealthRelBelow"].AsFloat(1f),
-                    cooldownMs = stageObj["cooldownSeconds"].AsInt(18) * 1000,
-                    range = stageObj["range"].AsFloat(22f),
-                    durationMs = stageObj["durationMs"].AsInt(8000),
-                    tickIntervalMs = stageObj["tickIntervalMs"].AsInt(1000),
-                    drainPerSecond = stageObj["drainPerSecond"].AsFloat(stageObj["drainPerTick"].AsFloat(1.5f)),
-                    healMult = stageObj["healMult"].AsFloat(stageObj["healMultiplier"].AsFloat(0.5f))
-                });
-            }
-
-            lastCastMs = 0;
-            currentStageIndex = 0;
+            stages = ParseStages<Stage>(attributes);
         }
 
-        public override void OnGameTick(float dt)
+        protected override int GetStageCount() => stages.Count;
+
+        protected override object GetStage(int index) => stages[index];
+
+        protected override float GetStageHealthThreshold(object stage) => ((Stage)stage).whenHealthRelBelow;
+
+        protected override float GetStageCooldown(object stage) => ((Stage)stage).cooldownSeconds;
+
+        protected override float GetMaxTargetRange(object stage) => ((Stage)stage).maxTargetRange;
+
+        protected override bool RequiresTarget() => false;
+
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
-            base.OnGameTick(dt);
+            if (stageObj is not Stage stage) return;
+            StartNova(stage, stageIndex);
+        }
 
-            if (sapi == null || !entity.Alive || healthBehavior == null) return;
+        protected override bool ShouldCheckAbility() => !IsAbilityActive;
 
-            long now = sapi.World.ElapsedMilliseconds;
+        protected override void StopAbility()
+        {
+            SetAbilityActive(false);
+        }
 
-            // Determine current stage based on HP
-            float hpPercent = healthBehavior.Health / healthBehavior.MaxHealth;
-            for (int i = stages.Count - 1; i >= 0; i--)
+        protected override bool OnAbilityTick(float dt)
+        {
+            if (!IsAbilityActive) return false;
+            
+            long now = Sapi.World.ElapsedMilliseconds;
+            if (activeStageIndex >= 0 && activeStageIndex < stages.Count)
             {
-                if (hpPercent <= stages[i].whenHealthRelBelow)
-                {
-                    currentStageIndex = i;
-                    break;
-                }
+                ProcessActiveNova(stages[activeStageIndex], now);
             }
+            
+            if (now > novaEndMs)
+            {
+                return false;
+            }
+            return true;
+        }
 
-            var stage = stages[currentStageIndex];
-
-            // Check cooldown
-            if (now - lastCastMs < stage.cooldownMs) return;
-
-            // Start nova
+        private void StartNova(Stage stage, int stageIndex)
+        {
+            if (Sapi == null || entity == null || stage == null) return;
+            
+            MarkCooldownStart();
+            SetAbilityActive(true);
+            activeStageIndex = stageIndex;
+            long now = Sapi.World.ElapsedMilliseconds;
+            
             PerformNova(stage, now);
-            lastCastMs = now;
             novaEndMs = now + stage.durationMs;
             lastTickMs = now;
-            isNovaActive = true;
-
-            // Process active nova ticks
-            ProcessActiveNova(stage, now);
         }
 
         private void ProcessActiveNova(Stage stage, long now)
         {
-            if (!isNovaActive || now > novaEndMs)
+            if (!IsAbilityActive || now > novaEndMs)
             {
-                isNovaActive = false;
                 return;
             }
 
@@ -130,13 +140,13 @@ namespace VsQuest
             var damagedPlayers = new List<EntityPlayer>();
 
             // Find and damage players in range
-            foreach (var player in sapi.World.AllOnlinePlayers)
+            foreach (var player in Sapi.World.AllOnlinePlayers)
             {
                 if (player.Entity?.Pos == null) continue;
                 if (player.Entity.Pos.Dimension != entity.Pos.Dimension) continue;
 
                 double dist = player.Entity.Pos.DistanceTo(entity.Pos);
-                if (dist > stage.range) continue;
+                if (dist > stage.maxTargetRange) continue;
 
                 float damage = stage.drainPerSecond * (stage.tickIntervalMs / 1000f);
                 player.Entity.ReceiveDamage(
@@ -165,7 +175,7 @@ namespace VsQuest
                     Vec3d startPos = player.Pos.XYZ.Add(0, 1, 0);
                     Vec3d endPos = entity.Pos.XYZ.Add(0, 1, 0);
 
-                    sapi.World.SpawnParticles(
+                    Sapi.World.SpawnParticles(
                         new SimpleParticleProperties(
                             5, 8,
                             ColorUtil.ToRgba(200, 180, 180, 190),
@@ -195,7 +205,7 @@ namespace VsQuest
             SpawnNovaRing(stage);
 
             // Sound
-            sapi.World.PlaySoundAt(
+            Sapi.World.PlaySoundAt(
                 new AssetLocation("albase:sounds/mechanical/mecha switch power"),
                 entity.Pos.X, entity.Pos.Y, entity.Pos.Z,
                 null, true, 32, 0.133f
@@ -207,10 +217,10 @@ namespace VsQuest
             for (int i = 0; i < 36; i++)
             {
                 double angle = i * 10 * GameMath.DEG2RAD;
-                float x = (float)Math.Cos(angle) * stage.range;
-                float z = (float)Math.Sin(angle) * stage.range;
+                float x = (float)Math.Cos(angle) * stage.maxTargetRange;
+                float z = (float)Math.Sin(angle) * stage.maxTargetRange;
 
-                sapi.World.SpawnParticles(
+                Sapi.World.SpawnParticles(
                     new SimpleParticleProperties(
                         2, 3,
                         ColorUtil.ToRgba(200, 160, 165, 175),

@@ -241,7 +241,7 @@ namespace VsQuest
                         return string.Join("\n", lines);
                     }
                 }
-                catch
+                catch (Exception)
                 {
                     try
                     {
@@ -278,8 +278,9 @@ namespace VsQuest
                             }
                         }
                     }
-                    catch
+                    catch (Exception)
                     {
+                        // Both custom progress and interactcount fallback failed - will use default progress display
                     }
                 }
 
