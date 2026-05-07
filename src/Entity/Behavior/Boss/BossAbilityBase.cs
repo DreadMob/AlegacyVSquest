@@ -88,8 +88,9 @@ namespace VsQuest
 
         /// <summary>
         /// Override to return true if ability should be checked.
+        /// Default implementation returns false for boss clones.
         /// </summary>
-        protected virtual bool ShouldCheckAbility() => true;
+        protected virtual bool ShouldCheckAbility() => !IsBossClone;
 
         /// <summary>
         /// Override to return true if ability uses periodic tick (always active, like auras/rituals).
@@ -153,6 +154,9 @@ namespace VsQuest
             // Periodic tick path for auras/rituals (always active, bypass activation cycle)
             if (UsePeriodicTick())
             {
+                // Clones should not run periodic abilities
+                if (IsBossClone) return;
+
                 long now = Sapi.World.ElapsedMilliseconds;
                 if (now - lastCheckMs < CheckIntervalMs) return;
                 lastCheckMs = now;
@@ -189,6 +193,9 @@ namespace VsQuest
 
         protected virtual void CheckAbility()
         {
+            // Universal check: never activate abilities on boss clones
+            if (IsBossClone) return;
+
             if (!ShouldCheckAbility())
             {
                 // Log why ShouldCheckAbility returned false
@@ -492,6 +499,11 @@ namespace VsQuest
         /// Check if ability is currently active.
         /// </summary>
         protected bool IsAbilityActive => abilityActive;
+
+        /// <summary>
+        /// Check if this entity is a boss clone (should not activate abilities).
+        /// </summary>
+        protected bool IsBossClone => entity?.WatchedAttributes?.GetBool("alegacyvsquest:bossclone", false) ?? false;
 
         // ========================================
         // ABILITY MODIFIER SYSTEM

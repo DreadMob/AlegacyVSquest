@@ -44,7 +44,9 @@ namespace VsQuest
                 .RegisterMessageType<ShowQuestDialogMessage>().SetMessageHandler<ShowQuestDialogMessage>(message => questSystem.DialogPacketHandler.OnShowQuestDialogMessage(message, capi))
                 .RegisterMessageType<DialogTriggerMessage>()
                 .RegisterMessageType<ShowRerollDialogMessage>().SetMessageHandler<ShowRerollDialogMessage>(message => questSystem.DialogPacketHandler.OnShowRerollDialogMessage(message, capi))
-                .RegisterMessageType<ExecuteRerollMessage>();
+                .RegisterMessageType<ExecuteRerollMessage>()
+                .RegisterMessageType<StartRerollAnimationMessage>().SetMessageHandler<StartRerollAnimationMessage>(message => questSystem.DialogPacketHandler.OnStartRerollAnimationMessage(message, capi))
+                .RegisterMessageType<ClaimRerollRewardMessage>();
         }
 
         /// <summary>Quiz system messages: show, submit, open.</summary>
@@ -107,7 +109,9 @@ namespace VsQuest
                 .RegisterMessageType<ShowQuestDialogMessage>()
                 .RegisterMessageType<DialogTriggerMessage>().SetMessageHandler<DialogTriggerMessage>((player, message) => questSystem.DialogPacketHandler.OnDialogTriggerMessage(player, message, sapi))
                 .RegisterMessageType<ShowRerollDialogMessage>()
-                .RegisterMessageType<ExecuteRerollMessage>().SetMessageHandler<ExecuteRerollMessage>((player, message) => questSystem.DialogPacketHandler.OnExecuteRerollMessage(player, message, sapi));
+                .RegisterMessageType<ExecuteRerollMessage>().SetMessageHandler<ExecuteRerollMessage>((player, message) => questSystem.DialogPacketHandler.OnExecuteRerollMessage(player, message, sapi))
+                .RegisterMessageType<StartRerollAnimationMessage>()
+                .RegisterMessageType<ClaimRerollRewardMessage>().SetMessageHandler<ClaimRerollRewardMessage>((player, message) => questSystem.DialogPacketHandler.OnClaimRerollRewardMessage(player, message, sapi));
         }
 
         /// <summary>Quiz system messages: show, submit, open.</summary>

@@ -150,9 +150,14 @@
     "block-alegacyvsquest:temporalriftprojector": "Temporal Rift Projector",
     "alegacyvsquest:interactat-hold-item": "Must hold in hand: {0}",
     "alegacyvsquest:reroll-dialog-title": "Boss Item Reroll",
+    "alegacyvsquest:reroll-no-groups": "No groups available for exchange.",
     "alegacyvsquest:reroll-no-items": "You have no items available for reroll.",
-    "alegacyvsquest:reroll-button": "Reroll",
+    "alegacyvsquest:reroll-button": "Exchange",
+    "alegacyvsquest:reroll-button-disabled": "Not enough",
     "alegacyvsquest:reroll-success": "Item rerolled! You received a new item.",
-    "alegacyvsquest:reroll-failed": "Failed to reroll item."
+    "alegacyvsquest:reroll-success-message": "Exchange complete! You received: {0}",
+    "alegacyvsquest:reroll-failed": "Failed to reroll item.",
+    "alegacyvsquest:reroll-animation-title": "Opening Reward",
+    "alegacyvsquest:reroll-animation-claim": "Claim"
 }
 

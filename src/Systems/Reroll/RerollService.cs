@@ -2,11 +2,37 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.Server;
 
 namespace VsQuest
 {
+    /// <summary>
+    /// Result of a reroll operation with animation data
+    /// </summary>
+    public class RerollResult
+    {
+        public bool Success { get; set; }
+        public string ResultItemId { get; set; }
+        public string ResultItemName { get; set; }
+        public string[] AllItemIds { get; set; }
+        public string[] AllItemNames { get; set; }
+        public string AnimationType { get; set; } = "simplespin";
+        public string GroupId { get; set; }
+    }
+
+    /// <summary>
+    /// Pending reward for a player
+    /// </summary>
+    public class PendingRerollReward
+    {
+        public string GroupId { get; set; }
+        public string RewardItemId { get; set; }
+        public string RewardItemName { get; set; }
+        public ItemStack RewardStack { get; set; }
+    }
+
     /// <summary>
     /// Service for handling item reroll functionality.
     /// Allows players to exchange multiple items from a reroll group for a random item from the same group.
@@ -16,6 +42,7 @@ namespace VsQuest
         private readonly ICoreServerAPI sapi;
         private readonly Dictionary<string, RerollGroup> groupRegistry = new Dictionary<string, RerollGroup>(StringComparer.Ordinal);
         private readonly Dictionary<string, string> questToGroupMapping = new Dictionary<string, string>(StringComparer.Ordinal);
+        private readonly Dictionary<string, PendingRerollReward> pendingRewards = new Dictionary<string, PendingRerollReward>(StringComparer.Ordinal); // playerUID -> reward
 
         public RerollService(ICoreServerAPI api)
         {
@@ -94,19 +121,29 @@ namespace VsQuest
             {
                 var inv = kvp.Value;
                 if (inv == null) continue;
-                for (int i = 0; i < inv.Count; i++)
+
+                try
                 {
-                    var slot = inv[i];
-                    if (slot?.Itemstack?.Attributes == null) continue;
-
-                    string groupId = slot.Itemstack.Attributes.GetString(ItemAttributeUtils.ActionItemRerollGroupKey);
-                    if (string.IsNullOrWhiteSpace(groupId)) continue;
-
-                    if (!result.TryGetValue(groupId, out var count))
+                    int count = inv.Count;
+                    for (int i = 0; i < count; i++)
                     {
-                        count = 0;
+                        var slot = inv[i];
+                        if (slot?.Itemstack?.Attributes == null) continue;
+
+                        string groupId = slot.Itemstack.Attributes.GetString(ItemAttributeUtils.ActionItemRerollGroupKey);
+                        if (string.IsNullOrWhiteSpace(groupId)) continue;
+
+                        if (!result.TryGetValue(groupId, out var groupCount))
+                        {
+                            groupCount = 0;
+                        }
+                        result[groupId] = groupCount + slot.Itemstack.StackSize;
                     }
-                    result[groupId] = count + slot.Itemstack.StackSize;
+                }
+                catch (NullReferenceException)
+                {
+                    // Some inventory types (e.g., creative inventory) can throw NRE on Count
+                    continue;
                 }
             }
 
@@ -124,16 +161,26 @@ namespace VsQuest
             {
                 var inv = kvp.Value;
                 if (inv == null) continue;
-                for (int i = 0; i < inv.Count; i++)
-                {
-                    var slot = inv[i];
-                    if (slot?.Itemstack?.Attributes == null) continue;
 
-                    string itemGroupId = slot.Itemstack.Attributes.GetString(ItemAttributeUtils.ActionItemRerollGroupKey);
-                    if (itemGroupId == groupId)
+                try
+                {
+                    int count = inv.Count;
+                    for (int i = 0; i < count; i++)
                     {
-                        result.Add(slot);
+                        var slot = inv[i];
+                        if (slot?.Itemstack?.Attributes == null) continue;
+
+                        string itemGroupId = slot.Itemstack.Attributes.GetString(ItemAttributeUtils.ActionItemRerollGroupKey);
+                        if (itemGroupId == groupId)
+                        {
+                            result.Add(slot);
+                        }
                     }
+                }
+                catch (NullReferenceException)
+                {
+                    // Some inventory types (e.g., creative inventory) can throw NRE on Count
+                    continue;
                 }
             }
 
@@ -156,14 +203,17 @@ namespace VsQuest
 
         /// <summary>
         /// Executes a reroll for a specific group.
-        /// Removes itemsRequired items from the group and gives a random reward item.
+        /// Removes itemsRequired items from the group and stores pending reward.
+        /// Returns result with animation data. Player must call ClaimReward after animation.
         /// </summary>
-        public bool ExecuteReroll(IServerPlayer player, string groupId)
+        public RerollResult ExecuteReroll(IServerPlayer player, string groupId)
         {
+            var result = new RerollResult { Success = false, GroupId = groupId };
+
             var group = GetGroup(groupId);
-            if (group == null) return false;
-            if (!CanReroll(player, groupId)) return false;
-            if (group.rewardItems == null || group.rewardItems.Count == 0) return false;
+            if (group == null) return result;
+            if (!CanReroll(player, groupId)) return result;
+            if (group.rewardItems == null || group.rewardItems.Count == 0) return result;
 
             // Find and remove items
             int toRemove = group.itemsRequired;
@@ -192,23 +242,23 @@ namespace VsQuest
             if (toRemove > 0)
             {
                 // Failed to remove enough items
-                return false;
+                return result;
             }
 
-            // Give random reward item
+            // Select random reward item
             string rewardItemId = group.rewardItems[sapi.World.Rand.Next(group.rewardItems.Count)];
 
             var itemSystem = sapi.ModLoader.GetModSystem<ItemSystem>();
             if (!itemSystem.ActionItemRegistry.TryGetValue(rewardItemId, out var actionItem))
             {
                 sapi.Logger.Warning("[RerollService] Reward item '{0}' not found in registry", rewardItemId);
-                return false;
+                return result;
             }
 
             if (!ItemAttributeUtils.TryResolveCollectible(sapi, actionItem.itemCode, out var collectible))
             {
                 sapi.Logger.Warning("[RerollService] Base collectible '{0}' not found for reward item '{1}'", actionItem.itemCode, rewardItemId);
-                return false;
+                return result;
             }
 
             var stack = new ItemStack(collectible);
@@ -224,9 +274,68 @@ namespace VsQuest
                 qualityService?.TryApplyQuality(stack, actionItem, sapi.World.Rand);
             }
 
-            if (!player.InventoryManager.TryGiveItemstack(stack))
+            // Get item name for animation
+            string rewardItemName = Lang.Get(collectible.Code?.Domain ?? "game", $"item-{collectible.Code?.Path}", stack.GetName());
+
+            // Build animation data
+            var allItemIds = new List<string>();
+            var allItemNames = new List<string>();
+
+            foreach (var itemId in group.rewardItems)
             {
-                sapi.World.SpawnItemEntity(stack, player.Entity.Pos.XYZ);
+                if (itemSystem.ActionItemRegistry.TryGetValue(itemId, out var item))
+                {
+                    if (ItemAttributeUtils.TryResolveCollectible(sapi, item.itemCode, out var c))
+                    {
+                        allItemIds.Add(itemId);
+                        // Try to get localized name
+                        string localizedName = Lang.Get(c.Code?.Domain ?? "game", $"item-{c.Code?.Path}", c.GetHeldItemName(new ItemStack(c)));
+                        allItemNames.Add(localizedName);
+                    }
+                }
+            }
+
+            // Store pending reward (don't give yet - wait for animation to complete)
+            pendingRewards[player.PlayerUID] = new PendingRerollReward
+            {
+                GroupId = groupId,
+                RewardItemId = rewardItemId,
+                RewardItemName = rewardItemName,
+                RewardStack = stack
+            };
+
+            result.Success = true;
+            result.ResultItemId = rewardItemId;
+            result.ResultItemName = rewardItemName;
+            result.AllItemIds = allItemIds.ToArray();
+            result.AllItemNames = allItemNames.ToArray();
+            result.AnimationType = "simplespin";
+
+            return result;
+        }
+
+        /// <summary>
+        /// Claims a pending reroll reward for a player.
+        /// Called after animation completes.
+        /// </summary>
+        public bool ClaimReward(IServerPlayer player)
+        {
+            if (!pendingRewards.TryGetValue(player.PlayerUID, out var pending))
+            {
+                return false;
+            }
+
+            pendingRewards.Remove(player.PlayerUID);
+
+            if (pending.RewardStack == null)
+            {
+                return false;
+            }
+
+            // Give item to player
+            if (!player.InventoryManager.TryGiveItemstack(pending.RewardStack))
+            {
+                sapi.World.SpawnItemEntity(pending.RewardStack, player.Entity.Pos.XYZ);
             }
 
             return true;

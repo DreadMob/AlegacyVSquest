@@ -16,12 +16,27 @@ namespace VsQuest
             var rerollService = itemSystem?.RerollService;
             if (rerollService == null) return;
 
-            var availableRerolls = rerollService.GetAvailableRerolls(byPlayer);
+            // Get all groups with item counts
+            var allGroups = rerollService.GetAllGroups();
+            var counts = rerollService.CountItemsByGroup(byPlayer);
             var groupStrings = new List<string>();
 
-            foreach (var (group, itemCount) in availableRerolls)
+            foreach (var group in allGroups)
             {
-                groupStrings.Add($"{group.id}|{group.name}|{itemCount}|{group.itemsRequired}");
+                int itemCount = 0;
+                counts.TryGetValue(group.id, out itemCount);
+
+                // Get icon item code (first reward item)
+                string iconItemCode = "";
+                if (group.rewardItems != null && group.rewardItems.Count > 0)
+                {
+                    if (itemSystem.ActionItemRegistry.TryGetValue(group.rewardItems[0], out var actionItem))
+                    {
+                        iconItemCode = actionItem.itemCode ?? "";
+                    }
+                }
+
+                groupStrings.Add($"{group.id}|{group.name}|{itemCount}|{group.itemsRequired}|{iconItemCode}");
             }
 
             sapi.Network.GetChannel("alegacyvsquest").SendPacket(new ShowRerollDialogMessage

@@ -62,7 +62,8 @@ namespace VsQuest
 
         protected override bool ShouldCheckAbility()
         {
-            if (IsAbilityActive || IsCloneEntity()) return false;
+            if (!base.ShouldCheckAbility()) return false; // Checks for clone
+            if (IsAbilityActive) return false;
 
             // Only activate if we haven't already applied the matching (or higher) stage
             // OR if all clones are dead (ability ended but stage tracking needs reset)
@@ -237,12 +238,13 @@ namespace VsQuest
                 ApplyCloneAttributes(clone, stage);
 
                 Vec3d offset = RandomOffset(stage.spawnRange);
-                clone.Pos.SetPosWithDimension(new Vec3d(basePos.X + offset.X, basePos.Y + dim * 32768.0, basePos.Z + offset.Z));
+                clone.Pos.SetPosWithDimension(new Vec3d(basePos.X + offset.X, basePos.Y, basePos.Z + offset.Z));
                 clone.Pos.Yaw = yaw + (float)((Sapi.World.Rand.NextDouble() - 0.5) * 0.4);
                 clone.Pos.SetFrom(clone.Pos);
 
                 Sapi.World.SpawnEntity(clone);
-                Sapi.Logger.Notification("[BossCloning] Spawned clone {0} with entity ID {1}", i, clone.EntityId);
+                Sapi.Logger.Notification("[BossCloning] Spawned clone {0} with entity ID {1}, pos: {2:F1}, {3:F1}, {4:F1}", 
+                    i, clone.EntityId, clone.Pos.X, clone.Pos.Y, clone.Pos.Z);
 
                 activeCloneEntityIds.Add(clone.EntityId);
             }

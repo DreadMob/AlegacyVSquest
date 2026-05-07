@@ -2,7 +2,7 @@
   "rerollGroups": [
     {
       "id": "ossuarywarden",
-      "name": "Оссуарий",
+      "name": "Оссуарий (Страж)",
       "itemsRequired": 2,
       "applyQuality": false,
       "rewardItems": [
@@ -13,7 +13,7 @@
     },
     {
       "id": "ashenlurker",
-      "name": "Пепельный Зверь",
+      "name": "Пепельный Страж",
       "itemsRequired": 2,
       "applyQuality": false,
       "rewardItems": [

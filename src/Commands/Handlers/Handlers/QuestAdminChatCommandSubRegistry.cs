@@ -20,6 +20,7 @@ namespace VsQuest
             var healHandler = new HealCommandHandler(sapi);
             var debugDamageHandler = new DebugDamageCommandHandler(sapi);
             var questExecActionStringHandler = new QuestExecActionStringCommandHandler(sapi);
+            var setItemQualityHandler = new SetItemQualityCommandHandler(sapi);
 
             avq.BeginSubCommand("reload")
                 .WithDescription("Reloads mod configs (questconfig.json, alegacy-vsquest-config.json). Does not reload assets.")
@@ -89,6 +90,21 @@ namespace VsQuest
                     .RequiresPrivilege(Privilege.give)
                     .HandleWith(debugDamageHandler.Status)
                 .EndSubCommand()
+            .EndSubCommand()
+            .BeginSubCommand("setquality")
+                .WithDescription("Sets quality on the item in player's first hotbar slot")
+                .RequiresPrivilege(Privilege.give)
+                .WithArgs(
+                    sapi.ChatCommands.Parsers.OptionalWord("playerName"),
+                    sapi.ChatCommands.Parsers.Word("qualityId")
+                )
+                .HandleWith(setItemQualityHandler.HandleSetQuality)
+            .EndSubCommand()
+            .BeginSubCommand("rerollquality")
+                .WithDescription("Rolls random quality on the item in player's first hotbar slot")
+                .RequiresPrivilege(Privilege.give)
+                .WithArgs(sapi.ChatCommands.Parsers.OptionalWord("playerName"))
+                .HandleWith(setItemQualityHandler.HandleRerollQuality)
             .EndSubCommand();
         }
     }

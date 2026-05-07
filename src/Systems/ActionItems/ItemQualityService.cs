@@ -128,6 +128,23 @@ namespace VsQuest
         }
 
         /// <summary>
+        /// Gets a quality by ID, or null if not found
+        /// </summary>
+        public ItemQuality GetQuality(string qualityId)
+        {
+            if (string.IsNullOrWhiteSpace(qualityId)) return null;
+            return qualityRegistry.TryGetValue(qualityId, out var quality) ? quality : null;
+        }
+
+        /// <summary>
+        /// Gets all registered qualities
+        /// </summary>
+        public IEnumerable<ItemQuality> GetAllQualities()
+        {
+            return qualityRegistry.Values;
+        }
+
+        /// <summary>
         /// Applies a specific quality to an item stack, modifying attributes
         /// </summary>
         private void ApplyQuality(ItemStack stack, ActionItem actionItem, ItemQuality quality, Random rand)

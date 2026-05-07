@@ -104,6 +104,11 @@ namespace VsQuest
             RerollDialogGui.ShowFromMessage(message, capi);
         }
 
+        public void OnStartRerollAnimationMessage(StartRerollAnimationMessage message, ICoreClientAPI capi)
+        {
+            RerollAnimationGui.ShowFromMessage(message, capi);
+        }
+
         public void OnExecuteRerollMessage(IServerPlayer player, ExecuteRerollMessage message, ICoreServerAPI sapi)
         {
             if (sapi == null || player == null || message == null) return;
@@ -113,18 +118,43 @@ namespace VsQuest
             var rerollService = itemSystem?.RerollService;
             if (rerollService == null) return;
 
-            bool success = rerollService.ExecuteReroll(player, message.GroupId);
-            if (success)
+            var result = rerollService.ExecuteReroll(player, message.GroupId);
+            if (result.Success)
             {
-                sapi.SendMessage(player, GlobalConstants.GeneralChatGroup, 
-                    LocalizationUtils.GetSafe("alegacyvsquest:reroll-success"), 
-                    EnumChatType.Notification);
+                // Send animation message to client
+                sapi.Network.GetChannel("alegacyvsquest").SendPacket(new StartRerollAnimationMessage
+                {
+                    ItemIds = result.AllItemIds,
+                    ItemNames = result.AllItemNames,
+                    ResultItemId = result.ResultItemId,
+                    ResultItemName = result.ResultItemName,
+                    AnimationType = result.AnimationType,
+                    GroupId = result.GroupId
+                }, player);
+
+                // Send chat message about result
+                string msg = string.Format(LocalizationUtils.GetSafe("alegacyvsquest:reroll-success-message"), result.ResultItemName);
+                sapi.SendMessage(player, GlobalConstants.GeneralChatGroup, msg, EnumChatType.Notification);
             }
             else
             {
                 sapi.SendMessage(player, GlobalConstants.GeneralChatGroup, 
                     LocalizationUtils.GetSafe("alegacyvsquest:reroll-failed"), 
                     EnumChatType.Notification);
+            }
+        }
+
+        public void OnClaimRerollRewardMessage(IServerPlayer player, ClaimRerollRewardMessage message, ICoreServerAPI sapi)
+        {
+            if (sapi == null || player == null) return;
+
+            var itemSystem = sapi.ModLoader.GetModSystem<ItemSystem>();
+            var rerollService = itemSystem?.RerollService;
+            if (rerollService == null) return;
+
+            if (rerollService.ClaimReward(player))
+            {
+                // Reward claimed successfully - message already sent during animation start
             }
         }
     }
