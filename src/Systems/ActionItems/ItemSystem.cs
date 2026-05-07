@@ -43,6 +43,7 @@ namespace VsQuest
         private ActionItemActionExecutor actionExecutor;
         private ActionItemPacketHandler packetHandler;
         private ActionItemSoundConfig soundConfig;
+        private ItemQualityService qualityService;
 
         private readonly Dictionary<string, (string invKey, int slot)> inventoryScanCursorByPlayerUid = new Dictionary<string, (string invKey, int slot)>(StringComparer.Ordinal);
 
@@ -50,6 +51,8 @@ namespace VsQuest
         public static Dictionary<string, ActionItem> StaticActionItemRegistry { get; private set; } = new Dictionary<string, ActionItem>();
 
         public Dictionary<string, ActionItem> ActionItemRegistry { get; private set; } = new Dictionary<string, ActionItem>();
+
+        public ItemQualityService QualityService => qualityService;
 
         public override void StartPre(ICoreAPI api)
         {
@@ -97,6 +100,10 @@ namespace VsQuest
                     }
                 }
             }
+
+            // Load quality configurations
+            qualityService = new ItemQualityService(api);
+            qualityService.LoadConfigs();
         }
 
         public override void AssetsFinalize(ICoreAPI api)

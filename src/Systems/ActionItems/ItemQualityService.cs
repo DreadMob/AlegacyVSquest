@@ -1,0 +1,255 @@
+using System;
+using System.Collections.Generic;
+using Newtonsoft.Json;
+using Vintagestory.API.Common;
+using Vintagestory.API.Datastructures;
+using Vintagestory.API.MathTools;
+
+namespace VsQuest
+{
+    /// <summary>
+    /// Service for applying item qualities to action items.
+    /// Handles quality chance rolls, bonus calculations, and attribute modifications.
+    /// </summary>
+    public class ItemQualityService
+    {
+        private readonly ICoreAPI api;
+        private readonly Dictionary<string, ItemQuality> qualityRegistry = new Dictionary<string, ItemQuality>(StringComparer.Ordinal);
+
+        // Cache of qualities by applicable item for fast lookup
+        private readonly Dictionary<string, List<ItemQuality>> qualitiesByItem = new Dictionary<string, List<ItemQuality>>(StringComparer.Ordinal);
+        private List<ItemQuality> globalQualities = new List<ItemQuality>();
+
+        public ItemQualityService(ICoreAPI api)
+        {
+            this.api = api;
+        }
+
+        /// <summary>
+        /// Static registry for access without service instance
+        /// </summary>
+        public static Dictionary<string, ItemQuality> StaticQualityRegistry { get; private set; } = new Dictionary<string, ItemQuality>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Loads quality configurations from all mods' qualityconfig.json files
+        /// </summary>
+        public void LoadConfigs()
+        {
+            if (api == null) return;
+
+            qualityRegistry.Clear();
+            qualitiesByItem.Clear();
+            globalQualities.Clear();
+
+            foreach (var mod in api.ModLoader.Mods)
+            {
+                var assets = api.Assets.GetMany<ItemQualityConfig>(api.Logger, "config/qualityconfig", mod.Info.ModID);
+                foreach (var asset in assets)
+                {
+                    if (asset.Value?.qualities == null) continue;
+
+                    foreach (var quality in asset.Value.qualities)
+                    {
+                        if (string.IsNullOrWhiteSpace(quality.id)) continue;
+
+                        qualityRegistry[quality.id] = quality;
+                        StaticQualityRegistry[quality.id] = quality;
+
+                        // Index by applicable items
+                        if (quality.applicableItems == null || quality.applicableItems.Count == 0)
+                        {
+                            globalQualities.Add(quality);
+                        }
+                        else
+                        {
+                            foreach (var itemId in quality.applicableItems)
+                            {
+                                if (!qualitiesByItem.TryGetValue(itemId, out var list))
+                                {
+                                    list = new List<ItemQuality>();
+                                    qualitiesByItem[itemId] = list;
+                                }
+                                list.Add(quality);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Attempts to apply a quality to an action item stack.
+        /// Returns true if a quality was applied.
+        /// </summary>
+        public bool TryApplyQuality(ItemStack stack, ActionItem actionItem, Random rand)
+        {
+            if (stack?.Attributes == null || actionItem == null || rand == null) return false;
+
+            // Check if item already has a quality (exclusive)
+            if (stack.Attributes.HasAttribute(ItemAttributeUtils.ItemQualityIdKey))
+            {
+                return false;
+            }
+
+            // Get applicable qualities for this item
+            var applicableQualities = GetApplicableQualities(actionItem.id);
+            if (applicableQualities.Count == 0) return false;
+
+            // Roll for each quality (first one that succeeds is applied)
+            foreach (var quality in applicableQualities)
+            {
+                if (rand.NextDouble() < quality.chance)
+                {
+                    ApplyQuality(stack, actionItem, quality, rand);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Gets all qualities applicable to a specific action item ID
+        /// </summary>
+        private List<ItemQuality> GetApplicableQualities(string actionItemId)
+        {
+            var result = new List<ItemQuality>();
+
+            // Add global qualities (apply to all items)
+            result.AddRange(globalQualities);
+
+            // Add item-specific qualities
+            if (!string.IsNullOrWhiteSpace(actionItemId) && qualitiesByItem.TryGetValue(actionItemId, out var specific))
+            {
+                result.AddRange(specific);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Applies a specific quality to an item stack, modifying attributes
+        /// </summary>
+        private void ApplyQuality(ItemStack stack, ActionItem actionItem, ItemQuality quality, Random rand)
+        {
+            // Roll bonus percentage
+            float bonusPercent = (float)rand.NextDouble() * (quality.maxBonusPercent - quality.minBonusPercent) + quality.minBonusPercent;
+            float bonusMult = bonusPercent / 100f;
+
+            // Parse bonus mode
+            var bonusMode = ParseBonusMode(quality.bonusMode);
+
+            // Store quality info on stack
+            stack.Attributes.SetString(ItemAttributeUtils.ItemQualityIdKey, quality.id);
+            stack.Attributes.SetString(ItemAttributeUtils.ItemQualityNameKey, quality.name);
+            stack.Attributes.SetString(ItemAttributeUtils.ItemQualityColorKey, quality.color);
+            stack.Attributes.SetFloat(ItemAttributeUtils.ItemQualityBonusPercentKey, bonusPercent);
+
+            // Calculate and apply bonuses
+            var bonusData = new Dictionary<string, float>();
+
+            if (actionItem.attributes != null)
+            {
+                foreach (var attr in actionItem.attributes)
+                {
+                    float originalValue = attr.Value;
+                    bool isBuff = originalValue > 0;
+                    bool isDebuff = originalValue < 0;
+
+                    bool shouldApply = bonusMode == ItemQualityBonusMode.All ||
+                        (bonusMode == ItemQualityBonusMode.BuffsOnly && isBuff) ||
+                        (bonusMode == ItemQualityBonusMode.DebuffsOnly && isDebuff);
+
+                    if (shouldApply && originalValue != 0)
+                    {
+                        float bonus;
+                        float newValue;
+
+                        if (isBuff)
+                        {
+                            // Buffs: increase the positive value
+                            bonus = originalValue * bonusMult;
+                            newValue = originalValue + bonus;
+                        }
+                        else
+                        {
+                            // Debuffs: reduce the negative value (make it less negative)
+                            bonus = -originalValue * bonusMult; // bonus is positive
+                            newValue = originalValue + bonus; // debuff becomes less severe
+                        }
+
+                        // Store the bonus amount for tooltip display
+                        bonusData[attr.Key] = bonus;
+
+                        // Update the attribute on the stack
+                        stack.Attributes.SetFloat(ItemAttributeUtils.GetKey(attr.Key), newValue);
+                    }
+                }
+            }
+
+            // Store bonus data as JSON for tooltip
+            if (bonusData.Count > 0)
+            {
+                stack.Attributes.SetString(ItemAttributeUtils.ItemQualityBonusDataKey, JsonConvert.SerializeObject(bonusData));
+            }
+        }
+
+        private ItemQualityBonusMode ParseBonusMode(string mode)
+        {
+            if (string.IsNullOrWhiteSpace(mode)) return ItemQualityBonusMode.All;
+
+            return mode.ToLowerInvariant() switch
+            {
+                "buffs" => ItemQualityBonusMode.BuffsOnly,
+                "debuffs" => ItemQualityBonusMode.DebuffsOnly,
+                _ => ItemQualityBonusMode.All
+            };
+        }
+
+        /// <summary>
+        /// Checks if an item stack has a quality applied
+        /// </summary>
+        public static bool HasQuality(ItemStack stack)
+        {
+            return stack?.Attributes != null && stack.Attributes.HasAttribute(ItemAttributeUtils.ItemQualityIdKey);
+        }
+
+        /// <summary>
+        /// Gets the quality name for an item stack
+        /// </summary>
+        public static string GetQualityName(ItemStack stack)
+        {
+            if (stack?.Attributes == null) return null;
+            return stack.Attributes.GetString(ItemAttributeUtils.ItemQualityNameKey);
+        }
+
+        /// <summary>
+        /// Gets the quality color for an item stack
+        /// </summary>
+        public static string GetQualityColor(ItemStack stack)
+        {
+            if (stack?.Attributes == null) return "#FFFFFF";
+            return stack.Attributes.GetString(ItemAttributeUtils.ItemQualityColorKey, "#FFFFFF");
+        }
+
+        /// <summary>
+        /// Gets the bonus data dictionary for an item stack
+        /// </summary>
+        public static Dictionary<string, float> GetBonusData(ItemStack stack)
+        {
+            if (stack?.Attributes == null) return null;
+
+            var json = stack.Attributes.GetString(ItemAttributeUtils.ItemQualityBonusDataKey);
+            if (string.IsNullOrWhiteSpace(json)) return null;
+
+            try
+            {
+                return JsonConvert.DeserializeObject<Dictionary<string, float>>(json);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+    }
+}

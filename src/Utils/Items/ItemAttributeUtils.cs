@@ -30,6 +30,13 @@ namespace VsQuest
         public const string QuestNameKey = "alegacyvsquest:questName";
         public const string QuestDescKey = "alegacyvsquest:questDesc";
 
+        // Item quality keys
+        public const string ItemQualityIdKey = "alegacyvsquest:qualityId";
+        public const string ItemQualityNameKey = "alegacyvsquest:qualityName";
+        public const string ItemQualityColorKey = "alegacyvsquest:qualityColor";
+        public const string ItemQualityBonusPercentKey = "alegacyvsquest:qualityBonusPercent";
+        public const string ItemQualityBonusDataKey = "alegacyvsquest:qualityBonusData";
+
         public const string AttrAttackPower = "attackpower";
         public const string AttrWarmth = "warmth";
         public const string AttrProtection = "protection";
@@ -213,6 +220,66 @@ namespace VsQuest
             }
 
             return $"{displayName}: {prefix}{value:0.##}";
+        }
+
+        /// <summary>
+        /// Formats an attribute with its quality bonus for tooltip display.
+        /// Example: "Атака: +2.5 hp (+0.5 hp)" or "Скорость: -14% (+3%)"
+        /// </summary>
+        public static string FormatAttributeWithBonus(string attrKey, float value, float bonus, string qualityColor)
+        {
+            string shortKey = attrKey.StartsWith(AttrPrefix) ? attrKey.Substring(AttrPrefix.Length) : attrKey;
+            string displayName = GetDisplayName(shortKey);
+
+            string prefix = value >= 0 ? "+" : "";
+            string bonusPrefix = bonus >= 0 ? "+" : "";
+            string bonusColored = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus:0.#})</font>";
+
+            if (shortKey == AttrWalkSpeed ||
+                shortKey == AttrHungerRate || shortKey == AttrHealingEffectiveness ||
+                shortKey == AttrRangedAccuracy || shortKey == AttrRangedSpeed || shortKey == AttrRangedDamageMult ||
+                shortKey == AttrMiningSpeedMult || shortKey == AttrFallDamageMult ||
+                shortKey == AttrTemporalDrainMult || shortKey == AttrJumpHeightMul ||
+                shortKey == AttrKnockbackMult || shortKey == AttrWeightLimit ||
+                shortKey == AttrViewDistance || shortKey == AttrHealOnKill)
+            {
+                // Percentage attributes
+                string bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus * 100:0.#}%)</font>";
+                return $"{displayName}: {prefix}{value * 100:0.#}% {bonusFormatted}";
+            }
+            else if (shortKey == AttrWarmth)
+            {
+                string bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus:0.#}°C)</font>";
+                return $"{displayName}: {prefix}{value:0.#}°C {bonusFormatted}";
+            }
+            else if (shortKey == AttrAttackPower || shortKey == AttrMaxHealthFlat)
+            {
+                string bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus:0.#} hp)</font>";
+                return $"{displayName}: {prefix}{value:0.#} hp {bonusFormatted}";
+            }
+            else if (shortKey == AttrProtection)
+            {
+                string bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus:0.#} dmg)</font>";
+                return $"{displayName}: {prefix}{value:0.#} dmg {bonusFormatted}";
+            }
+            else if (shortKey == AttrMaxOxygen)
+            {
+                const float OxygenUnitsPerSecond = 800f;
+                float seconds = value / OxygenUnitsPerSecond;
+                float bonusSeconds = bonus / OxygenUnitsPerSecond;
+                string bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonusSeconds:0.#})</font>";
+                return $"{displayName}: {prefix}{seconds:0.#} {bonusFormatted}";
+            }
+            else if (shortKey == AttrSecondChanceCharges || shortKey == AttrUraniumMaskChargeHours)
+            {
+                // These don't typically get bonuses, but handle them anyway
+                string unit = shortKey == AttrUraniumMaskChargeHours ? "h" : "";
+                string bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus:0.#}{unit})</font>";
+                return $"{displayName}: {value:0.#}{unit} {bonusFormatted}";
+            }
+
+            // Default format
+            return $"{displayName}: {prefix}{value:0.##} {bonusColored}";
         }
 
         public static bool IsActionItem(ItemStack stack)

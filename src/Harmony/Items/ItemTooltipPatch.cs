@@ -41,6 +41,14 @@ namespace VsQuest.Harmony
             hash = hash * 31 + stack.Attributes.GetInt("durability", 0);
             // Include condition for wearables (clothing)
             hash = hash * 31 + (int)(stack.Attributes.GetFloat("condition", 1f) * 1000);
+            // Include quality for proper cache invalidation
+            string qualityId = stack.Attributes.GetString(ItemAttributeUtils.ItemQualityIdKey);
+            if (!string.IsNullOrEmpty(qualityId))
+            {
+                hash = hash * 31 + qualityId.GetHashCode();
+                // Include bonus percent to differentiate quality rolls
+                hash = hash * 31 + (int)(stack.Attributes.GetFloat(ItemAttributeUtils.ItemQualityBonusPercentKey, 0f) * 100);
+            }
             return hash;
         }
 
@@ -123,9 +131,20 @@ namespace VsQuest.Harmony
 
             string currentTooltip = dsc.ToString();
 
+            // Check for item quality
+            string qualityId = attrs.GetString(ItemAttributeUtils.ItemQualityIdKey);
+            string qualityName = attrs.GetString(ItemAttributeUtils.ItemQualityNameKey);
+            string qualityColor = attrs.GetString(ItemAttributeUtils.ItemQualityColorKey, "#FFFFFF");
+            Dictionary<string, float> qualityBonusData = ItemQualityService.GetBonusData(inSlot.Itemstack);
+            bool hasQuality = !string.IsNullOrEmpty(qualityId) && !string.IsNullOrEmpty(qualityName);
 
             dsc.Clear();
 
+            // Show quality header at the top
+            if (hasQuality)
+            {
+                dsc.AppendLine($"<font color=\"{qualityColor}\">=== {qualityName} ===</font>");
+            }
 
             if (hasCustomDesc && currentTooltip.Contains(customDesc))
             {
@@ -315,7 +334,21 @@ namespace VsQuest.Harmony
                         || shortKey == ItemAttributeUtils.AttrUraniumMaskChargeHours;
                     if (value != 0f || showZero)
                     {
-                        string lineToAdd = ItemAttributeUtils.FormatAttributeForTooltip(kvp.Key, value);
+                        // Check if this attribute has a quality bonus
+                        float bonusValue = 0f;
+                        bool hasBonus = hasQuality && qualityBonusData != null && qualityBonusData.TryGetValue(shortKey, out bonusValue);
+
+                        string lineToAdd;
+                        if (hasBonus && bonusValue != 0f)
+                        {
+                            // Show value with bonus: "Атака: +2.5 hp (+0.5 hp)"
+                            lineToAdd = ItemAttributeUtils.FormatAttributeWithBonus(kvp.Key, value, bonusValue, qualityColor);
+                        }
+                        else
+                        {
+                            lineToAdd = ItemAttributeUtils.FormatAttributeForTooltip(kvp.Key, value);
+                        }
+
                         if (!currentDsc.Contains(lineToAdd))
                         {
                             if (!startedAttrBlock)

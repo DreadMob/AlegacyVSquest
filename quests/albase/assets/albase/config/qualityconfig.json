@@ -1,0 +1,30 @@
+{
+  "qualities": [
+    {
+      "id": "prestigious",
+      "name": "ПРЕСТИЖНОЕ",
+      "color": "#FFD700",
+      "chance": 0.15,
+      "minBonusPercent": 5,
+      "maxBonusPercent": 25,
+      "bonusMode": "all",
+      "exclusive": true,
+      "applicableItems": [
+        "albase:bosshunt-reward-miner-belt",
+        "albase:bosshunt-reward-sea-spirit",
+        "albase:bosshunt-reward-bloodthirsty",
+        "albase:bosshunt-reward-life-amulet",
+        "albase:bosshunt-reward-ultrawarm-coat",
+        "albase:bosshunt-reward-archer-gloves",
+        "albase:bosshunt-reward-fox-boots",
+        "albase:bosshunt-reward-duelist",
+        "albase:bosshunt-reward-secondchance-mask",
+        "albase:bosshunt-reward-cryptsight",
+        "albase:bosshunt-reward-ashen-sigil",
+        "albase:bosshunt-reward-subduction-filter",
+        "albase:bosshunt-reward-subduction-quiver",
+        "albase:bosshunt-reward-ossuary-mask"
+      ]
+    }
+  ]
+}

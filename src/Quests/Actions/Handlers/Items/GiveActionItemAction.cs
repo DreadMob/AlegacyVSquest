@@ -27,6 +27,11 @@ namespace VsQuest
             var stack = new ItemStack(collectible);
             int quantity = stack.StackSize;
             ItemAttributeUtils.ApplyActionItemAttributes(stack, actionItem);
+
+            // Try to apply item quality
+            var qualityService = itemSystem.QualityService;
+            qualityService?.TryApplyQuality(stack, actionItem, sapi.World.Rand);
+
             if (!byPlayer.InventoryManager.TryGiveItemstack(stack))
             {
                 sapi.World.SpawnItemEntity(stack, byPlayer.Entity.Pos.XYZ);
