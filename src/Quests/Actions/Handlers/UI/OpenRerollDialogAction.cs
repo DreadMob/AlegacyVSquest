@@ -26,17 +26,17 @@ namespace VsQuest
                 int itemCount = 0;
                 counts.TryGetValue(group.id, out itemCount);
 
-                // Get icon item code (first reward item)
-                string iconItemCode = "";
+                // Get first reward item code for icon
+                string iconCode = "";
                 if (group.rewardItems != null && group.rewardItems.Count > 0)
                 {
                     if (itemSystem.ActionItemRegistry.TryGetValue(group.rewardItems[0], out var actionItem))
                     {
-                        iconItemCode = actionItem.itemCode ?? "";
+                        iconCode = actionItem.itemCode ?? "";
                     }
                 }
 
-                groupStrings.Add($"{group.id}|{group.name}|{itemCount}|{group.itemsRequired}|{iconItemCode}");
+                groupStrings.Add($"{group.id}|{group.name}|{itemCount}|{group.itemsRequired}|{iconCode}");
             }
 
             sapi.Network.GetChannel("alegacyvsquest").SendPacket(new ShowRerollDialogMessage

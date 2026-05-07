@@ -11,27 +11,31 @@ namespace VsQuest
 
         private string[] itemIds;
         private string[] itemNames;
+        private string[] itemCodes;
         private string resultItemId;
         private string resultItemName;
+        private string resultItemCode;
 
         private int currentIndex;
         private float elapsed;
         private float spinSpeed; // items per second
         private float timeSinceLastChange;
 
-        private const float InitialSpeed = 20f; // 20 items per second at start
-        private const float MinSpeed = 2f; // 2 items per second at end
-        private const float TotalDuration = 18f; // 18 seconds total
+        private const float InitialSpeed = 8f; // 8 items per second at start (slower)
+        private const float MinSpeed = 0.5f; // 0.5 items per second at end (very slow)
+        private const float TotalDuration = 12f; // 12 seconds total
 
         public bool IsComplete => elapsed >= TotalDuration;
         public float Progress => Math.Min(1f, elapsed / TotalDuration);
 
-        public void Initialize(string[] itemIds, string[] itemNames, string resultItemId, string resultItemName)
+        public void Initialize(string[] itemIds, string[] itemNames, string[] itemCodes, string resultItemId, string resultItemName, string resultItemCode)
         {
             this.itemIds = itemIds;
             this.itemNames = itemNames;
+            this.itemCodes = itemCodes;
             this.resultItemId = resultItemId;
             this.resultItemName = resultItemName;
+            this.resultItemCode = resultItemCode;
             this.elapsed = 0f;
             this.currentIndex = 0;
             this.timeSinceLastChange = 0f;
@@ -84,6 +88,12 @@ namespace VsQuest
         {
             if (IsComplete) return resultItemName;
             return itemNames?[currentIndex] ?? "";
+        }
+
+        public string GetCurrentItemCode()
+        {
+            if (IsComplete) return resultItemCode;
+            return itemCodes?[currentIndex] ?? "";
         }
     }
 }

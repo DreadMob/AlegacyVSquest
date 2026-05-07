@@ -18,6 +18,8 @@ namespace VsQuest
         public string ResultItemName { get; set; }
         public string[] AllItemIds { get; set; }
         public string[] AllItemNames { get; set; }
+        public string[] AllItemCodes { get; set; }
+        public string ResultItemCode { get; set; }
         public string AnimationType { get; set; } = "simplespin";
         public string GroupId { get; set; }
     }
@@ -274,12 +276,14 @@ namespace VsQuest
                 qualityService?.TryApplyQuality(stack, actionItem, sapi.World.Rand);
             }
 
-            // Get item name for animation
-            string rewardItemName = Lang.Get(collectible.Code?.Domain ?? "game", $"item-{collectible.Code?.Path}", stack.GetName());
+            // Get item name for animation - use GetHeldItemName directly
+            string rewardItemName = collectible.GetHeldItemName(stack);
+            string rewardItemCode = actionItem.itemCode;
 
             // Build animation data
             var allItemIds = new List<string>();
             var allItemNames = new List<string>();
+            var allItemCodes = new List<string>();
 
             foreach (var itemId in group.rewardItems)
             {
@@ -288,9 +292,9 @@ namespace VsQuest
                     if (ItemAttributeUtils.TryResolveCollectible(sapi, item.itemCode, out var c))
                     {
                         allItemIds.Add(itemId);
-                        // Try to get localized name
-                        string localizedName = Lang.Get(c.Code?.Domain ?? "game", $"item-{c.Code?.Path}", c.GetHeldItemName(new ItemStack(c)));
-                        allItemNames.Add(localizedName);
+                        allItemCodes.Add(item.itemCode);
+                        // Use GetHeldItemName directly for proper localization
+                        allItemNames.Add(c.GetHeldItemName(new ItemStack(c)));
                     }
                 }
             }
@@ -309,6 +313,8 @@ namespace VsQuest
             result.ResultItemName = rewardItemName;
             result.AllItemIds = allItemIds.ToArray();
             result.AllItemNames = allItemNames.ToArray();
+            result.AllItemCodes = allItemCodes.ToArray();
+            result.ResultItemCode = rewardItemCode;
             result.AnimationType = "simplespin";
 
             return result;

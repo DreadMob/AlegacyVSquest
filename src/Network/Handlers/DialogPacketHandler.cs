@@ -126,8 +126,10 @@ namespace VsQuest
                 {
                     ItemIds = result.AllItemIds,
                     ItemNames = result.AllItemNames,
+                    ItemCodes = result.AllItemCodes,
                     ResultItemId = result.ResultItemId,
                     ResultItemName = result.ResultItemName,
+                    ResultItemCode = result.ResultItemCode,
                     AnimationType = result.AnimationType,
                     GroupId = result.GroupId
                 }, player);

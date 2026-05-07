@@ -44,5 +44,17 @@ namespace VsQuest
         /// </summary>
         [ProtoMember(6)]
         public string GroupId { get; set; }
+
+        /// <summary>
+        /// Base item codes for rendering icons (parallel to ItemIds)
+        /// </summary>
+        [ProtoMember(7)]
+        public string[] ItemCodes { get; set; }
+
+        /// <summary>
+        /// Result item code for icon
+        /// </summary>
+        [ProtoMember(8)]
+        public string ResultItemCode { get; set; }
     }
 }

@@ -94,8 +94,8 @@ namespace VsQuest
 
         private void recompose()
         {
-            // Fixed size dialog
-            double dialogWidth = 500;
+            // Fixed size dialog - increased width for text
+            double dialogWidth = 600;
             double dialogHeight = Math.Max(250, 100 + groups.Count * 60);
 
             ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
@@ -120,18 +120,13 @@ namespace VsQuest
             {
                 foreach (var group in groups)
                 {
-                    // Icon placeholder (we'll render icons in OnRenderGUI)
-                    ElementBounds iconBounds = ElementBounds.Fixed(10, yOffset, 40, 40);
-                    SingleComposer.AddIf(group.iconItemCode != null)
-                        .AddStaticText("", CairoFont.WhiteSmallishText(), iconBounds, $"icon_{group.groupId}");
-
                     // Group name and count
                     string groupText = $"{group.groupName}";
                     string countText = $"({group.itemCount}/{group.itemsRequired})";
 
-                    ElementBounds textBounds = ElementBounds.Fixed(60, yOffset + 5, 280, 20);
+                    ElementBounds textBounds = ElementBounds.Fixed(60, yOffset + 5, 380, 20);
                     ElementBounds countBounds = ElementBounds.Fixed(60, yOffset + 25, 100, 16);
-                    ElementBounds buttonBounds = ElementBounds.Fixed(dialogWidth - 120, yOffset + 10, 100, 24);
+                    ElementBounds buttonBounds = ElementBounds.Fixed(dialogWidth - 140, yOffset + 5, 130, 30);
 
                     SingleComposer
                         .AddStaticText(groupText, CairoFont.WhiteSmallishText(), textBounds)
@@ -146,7 +141,7 @@ namespace VsQuest
                     {
                         string disabledText = LocalizationUtils.GetSafe("alegacyvsquest:reroll-button-disabled");
                         SingleComposer.AddStaticText(disabledText, CairoFont.WhiteSmallishText().WithColor(new double[] { 0.5, 0.5, 0.5, 1.0 }), 
-                            ElementBounds.Fixed(dialogWidth - 110, yOffset + 15, 100, 16));
+                            ElementBounds.Fixed(dialogWidth - 130, yOffset + 10, 120, 16));
                     }
 
                     yOffset += 60; // Increased spacing between items
@@ -173,7 +168,6 @@ namespace VsQuest
                     if (stack != null)
                     {
                         var slot = new DummySlot(stack);
-                        // Use SingleComposer.Bounds for positioning
                         double iconX = SingleComposer.Bounds.absX + GuiElement.scaled(20);
                         double iconY = SingleComposer.Bounds.absY + GuiElement.scaled(48 + yOffset);
                         float size = (float)GuiElement.scaled(36);
