@@ -1,6 +1,6 @@
 # Alegacy VS Quest Mod Structure Documentation
 
-> **Documentation Version:** v2.6.0
+> **Documentation Version:** v3.0.0
 
 ---
 
@@ -27,5 +27,5 @@
 ## Dependencies
 
 From `modinfo.json`:
-- **Game**: Vintage Story 1.21.6+
+- **Game**: Vintage Story 1.22.1+
 

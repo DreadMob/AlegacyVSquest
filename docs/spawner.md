@@ -1,6 +1,6 @@
 # Quest Spawner (Quest Mobs & Bosses)
 
-> **Documentation Version:** v1.4.0
+> **Documentation Version:** v3.0.0
 
 ---
 

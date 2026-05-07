@@ -165,8 +165,9 @@ namespace VsQuest
                 {
                     LoadNestedLanguageFiles(lastApi);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    lastApi?.Logger?.Warning("[LocalizationUtils] Failed to reload nested language files: {0}", ex.Message);
                 }
             }
 

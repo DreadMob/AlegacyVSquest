@@ -5,23 +5,40 @@ using Vintagestory.API.Common;
 namespace VsQuest
 {
     /// <summary>
-    /// Central registry service for quest definitions, actions, and objectives.
-    /// Provides static access to registries across the codebase.
+    /// Instance-based registry service implementing IQuestRegistryService.
+    /// Use QuestRegistryService.Instance for backward-compatible static access.
     /// </summary>
-    public static class QuestRegistryService
+    public class QuestRegistryService : IQuestRegistryService
     {
-        public static Dictionary<string, Quest> QuestRegistry { get; private set; } = new Dictionary<string, Quest>();
-        public static Dictionary<string, IQuestAction> ActionRegistry { get; private set; } = new Dictionary<string, IQuestAction>();
-        public static Dictionary<string, ActionObjectiveBase> ActionObjectiveRegistry { get; private set; } = new Dictionary<string, ActionObjectiveBase>();
+        private static QuestRegistryService _instance;
+        
+        /// <summary>
+        /// Backward-compatible static instance. Prefer dependency injection for new code.
+        /// </summary>
+        public static QuestRegistryService Instance => _instance ??= new QuestRegistryService();
+        
+        // Backward-compatible static accessors
+        public static Dictionary<string, Quest> QuestRegistry => Instance.QuestRegistryInstance;
+        public static Dictionary<string, IQuestAction> ActionRegistry => Instance.ActionRegistryInstance;
+        public static Dictionary<string, ActionObjectiveBase> ActionObjectiveRegistry => Instance.ActionObjectiveRegistryInstance;
 
-        private static ICoreAPI api;
+        public Dictionary<string, Quest> QuestRegistryInstance { get; private set; } = new Dictionary<string, Quest>();
+        public Dictionary<string, IQuestAction> ActionRegistryInstance { get; private set; } = new Dictionary<string, IQuestAction>();
+        public Dictionary<string, ActionObjectiveBase> ActionObjectiveRegistryInstance { get; private set; } = new Dictionary<string, ActionObjectiveBase>();
+
+        // Explicit interface implementations
+        Dictionary<string, Quest> IQuestRegistryService.QuestRegistry => QuestRegistryInstance;
+        Dictionary<string, IQuestAction> IQuestRegistryService.ActionRegistry => ActionRegistryInstance;
+        Dictionary<string, ActionObjectiveBase> IQuestRegistryService.ActionObjectiveRegistry => ActionObjectiveRegistryInstance;
+
+        private ICoreAPI api;
 
         /// <summary>
         /// Initialize the registry service with the API reference.
         /// </summary>
         public static void Initialize(ICoreAPI api)
         {
-            QuestRegistryService.api = api;
+            Instance.api = api;
         }
 
         /// <summary>
@@ -29,12 +46,17 @@ namespace VsQuest
         /// </summary>
         public static void RegisterQuest(Quest quest, string source)
         {
+            Instance.RegisterQuestInstance(quest, source);
+        }
+
+        public void RegisterQuestInstance(Quest quest, string source)
+        {
             if (quest == null) return;
             if (string.IsNullOrWhiteSpace(quest.id)) return;
 
-            if (QuestRegistry.ContainsKey(quest.id)) return;
+            if (QuestRegistryInstance.ContainsKey(quest.id)) return;
 
-            QuestRegistry.Add(quest.id, quest);
+            QuestRegistryInstance.Add(quest.id, quest);
         }
 
         /// <summary>
@@ -42,11 +64,16 @@ namespace VsQuest
         /// </summary>
         public static void RegisterAction(string id, IQuestAction action)
         {
+            Instance.RegisterActionInstance(id, action);
+        }
+
+        public void RegisterActionInstance(string id, IQuestAction action)
+        {
             if (string.IsNullOrWhiteSpace(id) || action == null) return;
             
-            if (ActionRegistry.ContainsKey(id)) return;
+            if (ActionRegistryInstance.ContainsKey(id)) return;
 
-            ActionRegistry.Add(id, action);
+            ActionRegistryInstance.Add(id, action);
         }
 
         /// <summary>
@@ -54,11 +81,16 @@ namespace VsQuest
         /// </summary>
         public static void RegisterObjective(string id, ActionObjectiveBase objective)
         {
+            Instance.RegisterObjectiveInstance(id, objective);
+        }
+
+        public void RegisterObjectiveInstance(string id, ActionObjectiveBase objective)
+        {
             if (string.IsNullOrWhiteSpace(id) || objective == null) return;
 
-            if (ActionObjectiveRegistry.ContainsKey(id)) return;
+            if (ActionObjectiveRegistryInstance.ContainsKey(id)) return;
 
-            ActionObjectiveRegistry.Add(id, objective);
+            ActionObjectiveRegistryInstance.Add(id, objective);
         }
 
         /// <summary>
@@ -66,9 +98,14 @@ namespace VsQuest
         /// </summary>
         public static void ClearAll()
         {
-            QuestRegistry.Clear();
-            ActionRegistry.Clear();
-            ActionObjectiveRegistry.Clear();
+            Instance.ClearAllInstance();
+        }
+
+        public void ClearAllInstance()
+        {
+            QuestRegistryInstance.Clear();
+            ActionRegistryInstance.Clear();
+            ActionObjectiveRegistryInstance.Clear();
         }
     }
 }

@@ -1,6 +1,6 @@
 # Alegacy VS Quest Stages System (Quests in Quest)
 
-> **Documentation Version:** v1.0.0
+> **Documentation Version:** v3.0.0
 
 ---
 

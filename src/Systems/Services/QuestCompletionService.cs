@@ -7,20 +7,18 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class QuestCompletionService
+    public class QuestCompletionService : IQuestCompletionService
     {
-        private readonly QuestNotificationService notificationService;
-        private readonly QuestRewardService rewardService;
-        private readonly Dictionary<string, Quest> questRegistry;
+        private readonly IQuestNotificationService notificationService;
+        private readonly IQuestRewardService rewardService;
+        private readonly Dictionary<string, Quest> questRegistry = QuestRegistryService.QuestRegistry;
 
         public QuestCompletionService(
-            QuestNotificationService notificationService,
-            QuestRewardService rewardService,
-            Dictionary<string, Quest> questRegistry)
+            IQuestNotificationService notificationService,
+            IQuestRewardService rewardService)
         {
             this.notificationService = notificationService;
             this.rewardService = rewardService;
-            this.questRegistry = QuestRegistryService.QuestRegistry;
         }
 
         public void CompleteQuest(

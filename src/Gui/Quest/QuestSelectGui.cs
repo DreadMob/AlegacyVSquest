@@ -724,19 +724,19 @@ namespace VsQuest
 
                         .AddButton(Lang.Get("alegacyvsquest:button-cancel"), TryClose, bottomLeftButtonBounds)
 
-                        .AddIf(selectedActiveQuest.IsCompletableOnClient)
+                        .AddIf(selectedActiveQuest.ClientState.IsCompletableOnClient)
 
                             .AddButton(Lang.Get("alegacyvsquest:button-complete"), completeQuest, bottomRightButtonBounds)
 
                         .EndIf()
 
-                        .AddIf(!selectedActiveQuest.IsCompletableOnClient && selectedActiveQuest.IsCurrentStageCompleteOnClient)
+                        .AddIf(!selectedActiveQuest.ClientState.IsCompletableOnClient && selectedActiveQuest.ClientState.IsCurrentStageCompleteOnClient)
 
                             .AddButton(Lang.Get("alegacyvsquest:button-continue"), completeQuest, bottomRightButtonBounds)
 
                         .EndIf()
 
-                        .AddIf(!selectedActiveQuest.IsCompletableOnClient && !selectedActiveQuest.IsCurrentStageCompleteOnClient && hasQuiz)
+                        .AddIf(!selectedActiveQuest.ClientState.IsCompletableOnClient && !selectedActiveQuest.ClientState.IsCurrentStageCompleteOnClient && hasQuiz)
 
                             .AddButton(Lang.Get("alegacyvsquest:button-open-quiz"), () => OpenQuiz(selectedActiveQuest.questId), bottomRightButtonBounds)
 
@@ -1256,7 +1256,7 @@ namespace VsQuest
 
         {
 
-            return quest.ProgressText;
+            return quest.ClientState?.ProgressText ?? string.Empty;
 
         }
 

@@ -142,8 +142,10 @@ namespace VsQuest
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    // Variant access can fail on malformed entity definitions - log once per entity type
+                    System.Diagnostics.Debug.WriteLine($"[MobLocalizationUtils] Failed to read entity variant: {ex.Message}");
                 }
 
                 if (!string.IsNullOrWhiteSpace(variantSuffix))

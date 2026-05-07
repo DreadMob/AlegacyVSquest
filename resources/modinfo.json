@@ -13,8 +13,8 @@
         "Psyloh"
     ],
     "description": "Mod that focuses on implementing a Quest System.",
-    "version": "2.6.1",
+    "version": "3.0.0",
     "dependencies": {
-        "game": "1.22.0"
+        "game": "1.22.1"
     }
 }

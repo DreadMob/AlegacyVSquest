@@ -22,11 +22,17 @@ namespace VsQuest
 
         private readonly Dictionary<string, ReputationDefinition> factionDefinitions = new Dictionary<string, ReputationDefinition>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, ReputationDefinition> npcDefinitions = new Dictionary<string, ReputationDefinition>(StringComparer.OrdinalIgnoreCase);
+        private Systems.Database.VsQuestSyncService dbSyncService;
 
         public override void AssetsLoaded(ICoreAPI api)
         {
             base.AssetsLoaded(api);
             LoadConfigs(api);
+        }
+
+        public void SetDbSyncService(Systems.Database.VsQuestSyncService syncService)
+        {
+            dbSyncService = syncService;
         }
 
         private void LoadConfigs(ICoreAPI api)
@@ -430,6 +436,16 @@ namespace VsQuest
             string key = BuildKey(scope, id);
             player.Entity.WatchedAttributes.SetInt(key, value);
             player.Entity.WatchedAttributes.MarkPathDirty(key);
+
+            // Sync NPC reputation to MySQL
+            if (dbSyncService != null && scope == ReputationScope.Npc)
+            {
+                var serverPlayer = player as IServerPlayer;
+                if (serverPlayer != null)
+                {
+                    dbSyncService.QueueNpcReputationSet(serverPlayer.PlayerUID, serverPlayer.PlayerName, id, value);
+                }
+            }
         }
 
         private void GrantRankRewards(ICoreServerAPI sapi, IServerPlayer player, ReputationScope scope, string id, int oldValue, int newValue)

@@ -432,8 +432,9 @@ namespace VsQuest
                                 cooldownAction.Execute(sapi, null, serverPlayer, cooldownArgs);
                             }
                         }
-                        catch
+                        catch (Exception ex)
                         {
+                            sapi.Logger.Warning("[alegacyvsquest] Failed to execute cooldownblock action: {0}", ex.Message);
                         }
                     }
                 }

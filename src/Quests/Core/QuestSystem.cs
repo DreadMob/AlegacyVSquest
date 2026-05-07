@@ -12,16 +12,22 @@ namespace VsQuest
 {
     public class QuestSystem : ModSystem
     {
-        // Registries are now managed by QuestRegistryService
-        public Dictionary<string, Quest> QuestRegistry => QuestRegistryService.QuestRegistry;
-        public Dictionary<string, IQuestAction> ActionRegistry => QuestRegistryService.ActionRegistry;
-        public Dictionary<string, ActionObjectiveBase> ActionObjectiveRegistry => QuestRegistryService.ActionObjectiveRegistry;
+        // Registries are now managed by QuestRegistryService (instance-based with static fallback)
+        private readonly IQuestRegistryService registryService = QuestRegistryService.Instance;
+        public Dictionary<string, Quest> QuestRegistry => registryService.QuestRegistry;
+        public Dictionary<string, IQuestAction> ActionRegistry => registryService.ActionRegistry;
+        public Dictionary<string, ActionObjectiveBase> ActionObjectiveRegistry => registryService.ActionObjectiveRegistry;
 
         private QuizSystem quizSystem;
 
-        private QuestPersistenceManager persistenceManager;
-        private QuestLifecycleManager lifecycleManager;
+        private IQuestValidationService validationService;
+        private IQuestStateManager stateManager;
+        private IQuestPersistenceManager persistenceManager;
+        private IQuestLifecycleManager lifecycleManager;
         private QuestEventHandler eventHandler;
+        private Systems.Database.VsQuestDbClient dbClient;
+        private Systems.Database.VsQuestSyncService dbSyncService;
+        private IQuestEventDispatcher activeQuestEventDispatcher;
         private QuestActionRegistry actionRegistry;
         private QuestObjectiveRegistry objectiveRegistry;
         private QuestNetworkChannelRegistry networkChannelRegistry;
@@ -36,6 +42,11 @@ namespace VsQuest
         private QuestSelectGuiManager questSelectGuiManager;
         private ServerInfoGuiManager serverInfoGuiManager;
         private QuestNotificationHandler notificationHandler;
+
+        // Packet handlers (extracted from Packet Handler Delegations region)
+        private QuestPacketHandler questPacketHandler;
+        private DialogPacketHandler dialogPacketHandler;
+        private QuizPacketHandler quizPacketHandler;
 
         private long lagMonitorListenerId;
 
@@ -172,9 +183,44 @@ namespace VsQuest
             sapi.Logger.VerboseDebug($"[alegacyvsquest] QuestSystem.StartServerSide loaded ({DateTime.UtcNow:O})");
 
             /* Server-only wiring: persistence + lifecycle logic + event subscriptions. */
-            persistenceManager = new QuestPersistenceManager(sapi);
-            lifecycleManager = new QuestLifecycleManager(api);
-            eventHandler = new QuestEventHandler(persistenceManager, sapi);
+            activeQuestEventDispatcher = new ActiveQuestEventDispatcher(sapi, new InteractPositionCache());
+            
+            var questContext = new QuestContext(this, sapi);
+            validationService = new QuestValidationService(questContext);
+            stateManager = new QuestStateManager();
+            
+            persistenceManager = new QuestPersistenceManager(sapi, stateManager);
+            lifecycleManager = new QuestLifecycleManager(api, stateManager, registryService);
+
+            eventHandler = new QuestEventHandler(persistenceManager, sapi, activeQuestEventDispatcher);
+
+            // Initialize database sync
+            var dbConfig = sapi.LoadModConfig<Systems.Database.VsQuestDbConfig>("VsQuestDbConfig.json")
+                ?? new Systems.Database.VsQuestDbConfig();
+            sapi.StoreModConfig(dbConfig, "VsQuestDbConfig.json");
+
+            dbClient = new Systems.Database.VsQuestDbClient(dbConfig);
+            if (dbClient.IsEnabled)
+            {
+                dbSyncService = new Systems.Database.VsQuestSyncService(dbClient, sapi, dbConfig.DebounceSeconds);
+                persistenceManager.SetDbSyncService(dbSyncService);
+                eventHandler.SetDbSyncService(dbSyncService);
+
+                // Also set in ReputationSystem if it exists
+                var reputationSystem = sapi.ModLoader.GetModSystem<ReputationSystem>();
+                reputationSystem?.SetDbSyncService(dbSyncService);
+
+                sapi.Logger.Notification("[vsquest] Database sync enabled (debounce: {0}s)", dbConfig.DebounceSeconds);
+            }
+            else
+            {
+                sapi.Logger.Notification("[vsquest] Database sync disabled");
+            }
+
+            // Initialize packet handlers
+            questPacketHandler = new QuestPacketHandler(lifecycleManager, questSelectGuiManager, GetPlayerQuests);
+            dialogPacketHandler = new DialogPacketHandler(eventHandler, notificationHandler, serverInfoGuiManager, api);
+            quizPacketHandler = new QuizPacketHandler(quizSystem);
 
             if (networkChannelRegistry == null)
             {
@@ -184,8 +230,8 @@ namespace VsQuest
 
             networkChannelRegistry.RegisterServer(sapi);
 
-            /* Registers quest actions and binds acceptance to lifecycleManager. */
-            actionRegistry = new QuestActionRegistry(ActionRegistry, api, sapi, OnQuestAccepted);
+            /* Registers quest actions and binds acceptance to packet handler. */
+            actionRegistry = new QuestActionRegistry(ActionRegistry, api, sapi, questPacketHandler.OnQuestAccepted);
             actionRegistry.Register();
 
             eventHandler.RegisterEventHandlers();
@@ -196,6 +242,7 @@ namespace VsQuest
 
         public override void Dispose()
         {
+            dbSyncService?.Dispose();
 
             if (api is ICoreServerAPI sapi && lagMonitorListenerId != 0)
             {
@@ -288,6 +335,16 @@ namespace VsQuest
             if (quest == null) return;
             if (string.IsNullOrWhiteSpace(quest.id)) return;
 
+            // Validate quest before registration
+            if (validationService != null)
+            {
+                var errors = validationService.ValidateQuest(quest);
+                if (errors.Any())
+                {
+                    api.Logger.Warning("[QuestSystem] Quest '{0}' has validation errors: {1}", quest.id, string.Join(", ", errors));
+                }
+            }
+
             QuestRegistryService.RegisterQuest(quest, source);
         }
 
@@ -351,113 +408,18 @@ namespace VsQuest
             return lifecycleManager.ForceCompleteQuest(player, message, sapi, GetPlayerQuests);
         }
 
-        #region Packet Handler Delegations
-
-        // TODO: [Architecture] Packet handler methods below are simple 1-2 line delegations to
-        // subsystem managers (lifecycleManager, eventHandler, quizSystem, etc.). If they grow
-        // in complexity, extract into dedicated handler classes under src/Systems/Handlers/:
-        //   - QuestPacketHandler.cs  (OnQuestAccepted, OnQuestCompleted, OnQuestInfoMessage)
-        //   - DialogPacketHandler.cs (OnShowQuestDialogMessage, OnDialogTriggerMessage)
-        //   - QuizPacketHandler.cs   (OnShowQuizMessage, OnOpenQuizMessage, OnSubmitQuizAnswerMessage)
-        // Each handler would accept its required dependencies in the constructor.
-
-        internal void OnQuestAccepted(IServerPlayer fromPlayer, QuestAcceptedMessage message, ICoreServerAPI sapi)
+        internal void DispatchBlockUsedEvent(ActiveQuest activeQuest, string blockCode, int[] position, IPlayer byPlayer, IQuestContext context)
         {
-            lifecycleManager.OnQuestAccepted(fromPlayer, message, sapi, GetPlayerQuests);
+            if (activeQuest == null || activeQuestEventDispatcher == null) return;
+            activeQuestEventDispatcher.OnBlockUsed(activeQuest, blockCode, position, byPlayer, context);
         }
 
-        internal void OnQuestCompleted(IServerPlayer fromPlayer, QuestCompletedMessage message, ICoreServerAPI sapi)
-        {
-            lifecycleManager.OnQuestCompleted(fromPlayer, message, sapi, GetPlayerQuests);
-        }
+        internal IQuestStateManager GetStateManager() => stateManager;
+        internal Systems.Database.VsQuestSyncService GetDbSyncService() => dbSyncService;
 
-        internal void OnQuestInfoMessage(QuestInfoMessage message, ICoreClientAPI capi)
-        {
-            questSelectGuiManager.HandleQuestInfoMessage(message, capi);
-        }
-
-        internal void OnShowServerInfoMessage(ShowServerInfoMessage message, ICoreClientAPI capi)
-        {
-            serverInfoGuiManager.HandleShowServerInfoMessage(message, capi);
-        }
-
-        internal void OnShowNotificationMessage(ShowNotificationMessage message, ICoreClientAPI capi)
-        {
-            notificationHandler.HandleNotificationMessage(message, capi);
-        }
-
-        internal void OnShowDiscoveryMessage(ShowDiscoveryMessage message, ICoreClientAPI capi)
-        {
-            notificationHandler.HandleDiscoveryMessage(message, capi);
-        }
-
-        internal void OnExecutePlayerCommand(ExecutePlayerCommandMessage message, ICoreClientAPI capi)
-        {
-            ClientCommandExecutor.Execute(message, capi);
-        }
-
-        internal void OnVanillaBlockInteract(IServerPlayer player, VanillaBlockInteractMessage message, ICoreServerAPI sapi)
-        {
-            eventHandler.HandleVanillaBlockInteract(player, message);
-        }
-
-        internal void OnShowQuestDialogMessage(ShowQuestDialogMessage message, ICoreClientAPI capi)
-        {
-            QuestFinalDialogGui.ShowFromMessage(message, capi);
-        }
-
-        internal void OnShowQuizMessage(ShowQuizMessage message, ICoreClientAPI capi)
-        {
-            quizSystem?.OnShowQuizMessage(message, capi);
-        }
-
-        internal void OnOpenQuizMessage(IServerPlayer player, OpenQuizMessage message, ICoreServerAPI sapi)
-        {
-            quizSystem?.OnOpenQuizMessage(player, message, sapi);
-        }
-
-        internal void OnSubmitQuizAnswerMessage(IServerPlayer player, SubmitQuizAnswerMessage message, ICoreServerAPI sapi)
-        {
-            quizSystem?.OnSubmitQuizAnswerMessage(player, message, sapi);
-        }
-
-        internal void OnPreloadBossMusicMessage(PreloadBossMusicMessage message, ICoreClientAPI capi)
-        {
-            try
-            {
-                /* Optional integration: preload only if the music subsystem is present client-side. */
-                var sys = capi?.ModLoader?.GetModSystem<BossMusicUrlSystem>();
-                sys?.Preload(message?.Url);
-            }
-            catch
-            {
-                api.Logger.Error("[alegacyvsquest] Failed to preload boss music: {0}", message?.Url);
-            }
-        }
-
-        internal void OnDialogTriggerMessage(IServerPlayer player, DialogTriggerMessage message, ICoreServerAPI sapi)
-        {
-            if (sapi == null || player == null || message == null) return;
-            if (string.IsNullOrWhiteSpace(message.Trigger)) return;
-            if (message.EntityId <= 0) return;
-
-            /* Reuse the action execution pipeline by wrapping dialog triggers as a synthetic quest accept. */
-            var qm = new QuestAcceptedMessage { questGiverId = message.EntityId, questId = "dialog-action" };
-            ActionStringExecutor.Execute(sapi, qm, player, message.Trigger);
-        }
-
-        internal void OnClaimReputationRewardsMessage(IServerPlayer player, ClaimReputationRewardsMessage message, ICoreServerAPI sapi)
-        {
-            var repSystem = sapi?.ModLoader?.GetModSystem<ReputationSystem>();
-            repSystem?.OnClaimReputationRewardsMessage(player, message, sapi);
-        }
-
-        internal void OnClaimQuestCompletionRewardMessage(IServerPlayer player, ClaimQuestCompletionRewardMessage message, ICoreServerAPI sapi)
-        {
-            var rewardSystem = sapi?.ModLoader?.GetModSystem<QuestCompletionRewardSystem>();
-            rewardSystem?.OnClaimQuestCompletionRewardMessage(player, message, sapi);
-        }
-
-        #endregion
+        // Packet handler accessors for network registration
+        internal QuestPacketHandler QuestPacketHandler => questPacketHandler;
+        internal DialogPacketHandler DialogPacketHandler => dialogPacketHandler;
+        internal QuizPacketHandler QuizPacketHandler => quizPacketHandler;
     }
 }

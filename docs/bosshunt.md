@@ -1,6 +1,6 @@
 # Boss Hunt System
 
-> **Documentation Version:** v2.5.0
+> **Documentation Version:** v3.0.0
 
 ## Overview
 The boss hunt system spawns a single active boss at a time, rotates it on a long schedule, and provides a questline with a tracker item. The active boss is chosen from configs in `quests/albase/assets/albase/config/bosshunt/*.json`.

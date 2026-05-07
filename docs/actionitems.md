@@ -1,6 +1,6 @@
 # Alegacy VS Quest Action Items
 
-> **Documentation Version:** v2.5.0
+> **Documentation Version:** v3.0.0
 
 ---
 

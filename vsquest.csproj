@@ -60,6 +60,12 @@
 		</Content>
 	</ItemGroup>
 
+	<ItemGroup>
+		<Compile Remove="vsquest.Tests\**" />
+		<EmbeddedResource Remove="vsquest.Tests\**" />
+		<None Remove="vsquest.Tests\**" />
+	</ItemGroup>
+
 	<Target Name="ZipRelease" AfterTargets="Build">
 		<RemoveDir Directories="$(OutputPath)\assets\vsquest" Condition="Exists('$(OutputPath)\assets\vsquest')" />
 		

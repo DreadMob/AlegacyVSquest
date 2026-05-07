@@ -6,21 +6,29 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class QuestPersistenceManager
+    public class QuestPersistenceManager : IQuestPersistenceManager
     {
         private readonly ConcurrentDictionary<string, List<ActiveQuest>> playerQuests;
         private readonly HashSet<string> dirtyPlayerUIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly ICoreServerAPI sapi;
+        private readonly IQuestStateManager stateManager;
         private long autosaveListenerId = -1;
         private const double AutosaveIntervalMs = 30000; // 30 секунд
+        private Systems.Database.VsQuestSyncService dbSyncService;
 
-        public QuestPersistenceManager(ICoreServerAPI sapi)
+        public QuestPersistenceManager(ICoreServerAPI sapi, IQuestStateManager stateManager = null)
         {
             this.sapi = sapi;
+            this.stateManager = stateManager;
             this.playerQuests = new ConcurrentDictionary<string, List<ActiveQuest>>();
-            
+
             // Регистрируем автосохранение каждые 30 секунд
             autosaveListenerId = sapi.Event.RegisterGameTickListener(OnAutosaveTick, (int)AutosaveIntervalMs, 5000);
+        }
+
+        public void SetDbSyncService(Systems.Database.VsQuestSyncService syncService)
+        {
+            dbSyncService = syncService;
         }
 
         private void OnAutosaveTick(float dt)
@@ -60,6 +68,29 @@ namespace VsQuest
                         }
 
                         sapi.WorldManager.SaveGame.StoreData<List<ActiveQuestDto>>($"quests-{playerUID}", dto);
+
+                        // Sync to MySQL
+                        if (dbSyncService != null && quests != null)
+                        {
+                            var player = sapi.World.PlayerByUid(playerUID);
+                            string playerName = player?.PlayerName ?? "";
+
+                            foreach (var quest in quests)
+                            {
+                                if (quest == null) continue;
+                                quest.ExportProgress();
+
+                                dbSyncService.QueuePlayerQuest(
+                                    playerUID,
+                                    playerName,
+                                    quest.questId,
+                                    quest.currentStageIndex,
+                                    quest.completedStageIndices ?? new List<int>(),
+                                    quest.trackerProgressData ?? new List<int>(),
+                                    "active"
+                                );
+                            }
+                        }
                     }
                 }
                 catch (Exception e)
@@ -115,7 +146,7 @@ namespace VsQuest
                 {
                     for (int i = 0; i < dto.Count; i++)
                     {
-                        domain.Add(dto[i]?.ToDomain());
+                        domain.Add(dto[i]?.ToDomain(stateManager));
                     }
                 }
 
@@ -135,6 +166,8 @@ namespace VsQuest
                             for (int i = 0; i < legacy.Count; i++)
                             {
                                 migrated.Add(ActiveQuestDto.FromDomain(legacy[i]));
+                                // Set state manager on legacy quests
+                                legacy[i]?.SetStateManager(stateManager);
                             }
                         }
 

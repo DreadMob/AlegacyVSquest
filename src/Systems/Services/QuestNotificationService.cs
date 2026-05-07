@@ -5,7 +5,7 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class QuestNotificationService
+    public class QuestNotificationService : IQuestNotificationService
     {
         private readonly ICoreAPI api;
 

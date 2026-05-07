@@ -15,9 +15,11 @@ namespace VsQuest
         private const string SummonedByEntityIdKey = "alegacyvsquest:bosssummonritual:summonedByEntityId";
 
         private readonly Dictionary<string, Quest> questRegistry;
-        private readonly QuestPersistenceManager persistenceManager;
+        private readonly IQuestPersistenceManager persistenceManager;
         private readonly ICoreServerAPI sapi;
+        private readonly IQuestEventDispatcher eventDispatcher;
         private QuestSystem questSystem;
+        private Systems.Database.VsQuestSyncService dbSyncService;
 
         private void ApplyCoreConfig()
         {
@@ -27,11 +29,17 @@ namespace VsQuest
             }
         }
 
-        public QuestEventHandler(QuestPersistenceManager persistenceManager, ICoreServerAPI sapi)
+        public QuestEventHandler(IQuestPersistenceManager persistenceManager, ICoreServerAPI sapi, IQuestEventDispatcher eventDispatcher = null)
         {
             this.questRegistry = QuestRegistryService.QuestRegistry;
             this.persistenceManager = persistenceManager;
             this.sapi = sapi;
+            this.eventDispatcher = eventDispatcher ?? new ActiveQuestEventDispatcher(sapi, new InteractPositionCache());
+        }
+
+        public void SetDbSyncService(Systems.Database.VsQuestSyncService syncService)
+        {
+            dbSyncService = syncService;
         }
 
         public void RegisterEventHandlers()
@@ -217,6 +225,20 @@ namespace VsQuest
 
             bossCombatService.AnnounceBossDeath(sapi, entity, creditedPlayers, damageSource);
 
+            // Sync boss kills to MySQL
+            if (dbSyncService != null && bossCombatService.IsBossEntity(entity) && bossCombatService.IsFinalBossStage(entity))
+            {
+                var qt = entity.GetBehavior<EntityBehaviorQuestTarget>();
+                if (qt != null && !string.IsNullOrWhiteSpace(qt.TargetId))
+                {
+                    foreach (var creditedPlayer in creditedPlayers)
+                    {
+                        if (creditedPlayer == null) continue;
+                        dbSyncService.QueueBossKill(creditedPlayer.PlayerUID, creditedPlayer.PlayerName, qt.TargetId);
+                    }
+                }
+            }
+
             var victimPlayer = entity as EntityPlayer;
             if (victimPlayer != null)
             {
@@ -277,7 +299,7 @@ namespace VsQuest
                     sapi.Logger.Warning("[QuestEventHandler] Failed to check block break objectives for quest {0}: {1}", quest.questId, ex.Message);
                 }
 
-                quest.OnBlockBroken(blockCode, position, byPlayer, null);
+                eventDispatcher.OnBlockBroken(quest, blockCode, position, byPlayer, null);
             }
         }
 
@@ -322,7 +344,7 @@ namespace VsQuest
                     sapi.Logger.Warning("[QuestEventHandler] Failed to check block place objectives for quest {0}: {1}", quest.questId, ex.Message);
                 }
 
-                quest.OnBlockPlaced(blockCode, position, byPlayer, null);
+                eventDispatcher.OnBlockPlaced(quest, blockCode, position, byPlayer, null);
             }
         }
 
@@ -421,7 +443,7 @@ namespace VsQuest
 
                 if (needsInteract)
                 {
-                    activeQuest.OnBlockUsed(message.BlockCode, position, player, sapi, null);
+                    eventDispatcher.OnBlockUsed(activeQuest, message.BlockCode, position, player, null);
                 }
             }
         }

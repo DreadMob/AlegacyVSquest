@@ -7,16 +7,17 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class QuestRewardService
+    public class QuestRewardService : IQuestRewardService
     {
-        private readonly Dictionary<string, Quest> questRegistry;
-        private readonly Dictionary<string, IQuestAction> actionRegistry;
+        private readonly IQuestRegistryService registryService;
 
-        public QuestRewardService(Dictionary<string, Quest> questRegistry, Dictionary<string, IQuestAction> actionRegistry)
+        public QuestRewardService(IQuestRegistryService registryService = null)
         {
-            this.questRegistry = QuestRegistryService.QuestRegistry;
-            this.actionRegistry = QuestRegistryService.ActionRegistry;
+            this.registryService = registryService ?? QuestRegistryService.Instance;
         }
+
+        private Dictionary<string, Quest> questRegistry => registryService.QuestRegistry;
+        private Dictionary<string, IQuestAction> actionRegistry => registryService.ActionRegistry;
 
         public void RewardPlayer(IServerPlayer fromPlayer, QuestCompletedMessage message, ICoreServerAPI sapi, Entity questgiver)
         {

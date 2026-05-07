@@ -9,23 +9,27 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
-    public class QuestLifecycleManager
+    public class QuestLifecycleManager : IQuestLifecycleManager
     {
+        private readonly IQuestRegistryService questRegistryService;
         private readonly Dictionary<string, Quest> questRegistry;
         private readonly Dictionary<string, IQuestAction> actionRegistry;
         private readonly ICoreAPI api;
-        private readonly QuestNotificationService notificationService;
-        private readonly QuestRewardService rewardService;
-        private readonly QuestCompletionService completionService;
+        private readonly IQuestNotificationService notificationService;
+        private readonly IQuestRewardService rewardService;
+        private readonly IQuestCompletionService completionService;
+        private readonly IQuestStateManager stateManager;
 
-        public QuestLifecycleManager(ICoreAPI api)
+        public QuestLifecycleManager(ICoreAPI api, IQuestStateManager stateManager = null, IQuestRegistryService questRegistryService = null)
         {
-            this.questRegistry = QuestRegistryService.QuestRegistry;
-            this.actionRegistry = QuestRegistryService.ActionRegistry;
+            this.questRegistryService = questRegistryService ?? QuestRegistryService.Instance;
+            this.questRegistry = this.questRegistryService.QuestRegistry;
+            this.actionRegistry = this.questRegistryService.ActionRegistry;
             this.api = api;
             this.notificationService = new QuestNotificationService(api);
-            this.rewardService = new QuestRewardService(null, null);
-            this.completionService = new QuestCompletionService(notificationService, rewardService, null);
+            this.rewardService = new QuestRewardService();
+            this.completionService = new QuestCompletionService(notificationService, rewardService);
+            this.stateManager = stateManager ?? new QuestStateManager();
         }
 
         public void OnQuestAccepted(IServerPlayer fromPlayer, QuestAcceptedMessage message, ICoreServerAPI sapi, System.Func<string, List<ActiveQuest>> getPlayerQuests)
@@ -54,6 +58,7 @@ namespace VsQuest
                 questId = message.questId
             };
             
+            activeQuest.SetStateManager(stateManager);
             playerQuests.Add(activeQuest);
             foreach (var action in quest.onAcceptedActions)
             {

@@ -51,7 +51,7 @@ namespace VsQuest
             if (string.IsNullOrEmpty(questId)) return;
 
             var questCompletedMessage = new QuestCompletedMessage() { questGiverId = questGiverId, questId = questId };
-            questSystem.OnQuestCompleted(byPlayer, questCompletedMessage, sapi);
+            questSystem.QuestPacketHandler.OnQuestCompleted(byPlayer, questCompletedMessage, sapi);
         }
     }
 }

@@ -28,26 +28,36 @@ namespace VsQuest
             {
                 questGiverId = quest.questGiverId,
                 questId = quest.questId,
-                IsCompletableOnClient = quest.IsCompletableOnClient,
-                IsCurrentStageCompleteOnClient = quest.IsCurrentStageCompleteOnClient,
-                ProgressText = quest.ProgressText,
+                IsCompletableOnClient = quest.ClientState?.IsCompletableOnClient ?? false,
+                IsCurrentStageCompleteOnClient = quest.ClientState?.IsCurrentStageCompleteOnClient ?? false,
+                ProgressText = quest.ClientState?.ProgressText ?? string.Empty,
                 currentStageIndex = quest.currentStageIndex,
                 completedStageIndices = quest.completedStageIndices ?? new List<int>()
             };
         }
 
-        public ActiveQuest ToDomain()
+        public ActiveQuest ToDomain(IQuestStateManager stateManager = null)
         {
-            return new ActiveQuest
+            var quest = new ActiveQuest
             {
                 questGiverId = questGiverId,
                 questId = questId,
-                IsCompletableOnClient = IsCompletableOnClient,
-                IsCurrentStageCompleteOnClient = IsCurrentStageCompleteOnClient,
-                ProgressText = ProgressText,
                 currentStageIndex = currentStageIndex,
-                completedStageIndices = completedStageIndices ?? new List<int>()
+                completedStageIndices = completedStageIndices ?? new List<int>(),
+                ClientState = new ActiveQuestClientState
+                {
+                    IsCompletableOnClient = IsCompletableOnClient,
+                    IsCurrentStageCompleteOnClient = IsCurrentStageCompleteOnClient,
+                    ProgressText = ProgressText ?? string.Empty
+                }
             };
+            
+            if (stateManager != null)
+            {
+                quest.SetStateManager(stateManager);
+            }
+            
+            return quest;
         }
     }
 }

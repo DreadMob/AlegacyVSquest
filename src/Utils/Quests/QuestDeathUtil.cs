@@ -22,7 +22,8 @@ namespace VsQuest
 
             foreach (var quest in quests)
             {
-                quest.OnEntityKilled(killedCode, player.Player, null);
+                quest.EnsureInitialized(player.Player);
+                quest.GetOrCreateTracker().OnEntityKilled(killedCode, player.Player, null);
 
                 if (serverPlayer != null)
                 {

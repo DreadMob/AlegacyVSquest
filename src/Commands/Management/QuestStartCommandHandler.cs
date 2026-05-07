@@ -56,7 +56,7 @@ namespace VsQuest
                 questId = questId
             };
 
-            questSystem.OnQuestAccepted(target, msg, sapi);
+            questSystem.QuestPacketHandler.OnQuestAccepted(target, msg, sapi);
             questSystem.SavePlayerQuests(target.PlayerUID, questSystem.GetPlayerQuests(target.PlayerUID));
 
             return TextCommandResult.Success($"Quest '{questId}' was started for '{target.PlayerName}'.");
