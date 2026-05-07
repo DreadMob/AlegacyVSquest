@@ -128,7 +128,9 @@ namespace VsQuest
         public List<ActionWithArgs> GetActionObjectives(int stageIndex)
         {
             var stage = GetStage(stageIndex);
-            return stage?.actionObjectives ?? new List<ActionWithArgs>();
+            // For multi-stage quests, return stage-specific action objectives
+            // For single-stage quests (stage is null), return root-level actionObjectives
+            return stage?.actionObjectives ?? actionObjectives ?? new List<ActionWithArgs>();
         }
     }
 

@@ -59,6 +59,19 @@ namespace VsQuest
             };
             
             activeQuest.SetStateManager(stateManager);
+            try
+            {
+                var questSystem = sapi.ModLoader.GetModSystem<QuestSystem>();
+                if (questSystem != null)
+                {
+                    activeQuest.InitializeTrackers(new QuestContext(questSystem, sapi));
+                }
+            }
+            catch (Exception ex)
+            {
+                sapi.Logger.Warning($"[alegacyvsquest] Failed to initialize trackers for accepted quest '{message.questId}': {ex.Message}");
+            }
+
             playerQuests.Add(activeQuest);
             foreach (var action in quest.onAcceptedActions)
             {

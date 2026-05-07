@@ -43,7 +43,11 @@ namespace VsQuest
         /// <returns>Array of boss keys, sorted alphabetically.</returns>
         public string[] GetKnownBossKeys()
         {
-            if (configs == null || configs.Count == 0) return Array.Empty<string>();
+            if (configs == null || configs.Count == 0)
+            {
+                sapi?.Logger?.Warning("[BossHuntSystem.Anchors] GetKnownBossKeys: configs is null or empty!");
+                return Array.Empty<string>();
+            }
 
             var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < configs.Count; i++)
@@ -56,6 +60,9 @@ namespace VsQuest
 
             var list = new List<string>(set);
             list.Sort(StringComparer.OrdinalIgnoreCase);
+            
+            sapi?.Logger?.Notification($"[BossHuntSystem.Anchors] GetKnownBossKeys returning {list.Count} keys: {string.Join(", ", list)}");
+            
             return list.ToArray();
         }
 
@@ -89,7 +96,11 @@ namespace VsQuest
             }
 
             var cfg = FindConfig(bossKey);
-            if (cfg == null) return;
+            if (cfg == null)
+            {
+                sapi.Logger.Warning("[BossHuntSystem.Anchors] SetAnchorPoint: no config for bossKey '{0}', cannot register anchor {1}", bossKey, anchorId);
+                return;
+            }
 
             bossKey = cfg.bossKey;
 

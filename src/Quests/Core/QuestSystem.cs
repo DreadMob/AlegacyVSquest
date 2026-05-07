@@ -133,6 +133,7 @@ namespace VsQuest
 
             LocalizationUtils.LoadFromAssets(api);
             LocalizationUtils.LoadNestedLanguageFiles(api);
+            LocalizationUtils.SetNestedLocalizationDomains(new[] { "alegacyvsquest", "albase", "ALStory" });
 
             VsQuest.Harmony.EntityInteractPatch.TryPatch(harmony);
 
@@ -153,8 +154,11 @@ namespace VsQuest
         {
             base.StartClientSide(capi);
 
+            ModClassRegistry.RegisterAll(capi);
+
             LocalizationUtils.LoadFromAssets(capi);
             LocalizationUtils.LoadNestedLanguageFiles(capi);
+            LocalizationUtils.SetNestedLocalizationDomains(new[] { "alegacyvsquest", "albase", "ALStory" });
 
             if (networkChannelRegistry == null)
             {
@@ -172,11 +176,18 @@ namespace VsQuest
             notificationHandler = new QuestNotificationHandler(discoveryHud);
             questSelectGuiManager = new QuestSelectGuiManager(Config);
             serverInfoGuiManager = new ServerInfoGuiManager();
+
+            // Initialize client-side packet handlers so network callbacks don't NRE
+            questPacketHandler = new QuestPacketHandler(null, questSelectGuiManager, _ => new List<ActiveQuest>());
+            dialogPacketHandler = new DialogPacketHandler(null, notificationHandler, serverInfoGuiManager, capi);
+            quizPacketHandler = new QuizPacketHandler(quizSystem);
         }
 
         public override void StartServerSide(ICoreServerAPI sapi)
         {
             base.StartServerSide(sapi);
+
+            ModClassRegistry.RegisterAll(sapi);
 
             QuestRegistryService.Initialize(sapi);
 

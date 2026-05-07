@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Vintagestory.API.Common;
+using Vintagestory.API.Server;
 
 namespace VsQuest
 {
@@ -37,6 +38,8 @@ namespace VsQuest
         public bool IsCompletable(IPlayer player)
         {
             lastIsComplete = implementation?.IsCompletable(player, args) ?? false;
+            var sapi = player.Entity.Api as ICoreServerAPI;
+            sapi?.Logger.Debug($"[ActionObjectiveTracker] {implementation?.GetType().Name} IsCompletable: {lastIsComplete}");
             return lastIsComplete;
         }
         

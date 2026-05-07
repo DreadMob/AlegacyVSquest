@@ -191,7 +191,7 @@ namespace VsQuest
             }
         }
 
-        public void SendQuestInfoMessageToClient(ICoreServerAPI sapi, EntityPlayer player)
+        public void SendQuestInfoMessageToClient(ICoreServerAPI sapi, EntityPlayer player, bool silentUpdate = false)
         {
             if (player == null) return;
 
@@ -208,6 +208,7 @@ namespace VsQuest
                 .Select(aq =>
                 {
                     var quest = questSystem.QuestRegistry.TryGetValue(aq.questId, out var q) ? q : null;
+                    aq.EnsureInitialized(player.Player);
                     aq.ClientState.IsCompletableOnClient = aq.IsCompletable(player.Player);
                     aq.ClientState.IsCurrentStageCompleteOnClient = quest?.HasStages == true && aq.IsCurrentStageCompletable(player.Player, quest);
                     aq.ClientState.ProgressText = Systems.Management.ProgressTextFormatter.GetActiveQuestText(sapi, player.Player, aq);
@@ -233,6 +234,7 @@ namespace VsQuest
                         entity.EntityId, availableQuestIds, activeQuests,
                         noAvailableQuestDescLangKey, noAvailableQuestCooldownDescLangKey,
                         chainResult.daysLeft, rotationDaysLeft);
+                    msgChainCd.silentUpdate = silentUpdate;
                     messageBuilder.PopulateReputationInfo(msgChainCd, serverPlayer, reputationNpcId, reputationFactionId);
                     messageBuilder.SendMessage(msgChainCd, serverPlayer);
                     return;
@@ -247,7 +249,8 @@ namespace VsQuest
                 var msgActive = messageBuilder.CreateBaseMessage(
                     entity.EntityId, availableQuestIds, activeQuests,
                     noAvailableQuestDescLangKey, noAvailableQuestCooldownDescLangKey,
-                    0, rotationDaysLeft);
+                    minCooldownDaysLeft ?? 0, rotationDaysLeft);
+                msgActive.silentUpdate = silentUpdate;
                 messageBuilder.PopulateReputationInfo(msgActive, serverPlayer, reputationNpcId, reputationFactionId);
                 messageBuilder.SendMessage(msgActive, serverPlayer);
                 return;
@@ -321,6 +324,7 @@ namespace VsQuest
                 entity.EntityId, availableQuestIds, activeQuests,
                 noAvailableQuestDescLangKey, noAvailableQuestCooldownDescLangKey,
                 cooldownDaysLeft, rotationDaysLeft);
+            message.silentUpdate = silentUpdate;
             messageBuilder.PopulateReputationInfo(message, serverPlayer, reputationNpcId, reputationFactionId);
             messageBuilder.SendMessage(message, serverPlayer);
         }

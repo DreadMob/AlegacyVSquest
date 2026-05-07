@@ -308,6 +308,7 @@ namespace VsQuest
                 TryDespawnBossEntity(previousCfg);
             }
 
+            if (sapi?.World?.Calendar == null) return;
             double nowHours = sapi.World.Calendar.TotalHours;
             double rotationDays = nextCfg.rotationDays > 0 ? nextCfg.rotationDays : 7;
             state.nextBossRotationTotalHours = nowHours + rotationDays * 24.0;

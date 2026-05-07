@@ -309,6 +309,7 @@ namespace VsQuest
         private void OnEntityDeath(Entity entity, DamageSource damageSource)
         {
             if (sapi == null || entity == null) return;
+            if (sapi.World == null || sapi.World.Calendar == null) return;
 
             if (configs == null || configs.Count == 0) return;
 

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Server;
@@ -66,22 +67,46 @@ namespace VsQuest
         {
             allConfigs.Clear();
 
+
             foreach (var mod in sapi.ModLoader.Mods)
             {
                 try
                 {
                     var assets = sapi.Assets.GetMany<BossHuntConfig>(sapi.Logger, "config/bosshunt", mod.Info.ModID);
-                    foreach (var asset in assets)
+                    int assetCount = 0;
+                    if (assets != null)
                     {
-                        if (asset.Value != null)
+                        var assetList = assets.ToList();
+                        assetCount = assetList.Count;
+                        // Load boss configs from this mod
+                        
+                        foreach (var asset in assetList)
                         {
-                            allConfigs.Add(asset.Value);
+                            if (asset.Value != null)
+                            {
+                                // Load boss config
+                                allConfigs.Add(asset.Value);
+                            }
                         }
+                    }
+                    else
+                    {
+                        // No boss configs found in this mod
                     }
                 }
                 catch (Exception ex)
                 {
                     sapi.Logger.Warning("[BossHuntSystem.Lifecycle] Failed to load BossHunt configs from mod {0}: {1}", mod.Info.ModID, ex.Message);
+                }
+            }
+
+
+            // Auto-register all boss keys from loaded configs
+            foreach (var cfg in allConfigs)
+            {
+                if (cfg != null && !string.IsNullOrWhiteSpace(cfg.bossKey))
+                {
+                    RegisterBossHunt(cfg.bossKey);
                 }
             }
 
@@ -91,6 +116,7 @@ namespace VsQuest
         private void InitializeSchedulesAfterLoad()
         {
             if (sapi == null || state == null) return;
+            if (sapi.World == null || sapi.World.Calendar == null) return;
 
             double nowHours = sapi.World.Calendar.TotalHours;
 
@@ -148,6 +174,7 @@ namespace VsQuest
         {
             if (sapi == null || byPlayer?.Entity?.Pos == null) return;
             if (configs == null || configs.Count == 0) return;
+            if (sapi.World == null || sapi.World.Calendar == null) return;
 
             double nowHours = sapi.World.Calendar.TotalHours;
             var activeCfg = GetActiveBossConfig(nowHours);

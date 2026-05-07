@@ -43,30 +43,60 @@ namespace VsQuest
 
         public bool IsCurrentStageCompletable(ActiveQuest activeQuest, IPlayer byPlayer, Quest quest)
         {
-            if (activeQuest == null || quest == null || byPlayer == null) return false;
+            if (activeQuest == null || quest == null || byPlayer == null) 
+            {
+                byPlayer?.Entity?.Api?.Logger.Debug($"[QuestStateManager] IsCurrentStageCompletable: null check failed");
+                return false;
+            }
             var stage = activeQuest.GetCurrentStage(quest);
-            if (stage == null) return false;
+            if (stage == null) 
+            {
+                byPlayer?.Entity?.Api?.Logger.Debug($"[QuestStateManager] IsCurrentStageCompletable: stage is null");
+                return false;
+            }
             
-            return activeQuest.GetOrCreateTracker().CheckObjectivesCompletable(byPlayer, quest, stage, activeQuest.GetQuestContext());
+            var result = activeQuest.GetOrCreateTracker().CheckObjectivesCompletable(byPlayer, quest, stage, activeQuest.GetQuestContext());
+            byPlayer?.Entity?.Api?.Logger.Debug($"[QuestStateManager] IsCurrentStageCompletable for quest {activeQuest.questId} stage {activeQuest.currentStageIndex}: {result}");
+            return result;
         }
 
         public bool IsCompletable(ActiveQuest activeQuest, IPlayer byPlayer)
         {
-            if (activeQuest == null || byPlayer == null) return false;
+            if (activeQuest == null || byPlayer == null) 
+            {
+                byPlayer?.Entity?.Api?.Logger.Debug($"[QuestStateManager] IsCompletable: null check failed");
+                return false;
+            }
             
             var questSystem = byPlayer.Entity.Api.ModLoader.GetModSystem<QuestSystem>();
-            if (questSystem?.QuestRegistry == null || string.IsNullOrWhiteSpace(activeQuest.questId)) return false;
-            if (!questSystem.QuestRegistry.TryGetValue(activeQuest.questId, out var quest) || quest == null) return false;
+            if (questSystem?.QuestRegistry == null || string.IsNullOrWhiteSpace(activeQuest.questId)) 
+            {
+                byPlayer?.Entity?.Api?.Logger.Debug($"[QuestStateManager] IsCompletable: questSystem or questId check failed");
+                return false;
+            }
+            if (!questSystem.QuestRegistry.TryGetValue(activeQuest.questId, out var quest) || quest == null) 
+            {
+                byPlayer?.Entity?.Api?.Logger.Debug($"[QuestStateManager] IsCompletable: quest not found in registry: {activeQuest.questId}");
+                return false;
+            }
 
             // If quest has stages, check if we're on the final stage and it's complete
             if (quest.HasStages)
             {
-                if (activeQuest.currentStageIndex < quest.stages.Count - 1) return false;
-                return IsCurrentStageCompletable(activeQuest, byPlayer, quest);
+                if (activeQuest.currentStageIndex < quest.stages.Count - 1) 
+                {
+                    byPlayer?.Entity?.Api?.Logger.Debug($"[QuestStateManager] IsCompletable: not on final stage (current: {activeQuest.currentStageIndex}, total: {quest.stages.Count})");
+                    return false;
+                }
+                var result = IsCurrentStageCompletable(activeQuest, byPlayer, quest);
+                byPlayer?.Entity?.Api?.Logger.Debug($"[QuestStateManager] IsCompletable for staged quest {activeQuest.questId}: {result}");
+                return result;
             }
 
             // Legacy quest (no stages) - check objectives directly
-            return activeQuest.GetOrCreateTracker().CheckObjectivesCompletable(byPlayer, quest, null, activeQuest.GetQuestContext());
+            var resultLegacy = activeQuest.GetOrCreateTracker().CheckObjectivesCompletable(byPlayer, quest, null, activeQuest.GetQuestContext());
+            byPlayer?.Entity?.Api?.Logger.Debug($"[QuestStateManager] IsCompletable for legacy quest {activeQuest.questId}: {resultLegacy}");
+            return resultLegacy;
         }
 
         public bool AreAllStagesComplete(ActiveQuest activeQuest, IPlayer byPlayer, Quest quest)

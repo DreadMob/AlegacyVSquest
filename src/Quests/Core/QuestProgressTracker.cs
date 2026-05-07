@@ -517,6 +517,7 @@ namespace VsQuest
             if (quest == null || byPlayer == null) return false;
             
             var gatherObjectives = stage?.gatherObjectives ?? quest.gatherObjectives;
+            var sapi = byPlayer.Entity.Api as ICoreServerAPI;
             
             _trackersLock.EnterReadLock();
             try
@@ -524,10 +525,18 @@ namespace VsQuest
                 // Check tracker-based objectives
                 foreach (var tracker in _objectiveTrackers)
                 {
-                    if (tracker is ActionObjectiveTracker)
+                    if (tracker is ActionObjectiveTracker actionTracker)
+                    {
+                        bool ok = actionTracker.IsCompletable(byPlayer);
+                        sapi?.Logger.Debug($"[QuestProgressTracker] ActionObjectiveTracker {tracker.GetType().Name} IsCompletable: {ok}");
+                        if (!ok)
+                            return false;
                         continue;
-                    
-                    if (tracker.CurrentProgress < tracker.RequiredProgress)
+                    }
+
+                    bool progressOk = tracker.CurrentProgress >= tracker.RequiredProgress;
+                    sapi?.Logger.Debug($"[QuestProgressTracker] Tracker {tracker.GetType().Name}: {tracker.CurrentProgress}/{tracker.RequiredProgress} - OK: {progressOk}");
+                    if (!progressOk)
                         return false;
                 }
             }
@@ -540,7 +549,9 @@ namespace VsQuest
             for (int i = 0; i < gatherObjectives.Count; i++)
             {
                 int itemsFound = GetItemsGathered(byPlayer, gatherObjectives[i], i);
-                if (itemsFound < gatherObjectives[i].demand)
+                bool gatherOk = itemsFound >= gatherObjectives[i].demand;
+                sapi?.Logger.Debug($"[QuestProgressTracker] Gather objective {i}: {itemsFound}/{gatherObjectives[i].demand} - OK: {gatherOk}");
+                if (!gatherOk)
                     return false;
             }
             

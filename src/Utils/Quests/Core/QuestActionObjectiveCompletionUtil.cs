@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Server;
 
 namespace VsQuest
@@ -95,8 +96,17 @@ namespace VsQuest
 
         public static void TryFireOnComplete(ICoreServerAPI sapi, IServerPlayer player, ActiveQuest activeQuest, ActionWithArgs objectiveDef, string objectiveKey, bool isNowCompletable)
         {
-            if (sapi == null || player == null || activeQuest == null || objectiveDef == null) return;
-            if (!isNowCompletable) return;
+            sapi.Logger.Debug($"[QuestActionObjectiveCompletionUtil] TryFireOnComplete called: quest={activeQuest?.questId}, objective={objectiveKey}, isNowCompletable={isNowCompletable}");
+            if (sapi == null || player == null || activeQuest == null || objectiveDef == null) 
+            {
+                sapi.Logger.Debug($"[QuestActionObjectiveCompletionUtil] TryFireOnComplete: null check failed");
+                return;
+            }
+            if (!isNowCompletable) 
+            {
+                sapi.Logger.Debug($"[QuestActionObjectiveCompletionUtil] TryFireOnComplete: not completable, returning");
+                return;
+            }
             if (string.IsNullOrWhiteSpace(activeQuest.questId)) return;
 
             objectiveKey = string.IsNullOrWhiteSpace(objectiveKey)
@@ -120,6 +130,19 @@ namespace VsQuest
 
             wa.SetBool(key, true);
             wa.MarkPathDirty(key);
+
+            try
+            {
+                var questgiver = sapi.World.GetEntityById(activeQuest.questGiverId);
+                var questGiverBehavior = questgiver?.GetBehavior<EntityBehaviorQuestGiver>();
+                if (questGiverBehavior != null && player.Entity is EntityPlayer entityPlayer)
+                {
+                    questGiverBehavior.SendQuestInfoMessageToClient(sapi, entityPlayer, silentUpdate: true);
+                }
+            }
+            catch
+            {
+            }
 
             var questSystem = sapi.ModLoader.GetModSystem<QuestSystem>();
             string defaultSound = questSystem?.Config?.defaultObjectiveCompletionSound;

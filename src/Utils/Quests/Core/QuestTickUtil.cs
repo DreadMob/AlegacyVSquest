@@ -175,6 +175,8 @@ namespace VsQuest
         {
             if (player == null || activeQuest == null || questDef == null) return;
             if (sapi == null || actionObjectiveRegistry == null) return;
+            
+            sapi.Logger.Debug($"[QuestTickUtil] TryFirePassiveActionObjectiveCompletions for quest {activeQuest.questId} stage {activeQuest.currentStageIndex}");
 
             var wa = player.Entity?.WatchedAttributes;
             if (wa == null) return;
@@ -214,16 +216,23 @@ namespace VsQuest
                 if (ao.id == "interactat") continue;
                 if (ao.id == "interactcount") continue;
 
-                if (!actionObjectiveRegistry.TryGetValue(ao.id, out var impl) || impl == null) continue;
+                sapi.Logger.Debug($"[QuestTickUtil] Processing action objective: {ao.id}");
+                if (!actionObjectiveRegistry.TryGetValue(ao.id, out var impl) || impl == null) 
+                {
+                    sapi.Logger.Debug($"[QuestTickUtil] No implementation found for {ao.id}");
+                    continue;
+                }
 
                 bool ok;
                 try
                 {
                     ok = impl.IsCompletable(player, ao.args);
+                    sapi.Logger.Debug($"[QuestTickUtil] {ao.id} IsCompletable: {ok}");
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     // IsCompletable failed for this objective, skip it
+                    sapi.Logger.Debug($"[QuestTickUtil] {ao.id} IsCompletable failed: {ex.Message}");
                     continue;
                 }
 

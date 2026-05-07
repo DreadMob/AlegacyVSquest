@@ -362,8 +362,15 @@ namespace VsQuest
             string typeCode = itemStack.Attributes.GetString("type", null);
             if (string.IsNullOrWhiteSpace(typeCode)) return false;
 
+            return TryAppendEntityCode(typeCode);
+        }
+
+        public bool TryAppendEntityCode(string entityCode)
+        {
+            if (string.IsNullOrWhiteSpace(entityCode)) return false;
+
             // Default: killId = entityCode, weight = 1
-            string entry = typeCode;
+            string entry = entityCode;
 
             if (entriesRaw == null)
             {
@@ -417,7 +424,6 @@ namespace VsQuest
 
             // Extra safety for boss-like spawns: if this spawner is configured to set a killId/targetId,
             // never spawn another copy while a living entity with the same targetId exists anywhere loaded.
-            // This avoids duplicates when multi-phase bosses temporarily lose/skip spawner anchor during transitions.
             string activeKillId = null;
             try
             {
@@ -429,22 +435,24 @@ namespace VsQuest
                 activeKillId = null;
             }
 
-            // Prefer scanning loaded entities to avoid duplicates when spawned mobs wander away from the spawner radius.
-            // (Radius-based counting can miss living mobs that moved far, causing the spawner to create extra copies.)
-            var sapi = Api as ICoreServerAPI;
-            var loaded = sapi?.World?.LoadedEntities?.Values;
-            if (loaded != null)
+            var center = Pos.ToVec3d().Add(0.5, 0, 0.5);
+
+            // Use a large radius to catch mobs that have wandered far from the spawner,
+            // but still use the spatial query (GetEntitiesAround) instead of scanning all LoadedEntities.
+            float searchRange = Math.Max(Math.Max(leashRange, spawnRadius) * 4f, 512f);
+
+            // If an activeKillId is set, first do a wide-range check for any living entity with that targetId.
+            // This prevents duplicate boss spawns even if the entity left the normal leash range.
+            if (!string.IsNullOrWhiteSpace(activeKillId))
             {
-                int aliveCount = 0;
-                bool blockSpawn = false;
-
-                foreach (var e in loaded)
+                var wideEntities = world.GetEntitiesAround(center, searchRange, searchRange, (Entity e) => e?.Alive == true);
+                if (wideEntities != null)
                 {
-                    var wa = e?.WatchedAttributes;
-                    if (wa == null) continue;
-
-                    if (!string.IsNullOrWhiteSpace(activeKillId) && e.Alive)
+                    foreach (var e in wideEntities)
                     {
+                        var wa = e?.WatchedAttributes;
+                        if (wa == null) continue;
+
                         string tid = null;
                         try
                         {
@@ -459,56 +467,32 @@ namespace VsQuest
                             return (maxAlive, true);
                         }
                     }
-
-                    bool matchNew = wa.GetInt("alegacyvsquest:spawner:dim", int.MinValue) == Pos.dimension
-                        && wa.GetInt("alegacyvsquest:spawner:x", int.MinValue) == Pos.X
-                        && wa.GetInt("alegacyvsquest:spawner:y", int.MinValue) == Pos.Y
-                        && wa.GetInt("alegacyvsquest:spawner:z", int.MinValue) == Pos.Z;
-
-                    if (!matchNew) continue;
-
-                    if (e.Alive)
-                    {
-                        aliveCount++;
-                    }
-                    else
-                    {
-                        double respawnAt = wa.GetDouble("alegacyvsquest:bossrespawnAtTotalHours", double.NaN);
-                        if (!double.IsNaN(respawnAt))
-                        {
-                            blockSpawn = true;
-                        }
-
-                    }
                 }
-
-                return (aliveCount, blockSpawn);
             }
 
-            var center = Pos.ToVec3d().Add(0.5, 0, 0.5);
+            // Normal check: count entities that belong to this spawner by matching anchor coordinates.
             float range = Math.Max(leashRange, spawnRadius) + 6f;
-
             var entities = world.GetEntitiesAround(center, range, range, (Entity e) => e != null);
             if (entities == null) return (0, false);
 
-            int aliveCountRadius = 0;
-            bool blockSpawnRadius = false;
+            int aliveCount = 0;
+            bool blockSpawn = false;
 
             foreach (var e in entities)
             {
                 var wa = e?.WatchedAttributes;
                 if (wa == null) continue;
 
-                bool matchNewRadius = wa.GetInt("alegacyvsquest:spawner:dim", int.MinValue) == Pos.dimension
+                bool matchAnchor = wa.GetInt("alegacyvsquest:spawner:dim", int.MinValue) == Pos.dimension
                     && wa.GetInt("alegacyvsquest:spawner:x", int.MinValue) == Pos.X
                     && wa.GetInt("alegacyvsquest:spawner:y", int.MinValue) == Pos.Y
                     && wa.GetInt("alegacyvsquest:spawner:z", int.MinValue) == Pos.Z;
 
-                if (!matchNewRadius) continue;
+                if (!matchAnchor) continue;
 
                 if (e.Alive)
                 {
-                    aliveCountRadius++;
+                    aliveCount++;
                 }
 
                 // If there's a corpse with a boss respawn timer, do not spawn additional copies.
@@ -518,13 +502,12 @@ namespace VsQuest
                     double respawnAt = wa.GetDouble("alegacyvsquest:bossrespawnAtTotalHours", double.NaN);
                     if (!double.IsNaN(respawnAt))
                     {
-                        blockSpawnRadius = true;
+                        blockSpawn = true;
                     }
-
                 }
             }
 
-            return (aliveCountRadius, blockSpawnRadius);
+            return (aliveCount, blockSpawn);
         }
 
         private SpawnEntry SelectSpawnEntry()

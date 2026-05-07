@@ -22,7 +22,12 @@ namespace VsQuest
 
         public static bool TryHandleKill(ICoreServerAPI sapi, IServerPlayer serverPlayer, ActiveQuest activeQuest, string killedCode)
         {
-            if (sapi == null || serverPlayer == null || activeQuest == null) return false;
+            sapi.Logger.Debug($"[RandomKillQuestUtils] TryHandleKill called: quest={activeQuest?.questId}, killed={killedCode}");
+            if (sapi == null || serverPlayer == null || activeQuest == null) 
+            {
+                sapi.Logger.Debug($"[RandomKillQuestUtils] TryHandleKill: null check failed");
+                return false;
+            }
             if (string.IsNullOrWhiteSpace(killedCode)) return false;
 
             var wa = serverPlayer.Entity?.WatchedAttributes;

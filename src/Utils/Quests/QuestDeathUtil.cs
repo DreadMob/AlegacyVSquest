@@ -10,6 +10,7 @@ namespace VsQuest
     {
         public static void HandleEntityDeath(ICoreServerAPI sapi, List<ActiveQuest> quests, EntityPlayer player, Entity killedEntity)
         {
+            sapi.Logger.Debug($"[QuestDeathUtil] HandleEntityDeath called: killed={killedEntity?.Code?.Path}, player={player?.Player?.PlayerName}, quests={quests?.Count}");
             if (sapi == null || player == null || quests == null) return;
 
             var rebirth2 = killedEntity?.GetBehavior<EntityBehaviorBossRebirth2>();
@@ -22,6 +23,7 @@ namespace VsQuest
 
             foreach (var quest in quests)
             {
+                sapi.Logger.Debug($"[QuestDeathUtil] Processing quest {quest.questId} for kill {killedCode}");
                 quest.EnsureInitialized(player.Player);
                 quest.GetOrCreateTracker().OnEntityKilled(killedCode, player.Player, null);
 
@@ -40,10 +42,16 @@ namespace VsQuest
                     ProcessKillNearObjectives(sapi, serverPlayer, quest, questDef, killedEntity, killedCode, actionObjectives, questSystem);
 
                     string killObjectiveId = FindRandomKillObjectiveId(actionObjectives);
+                    sapi.Logger.Debug($"[QuestDeathUtil] Found randomkill objective: {killObjectiveId}");
 
                     if (QuestTimeGateUtil.AllowsProgress(serverPlayer, questDef, QuestRegistryService.ActionObjectiveRegistry, quest.currentStageIndex, "kill", killObjectiveId))
                     {
+                        sapi.Logger.Debug($"[QuestDeathUtil] TimeGate allows progress, calling TryHandleKill");
                         RandomKillQuestUtils.TryHandleKill(sapi, serverPlayer, quest, killedCode);
+                    }
+                    else
+                    {
+                        sapi.Logger.Debug($"[QuestDeathUtil] TimeGate blocks progress for quest {quest.questId}");
                     }
                 }
             }

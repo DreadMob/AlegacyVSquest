@@ -19,6 +19,22 @@ namespace VsQuest
             // Update client-side quest cache for performance optimization
             ClientQuestState.UpdateActiveQuests(message?.activeQuests);
 
+            if (message?.silentUpdate == true)
+            {
+                try
+                {
+                    if (questSelectGui != null && questSelectGui.IsOpened())
+                    {
+                        questSelectGui.UpdateFromMessage(message);
+                    }
+                }
+                catch
+                {
+                }
+
+                return;
+            }
+
             TryCloseOpenDialogue(capi);
 
             try

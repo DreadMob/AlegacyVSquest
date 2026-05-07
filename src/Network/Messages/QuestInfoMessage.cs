@@ -7,6 +7,7 @@ namespace VsQuest
     public class QuestInfoMessage
     {
         public long questGiverId { get; set; }
+        public bool silentUpdate { get; set; }
         public List<string> availableQestIds { get; set; }
         public List<ActiveQuestDto> activeQuests { get; set; }
         public string noAvailableQuestDescLangKey { get; set; }

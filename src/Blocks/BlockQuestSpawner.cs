@@ -30,15 +30,39 @@ namespace VsQuest
             // Quick add from item (creative helper)
             var slot = byPlayer.InventoryManager?.ActiveHotbarSlot;
             var stack = slot?.Itemstack;
-            if (world.Side == EnumAppSide.Server && stack?.Collectible?.Code != null && stack.Collectible.Code.ToShortString() == "alegacyvsquest:entityspawner")
+            if (world.Side == EnumAppSide.Server && stack != null)
             {
-                bool added = be.TryAppendFromEntitySpawnerItem(stack);
-                var sapi = world.Api as Vintagestory.API.Server.ICoreServerAPI;
-                if (sapi != null)
+                bool added = false;
+                string entityCode = null;
+
+                // Check for custom entity spawner item
+                if (stack.Collectible?.Code != null && stack.Collectible.Code.ToShortString() == "alegacyvsquest:entityspawner")
                 {
-                    sapi.SendMessage(byPlayer as Vintagestory.API.Server.IServerPlayer, GlobalConstants.InfoLogChatGroup, Lang.Get(added ? "alegacyvsquest:questspawner-added-entry" : "alegacyvsquest:questspawner-entry-exists"), EnumChatType.Notification);
+                    added = be.TryAppendFromEntitySpawnerItem(stack);
                 }
-                return true;
+                // Check for vanilla spawn eggs or items with entity codes
+                else if (stack.Attributes != null)
+                {
+                    // Try common attribute names for entity codes
+                    entityCode = stack.Attributes.GetString("entityCode", null)
+                        ?? stack.Attributes.GetString("type", null)
+                        ?? stack.Attributes.GetString("creature", null);
+
+                    if (!string.IsNullOrWhiteSpace(entityCode))
+                    {
+                        added = be.TryAppendEntityCode(entityCode);
+                    }
+                }
+
+                if (stack.Collectible?.Code != null || entityCode != null)
+                {
+                    var sapi = world.Api as Vintagestory.API.Server.ICoreServerAPI;
+                    if (sapi != null)
+                    {
+                        sapi.SendMessage(byPlayer as Vintagestory.API.Server.IServerPlayer, GlobalConstants.InfoLogChatGroup, Lang.Get(added ? "alegacyvsquest:questspawner-added-entry" : "alegacyvsquest:questspawner-entry-exists"), EnumChatType.Notification);
+                    }
+                    return true;
+                }
             }
 
             be.OnInteract(byPlayer);

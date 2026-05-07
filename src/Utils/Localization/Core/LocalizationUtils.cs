@@ -41,9 +41,19 @@ namespace VsQuest
             string currentLang = Lang.CurrentLocale ?? "en";
             string altLang = currentLang.Contains("-") ? currentLang.Split('-')[0] : currentLang;
 
-            foreach (var mod in api.ModLoader.Mods)
-            {
-                string domain = mod?.Info?.ModID;
+			var domainsToScan = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			foreach (var mod in api.ModLoader.Mods)
+			{
+				string domain = mod?.Info?.ModID;
+				if (string.IsNullOrWhiteSpace(domain)) continue;
+				domainsToScan.Add(domain.Trim());
+			}
+			// Quest packs shipped as asset domains (not necessarily separate mods)
+			domainsToScan.Add("albase");
+			domainsToScan.Add("ALStory");
+
+			foreach (var domain in domainsToScan)
+			{
                 if (string.IsNullOrWhiteSpace(domain)) continue;
 
                 string cacheKey = $"{domain}:{currentLang}";
@@ -53,7 +63,11 @@ namespace VsQuest
                 {
                     var langAssets = new List<IAsset>();
 
-                    // Primary probe
+                    // Flat-file probe: lang/ru.json (most common VS layout)
+                    var flatAsset = api.Assets.TryGet(new AssetLocation(domain, $"lang/{currentLang}.json"), loadAsset: true);
+                    if (flatAsset != null) langAssets.Add(flatAsset);
+
+                    // Primary probe (nested subdirectories: lang/ru/*.json)
                     var direct = api.Assets.GetMany($"lang/{currentLang}/", domain, loadAsset: true);
                     if (direct != null) langAssets.AddRange(direct);
 
@@ -71,6 +85,9 @@ namespace VsQuest
                     // Fallback to short locale (ru from ru-RU)
                     if ((langAssets.Count == 0) && altLang != currentLang)
                     {
+                        flatAsset = api.Assets.TryGet(new AssetLocation(domain, $"lang/{altLang}.json"), loadAsset: true);
+                        if (flatAsset != null) langAssets.Add(flatAsset);
+
                         direct = api.Assets.GetMany($"lang/{altLang}/", domain, loadAsset: true);
                         if (direct != null) langAssets.AddRange(direct);
 
