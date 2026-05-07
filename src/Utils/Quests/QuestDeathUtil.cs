@@ -27,7 +27,7 @@ namespace VsQuest
                 if (serverPlayer != null)
                 {
                     Quest questDef = null;
-                    if (questSystem != null) questSystem.QuestRegistry.TryGetValue(quest.questId, out questDef);
+                    QuestRegistryService.QuestRegistry.TryGetValue(quest.questId, out questDef);
 
                     // killactiontarget objectives
                     KillActionObjectiveUtil.TryHandleKill(sapi, serverPlayer, quest, killedEntity);
@@ -40,7 +40,7 @@ namespace VsQuest
 
                     string killObjectiveId = FindRandomKillObjectiveId(actionObjectives);
 
-                    if (QuestTimeGateUtil.AllowsProgress(serverPlayer, questDef, questSystem?.ActionObjectiveRegistry, quest.currentStageIndex, "kill", killObjectiveId))
+                    if (QuestTimeGateUtil.AllowsProgress(serverPlayer, questDef, QuestRegistryService.ActionObjectiveRegistry, quest.currentStageIndex, "kill", killObjectiveId))
                     {
                         RandomKillQuestUtils.TryHandleKill(sapi, serverPlayer, quest, killedCode);
                     }

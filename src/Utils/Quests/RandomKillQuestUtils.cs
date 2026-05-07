@@ -84,11 +84,9 @@ namespace VsQuest
         private static void TryFireObjectiveCompletedActions(ICoreServerAPI sapi, IServerPlayer player, ActiveQuest activeQuest)
         {
             if (sapi == null || player == null || activeQuest == null) return;
-            var questSystem = sapi.ModLoader.GetModSystem<QuestSystem>();
-            if (questSystem?.QuestRegistry == null || questSystem.ActionObjectiveRegistry == null) return;
-
-            if (!questSystem.QuestRegistry.TryGetValue(activeQuest.questId, out var questDef) || questDef == null) return;
-            if (!questSystem.ActionObjectiveRegistry.TryGetValue("randomkill", out var impl) || impl == null) return;
+            
+            if (!QuestRegistryService.QuestRegistry.TryGetValue(activeQuest.questId, out var questDef) || questDef == null) return;
+            if (!QuestRegistryService.ActionObjectiveRegistry.TryGetValue("randomkill", out var impl) || impl == null) return;
 
             // Use stage-aware action objectives
             var stageActionObjectives = questDef.GetActionObjectives(activeQuest.currentStageIndex);

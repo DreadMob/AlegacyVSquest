@@ -14,7 +14,7 @@ namespace VsQuest
 
         public QuestActionRegistry(Dictionary<string, IQuestAction> actionRegistry, ICoreAPI api, ICoreServerAPI sapi, Action<IServerPlayer, QuestAcceptedMessage, ICoreServerAPI> onQuestAcceptedCallback)
         {
-            this.actionRegistry = actionRegistry;
+            this.actionRegistry = QuestRegistryService.ActionRegistry;
             this.api = api;
             this.sapi = sapi;
             this.onQuestAcceptedCallback = onQuestAcceptedCallback;

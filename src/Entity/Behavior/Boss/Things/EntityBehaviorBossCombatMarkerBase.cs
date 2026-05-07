@@ -41,6 +41,23 @@ namespace VsQuest
             {
                 UpdateGlobalCombatTime(wa);
             }
+
+            try
+            {
+                var qt = entity.GetBehavior<EntityBehaviorQuestTarget>();
+                if (qt != null && !string.IsNullOrWhiteSpace(qt.TargetId))
+                {
+                    var calendar = entity.World?.Calendar;
+                    if (calendar != null)
+                    {
+                        var bh = entity.Api.ModLoader.GetModSystem<BossHuntSystem>();
+                        bh?.OnBossDamaged(qt.TargetId, calendar.TotalHours);
+                    }
+                }
+            }
+            catch
+            {
+            }
         }
 
         private void UpdateAttackers(SyncedTreeAttribute wa, string playerUid)

@@ -20,13 +20,21 @@ namespace VsQuest
                 }
                 catch
                 {
+                    // Swallow - this is a fail-safe logging attempt
                 }
 
                 // Fail-open: an invalid objective should not permanently block quest turn-in.
                 return true;
             }
 
-            return QuestInteractAtUtil.CountCompleted(byPlayer, coordArgs) >= coordArgs.Length;
+            try
+            {
+                return QuestInteractAtUtil.CountCompleted(byPlayer, coordArgs) >= coordArgs.Length;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         public override List<int> GetProgress(IPlayer byPlayer, params string[] args)

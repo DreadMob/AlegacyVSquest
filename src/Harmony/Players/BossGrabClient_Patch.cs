@@ -62,7 +62,7 @@ namespace VsQuest.Harmony.Players
         private static void HandleGrab(EntityPlayer player, long untilMs)
         {
             long nowMs = 0;
-            try { nowMs = player.World.ElapsedMilliseconds; } catch { }
+            try { nowMs = player.World.ElapsedMilliseconds; } catch (Exception) { /* Swallow - world may be null */ }
             
             if (nowMs <= 0) return;
             

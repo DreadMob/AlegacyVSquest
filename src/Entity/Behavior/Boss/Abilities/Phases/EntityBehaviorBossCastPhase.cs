@@ -74,6 +74,8 @@ namespace VsQuest
 
         public override string PropertyName() => "bosscastphase";
 
+        public bool IsCasting => IsAbilityActive;
+
         protected override void InitializeStages(JsonObject attributes)
         {
             stages = ParseStages<Stage>(attributes);
@@ -129,7 +131,7 @@ namespace VsQuest
 
             if (stage.windupMs > 0)
             {
-                Sapi.Event.RegisterCallback(_ =>
+                RegisterCallbackTracked(_ =>
                 {
                     if (IsAbilityActive) TryPlayAnimation(stage.animation);
                 }, stage.windupMs);

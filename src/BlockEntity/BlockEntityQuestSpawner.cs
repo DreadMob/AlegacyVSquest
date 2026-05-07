@@ -248,8 +248,9 @@ namespace VsQuest
                 {
                     sapi.World.DespawnEntity(e, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
                 }
-                catch
+                catch (Exception ex)
                 {
+                    sapi.Logger.Warning("[BlockEntityQuestSpawner] Failed to despawn entity: {0}", ex.Message);
                 }
             }
 

@@ -55,6 +55,14 @@ namespace VsQuest
             count = 0;
         }
         
+        /// <summary>
+        /// Set progress directly (used for restoring from serialization).
+        /// </summary>
+        public virtual void SetProgress(int progress)
+        {
+            count = progress;
+        }
+        
         public virtual List<int> GetProgress()
         {
             return new List<int> { count, demand };

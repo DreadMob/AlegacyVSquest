@@ -71,8 +71,7 @@ namespace VsQuest
         }
         public static string GetActiveQuestText(ICoreAPI api, IPlayer player, ActiveQuest quest)
         {
-            var questSystem = api.ModLoader.GetModSystem<QuestSystem>();
-            if (questSystem == null || !questSystem.QuestRegistry.TryGetValue(quest.questId, out var questDef))
+            if (!QuestRegistryService.QuestRegistry.TryGetValue(quest.questId, out var questDef))
             {
                 return LocalizationUtils.GetSafe(quest.questId + "-desc");
             }

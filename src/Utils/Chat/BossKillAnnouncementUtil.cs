@@ -45,8 +45,9 @@ namespace VsQuest
                         template = localized;
                     }
                 }
-                catch
+                catch (Exception)
                 {
+                    // Swallow - Lang.Get may fail for missing keys
                 }
             }
 

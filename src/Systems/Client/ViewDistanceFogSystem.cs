@@ -37,8 +37,9 @@ namespace VsQuest
                     positiveFogDensitySubMul = cfg.PositiveFogDensitySubMul;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                api.Logger.Warning("[ViewDistanceFogSystem] Failed to load ViewDistanceFog config: {0}", ex.Message);
             }
 
             tickListenerId = api.Event.RegisterGameTickListener(OnTick, 500);

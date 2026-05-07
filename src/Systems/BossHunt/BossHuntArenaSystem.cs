@@ -73,10 +73,7 @@ namespace VsQuest
             string uid = player.Player.PlayerUID;
             if (string.IsNullOrWhiteSpace(uid)) return false;
 
-            string claim = GetCurrentClaimName(player);
-            if (string.IsNullOrWhiteSpace(claim)) return false;
-
-            if (!TryFindArenaForClaim(player.Pos.Dimension, claim, out var arenaPos, out var cfg))
+            if (!TryFindNearestArena(player.Pos, out var arenaPos, out var cfg))
             {
                 return false;
             }
@@ -146,60 +143,49 @@ namespace VsQuest
             {
                 epl.TeleportTo(target, () => { });
             }
-            catch
+            catch (Exception ex)
             {
+                sapi.Logger.Warning("[BossHuntArenaSystem] Failed to teleport player to arena: {0}", ex.Message);
             }
         }
 
-        private bool TryFindArenaForClaim(int dimension, string claimName, out BlockPos pos, out ArenaConfig cfg)
+        private bool TryFindNearestArena(EntityPos playerPos, out BlockPos pos, out ArenaConfig cfg)
         {
             pos = null;
             cfg = null;
-            if (string.IsNullOrWhiteSpace(claimName)) return false;
+            if (playerPos == null) return false;
+
+            BlockPos nearest = null;
+            ArenaConfig nearestCfg = null;
+            double nearestDistSq = double.MaxValue;
+            const double MaxRangeSq = 300.0 * 300.0;
 
             foreach (var kvp in arenasByPos)
             {
                 var p = kvp.Key;
-                if (p == null || p.dimension != dimension) continue;
+                if (p == null || p.dimension != playerPos.Dimension) continue;
 
                 var c = kvp.Value;
                 if (c == null) continue;
 
-                string arenaClaimName = c.claimName;
-                if (string.IsNullOrWhiteSpace(arenaClaimName)) continue;
+                double dx = p.X + 0.5 - playerPos.X;
+                double dy = p.Y + 0.5 - playerPos.Y;
+                double dz = p.Z + 0.5 - playerPos.Z;
+                double distSq = dx * dx + dy * dy + dz * dz;
 
-                if (string.Equals(arenaClaimName.Trim(), claimName.Trim(), StringComparison.OrdinalIgnoreCase))
+                if (distSq < nearestDistSq)
                 {
-                    pos = p;
-                    cfg = c;
-                    return true;
+                    nearestDistSq = distSq;
+                    nearest = p;
+                    nearestCfg = c;
                 }
             }
 
-            return false;
-        }
+            if (nearest == null || nearestDistSq > MaxRangeSq) return false;
 
-        private static string GetCurrentClaimName(EntityPlayer player)
-        {
-            if (player?.Pos == null) return null;
-
-            var claimsApi = player.World?.Claims;
-            if (claimsApi == null) return null;
-
-            BlockPos pos = player.Pos.AsBlockPos;
-            var claims = claimsApi.Get(pos);
-            if (claims == null || claims.Length == 0) return null;
-
-            for (int i = 0; i < claims.Length; i++)
-            {
-                var desc = claims[i]?.Description;
-                if (!string.IsNullOrWhiteSpace(desc)) return desc;
-
-                var ownerName = claims[i]?.LastKnownOwnerName;
-                if (!string.IsNullOrWhiteSpace(ownerName)) return ownerName;
-            }
-
-            return null;
+            pos = nearest;
+            cfg = nearestCfg;
+            return true;
         }
 
         private string GetClaimNameAtPos(BlockPos pos)

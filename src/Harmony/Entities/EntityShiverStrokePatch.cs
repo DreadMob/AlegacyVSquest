@@ -69,7 +69,10 @@ namespace VsQuest.Harmony
                         {
                             __instance.AnimManager.StopAnimation("despair");
                         }
-                        catch { }
+                        catch (Exception ex)
+                        {
+                            __instance?.Api?.Logger?.Warning("[EntityShiverStrokePatch] Failed to stop despair animation: {0}", ex.Message);
+                        }
 
                         __instance.Api.Event.RegisterCallback(__ =>
                         {
@@ -78,7 +81,10 @@ namespace VsQuest.Harmony
                                 strokeActiveField.SetValue(__instance, false);
                                 UnfreezeEntity(__instance);
                             }
-                            catch { }
+                            catch (Exception ex)
+                            {
+                                __instance?.Api?.Logger?.Warning("[EntityShiverStrokePatch] Failed to unfreeze entity: {0}", ex.Message);
+                            }
                         }, 200);
 
                     }, durationMs);
@@ -86,8 +92,9 @@ namespace VsQuest.Harmony
                     // We handled the special case; skip vanilla OnGameTick to avoid double-trigger.
                     return false;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    __instance?.Api?.Logger?.Warning("[EntityShiverStrokePatch] Failed in Prefix: {0}", ex.Message);
                     return true;
                 }
             }

@@ -148,6 +148,20 @@ namespace VsQuest
             newEntity.Pos.SetFrom(newEntity.Pos);
 
             Sapi.World.SpawnEntity(newEntity);
+
+            // Notify BossHuntSystem so it does not try to spawn another copy
+            try
+            {
+                string targetId = entity?.WatchedAttributes?.GetString("alegacyvsquest:killaction:targetid", null);
+                if (!string.IsNullOrWhiteSpace(targetId))
+                {
+                    var bh = Sapi.ModLoader?.GetModSystem<BossHuntSystem>();
+                    bh?.OnBossRespawnedByAbility(targetId, newEntity);
+                }
+            }
+            catch
+            {
+            }
         }
 
         protected override int GetStageCount() => stages.Count;

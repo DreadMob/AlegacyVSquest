@@ -76,8 +76,9 @@ namespace VsQuest
                 {
                     sapi?.Logger?.Error("[alegacyvsquest] /avq heal failed: {0}", e);
                 }
-                catch
+                catch (Exception)
                 {
+                    // Swallow - logging failed
                 }
 
                 return TextCommandResult.Error($"Failed to heal player: {e.Message}");

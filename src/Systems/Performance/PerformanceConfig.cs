@@ -8,19 +8,19 @@ namespace VsQuest.Systems.Performance
     /// </summary>
     public static class PerformanceConfig
     {
-        private static AlegacyVsQuestConfig.PerformanceCoreConfig _config;
+        private static PerformanceCoreConfig _config;
 
         /// <summary>
         /// Initialize with the config from main mod config.
         /// Called by QuestSystem when loading configs.
         /// </summary>
-        public static void Initialize(AlegacyVsQuestConfig.PerformanceCoreConfig config)
+        public static void Initialize(PerformanceCoreConfig config)
         {
             _config = config;
             _config?.Validate();
         }
 
-        private static AlegacyVsQuestConfig.PerformanceCoreConfig C => _config ?? new AlegacyVsQuestConfig.PerformanceCoreConfig();
+        private static PerformanceCoreConfig C => _config ?? new PerformanceCoreConfig();
 
         // Global enable/disable
         public static bool EnablePerformanceOptimizations => C.EnablePerformanceOptimizations;

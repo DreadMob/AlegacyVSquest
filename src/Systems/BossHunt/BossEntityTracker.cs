@@ -10,10 +10,15 @@ namespace VsQuest
     /// Event-driven tracker for boss entities.
     /// Uses server entity events instead of periodic full-world scans.
     /// </summary>
-    public class BossEntityTracker
+    public class BossEntityTracker : IBossEntityTracker
     {
         private readonly ICoreServerAPI sapi;
         private readonly Dictionary<string, TrackedBoss> trackedBosses = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Fired when a second living entity is detected for a tracked bossKey.
+        /// </summary>
+        public event Action<string> OnDuplicateBossDetected;
 
         public BossEntityTracker(ICoreServerAPI sapi)
         {
@@ -23,6 +28,7 @@ namespace VsQuest
         /// <summary>
         /// Legacy no-op: scan interval is no longer used because scanning is event-driven.
         /// </summary>
+        [System.Obsolete("Scan interval is no longer used; tracking is event-driven.")]
         public void SetScanIntervalHours(double hours)
         {
         }
@@ -60,6 +66,7 @@ namespace VsQuest
         /// <summary>
         /// Register a boss key to track.
         /// </summary>
+        /// <param name="bossKey">The boss key to track.</param>
         public void RegisterBossKey(string bossKey)
         {
             if (string.IsNullOrWhiteSpace(bossKey)) return;
@@ -73,6 +80,7 @@ namespace VsQuest
         /// <summary>
         /// Unregister a boss key.
         /// </summary>
+        /// <param name="bossKey">The boss key to unregister.</param>
         public void UnregisterBossKey(string bossKey)
         {
             if (string.IsNullOrWhiteSpace(bossKey)) return;
@@ -88,6 +96,8 @@ namespace VsQuest
         /// Get the currently tracked entity for a boss key.
         /// Returns null if not found or not alive.
         /// </summary>
+        /// <param name="bossKey">The boss key to look up.</param>
+        /// <returns>The tracked entity if alive, null otherwise.</returns>
         public Entity GetTrackedEntity(string bossKey)
         {
             if (string.IsNullOrWhiteSpace(bossKey)) return null;
@@ -103,6 +113,11 @@ namespace VsQuest
             return entity;
         }
 
+        /// <summary>
+        /// Get the tracked entity regardless of alive status.
+        /// </summary>
+        /// <param name="bossKey">The boss key to look up.</param>
+        /// <returns>The tracked entity, or null if not found.</returns>
         public Entity GetTrackedEntityAny(string bossKey)
         {
             if (string.IsNullOrWhiteSpace(bossKey)) return null;
@@ -114,6 +129,7 @@ namespace VsQuest
         /// <summary>
         /// Get all tracked boss keys.
         /// </summary>
+        /// <returns>Array of tracked boss keys, sorted alphabetically.</returns>
         public string[] GetTrackedBossKeys()
         {
             var keys = new List<string>(trackedBosses.Keys);
@@ -136,7 +152,7 @@ namespace VsQuest
         }
 
         /// <summary>
-        /// Legacy compat: force re-evaluation by scanning any newly loaded entities.
+        /// Force re-evaluation by scanning any newly loaded entities.
         /// </summary>
         public void ForceScan()
         {
@@ -178,6 +194,12 @@ namespace VsQuest
         {
             if (entity == null) return;
 
+            // Skip old-phase entities that are being replaced by rebirth
+            if (entity.WatchedAttributes?.GetBool(EntityBehaviorBossRebirth2.RebirthOldPhaseKey, false) == true)
+            {
+                return;
+            }
+
             var qt = entity.GetBehavior<EntityBehaviorQuestTarget>();
             if (qt == null || string.IsNullOrWhiteSpace(qt.TargetId)) return;
 
@@ -199,6 +221,10 @@ namespace VsQuest
                 else
                 {
                     // Final stage or no rebirth - best match
+                    if (tracked.Entity != null && tracked.Entity.Alive && tracked.Entity != entity)
+                    {
+                        OnDuplicateBossDetected?.Invoke(bossKey);
+                    }
                     tracked.Entity = entity;
                 }
             }

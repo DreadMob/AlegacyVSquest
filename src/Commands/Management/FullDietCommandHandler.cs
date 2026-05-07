@@ -96,8 +96,9 @@ namespace VsQuest
                 {
                     sapi?.Logger?.Error("[alegacyvsquest] /avq fulldiet failed: {0}", e);
                 }
-                catch
+                catch (Exception)
                 {
+                    // Swallow - logging failed
                 }
 
                 return TextCommandResult.Error($"Failed to set full diet: {e.Message}");

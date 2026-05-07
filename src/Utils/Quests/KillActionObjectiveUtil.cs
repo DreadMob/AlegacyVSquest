@@ -11,10 +11,7 @@ namespace VsQuest
         {
             if (sapi == null || player == null || activeQuest == null || killedEntity == null) return;
 
-            var questSystem = sapi.ModLoader.GetModSystem<QuestSystem>();
-            if (questSystem?.QuestRegistry == null || questSystem.ActionObjectiveRegistry == null) return;
-
-            if (!questSystem.QuestRegistry.TryGetValue(activeQuest.questId, out var questDef)) return;
+            if (!QuestRegistryService.QuestRegistry.TryGetValue(activeQuest.questId, out var questDef)) return;
 
             string killedTargetId = killedEntity.GetBehavior<EntityBehaviorQuestTarget>()?.TargetId;
             if (string.IsNullOrWhiteSpace(killedTargetId)) return;
@@ -36,9 +33,9 @@ namespace VsQuest
                 if (!string.Equals(objectiveId, ao.objectiveId, StringComparison.OrdinalIgnoreCase)) continue;
                 if (!string.Equals(requiredTargetId, killedTargetId, StringComparison.OrdinalIgnoreCase)) continue;
 
-                if (!QuestTimeGateUtil.AllowsProgress(player, questDef, questSystem.ActionObjectiveRegistry, activeQuest.currentStageIndex, "kill", ao.objectiveId)) continue;
+                if (!QuestTimeGateUtil.AllowsProgress(player, questDef, QuestRegistryService.ActionObjectiveRegistry, activeQuest.currentStageIndex, "kill", ao.objectiveId)) continue;
 
-                if (questSystem.ActionObjectiveRegistry.TryGetValue(ao.id, out var impl) && impl is KillActionTargetObjective ko)
+                if (QuestRegistryService.ActionObjectiveRegistry.TryGetValue(ao.id, out var impl) && impl is KillActionTargetObjective ko)
                 {
                     string key = ko.CountKey(questId, objectiveId);
                     var wa = player.Entity?.WatchedAttributes;

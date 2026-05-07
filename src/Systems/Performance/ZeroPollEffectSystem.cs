@@ -61,7 +61,7 @@ namespace VsQuest.Systems.Performance
             if (!PerformanceConfig.EnableZeroPollEffects)
             {
                 // Fallback: apply immediately without scheduling
-                try { onApply?.Invoke(player); } catch { }
+                try { onApply?.Invoke(player); } catch (Exception ex) { api.Logger.Warning("[ZeroPollEffectSystem] Fallback apply failed: {0}", ex.Message); }
                 return;
             }
 

@@ -14,12 +14,12 @@ namespace VsQuest
 
         public void RegisterClient(ICoreClientAPI capi)
         {
-            VsQuestNetworkRegistry.RegisterQuestClient(capi, questSystem.NetworkHandler);
+            VsQuestNetworkRegistry.RegisterQuestClient(capi, questSystem);
         }
 
         public void RegisterServer(ICoreServerAPI sapi)
         {
-            VsQuestNetworkRegistry.RegisterQuestServer(sapi, questSystem.NetworkHandler);
+            VsQuestNetworkRegistry.RegisterQuestServer(sapi, questSystem);
         }
     }
 }

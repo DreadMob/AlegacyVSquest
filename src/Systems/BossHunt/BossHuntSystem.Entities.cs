@@ -9,38 +9,27 @@ namespace VsQuest
 {
     public partial class BossHuntSystem
     {
-        private void TryDespawnBossOnRotation(BossHuntConfig cfg, double nowHours)
+        private void TryDespawnBossEntity(BossHuntConfig cfg)
         {
             if (sapi == null || cfg == null) return;
 
             var bossEntity = entityTracker?.GetTrackedEntityAny(cfg.bossKey) ?? FindBossEntityImmediateAny(cfg.bossKey);
             if (bossEntity == null) return;
 
-            if (!bossEntity.Alive)
-            {
-                TryDespawnBossCorpse(bossEntity);
-                return;
-            }
-
-            try
-            {
-                sapi.World.DespawnEntity(bossEntity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
-            }
-            catch
-            {
-            }
+            TryDespawnBossEntity(bossEntity);
         }
 
-        private void TryDespawnBossCorpse(Entity bossEntity)
+        private void TryDespawnBossEntity(Entity bossEntity)
         {
-            if (sapi == null || bossEntity == null || bossEntity.Alive) return;
+            if (sapi == null || bossEntity == null) return;
 
             try
             {
                 sapi.World.DespawnEntity(bossEntity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
             }
-            catch
+            catch (Exception ex)
             {
+                sapi.Logger.Warning("[BossHuntSystem.Entities] Failed to despawn boss '{0}': {1}", bossEntity.Code, ex.Message);
             }
         }
 
@@ -66,11 +55,65 @@ namespace VsQuest
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                sapi.Logger.Warning("[BossHuntSystem.Entities] Failed to find boss entity: {0}", ex.Message);
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Safety: if multiple live entities exist for the same bossKey, keep the one
+        /// already tracked (or the first found) and despawn all duplicates.
+        /// </summary>
+        private void EnforceSingleLiveBoss(string bossKey)
+        {
+            if (sapi == null || string.IsNullOrWhiteSpace(bossKey)) return;
+
+            var loaded = sapi.World?.LoadedEntities;
+            if (loaded == null) return;
+
+            Entity keeper = entityTracker?.GetTrackedEntity(bossKey);
+            if (keeper == null || !keeper.Alive)
+            {
+                keeper = null;
+            }
+
+            try
+            {
+                foreach (var e in loaded.Values)
+                {
+                    if (e == null) continue;
+                    // Skip old-phase entities during rebirth transition
+                    if (e.WatchedAttributes?.GetBool(EntityBehaviorBossRebirth2.RebirthOldPhaseKey, false) == true) continue;
+                    var qt = e.GetBehavior<EntityBehaviorQuestTarget>();
+                    if (qt == null) continue;
+                    if (!string.Equals(qt.TargetId, bossKey, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!e.Alive) continue;
+
+                    if (keeper == null)
+                    {
+                        keeper = e;
+                        continue;
+                    }
+
+                    if (e == keeper) continue;
+
+                    try
+                    {
+                        sapi.World.DespawnEntity(e, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
+                    }
+                    catch (Exception ex)
+                    {
+                        sapi.Logger.Warning("[BossHuntSystem.Entities] Failed to despawn duplicate boss '{0}': {1}", bossKey, ex.Message);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                sapi.Logger.Warning("[BossHuntSystem.Entities] Failed to enforce single live boss '{0}': {1}", bossKey, ex.Message);
+            }
         }
 
 
@@ -88,6 +131,14 @@ namespace VsQuest
 
             double nowHours = sapi.World?.Calendar?.TotalHours ?? 0;
             var stateMachine = GetOrCreateStateMachine(cfg.bossKey);
+
+            // Do not spawn if a rebirth transition is currently in progress
+            if (stateMachine != null && stateMachine.CurrentState == BossCombatState.Rebirthing)
+            {
+                DebugLog($"Spawn blocked: bossKey={cfg.bossKey} is currently rebirthing.");
+                return;
+            }
+
             stateMachine?.OnSpawn(nowHours);
 
             try
@@ -132,9 +183,18 @@ namespace VsQuest
 
                 // Force entity tracker to scan immediately for the new entity
                 entityTracker?.ForceScan();
+
+                // Schedule next relocate and soft reset for the newly spawned boss
+                double spawnNowHours = sapi.World?.Calendar?.TotalHours ?? 0;
+                var st = GetOrCreateState(cfg.bossKey);
+                EnsureRelocateTimerInitialized(st, cfg, spawnNowHours);
+                ScheduleRelocate(cfg.bossKey, st.nextRelocateAtTotalHours);
+                ScheduleSoftReset(cfg.bossKey, spawnNowHours + softResetIdleHours);
+                CancelScheduledDeadCooldown(cfg.bossKey);
             }
-            catch
+            catch (Exception ex)
             {
+                sapi?.Logger.Warning("[BossHuntSystem.Entities] Failed to spawn boss '{0}': {1}", cfg.bossKey, ex.Message);
             }
         }
 
@@ -148,7 +208,7 @@ namespace VsQuest
             double throttle = debugLogThrottleHours;
             if (throttle <= 0) throttle = 0.02;
             nextDebugLogTotalHours = nowHours + throttle;
-            sapi.Logger.Notification("[BossHunt] " + message);
+            sapi.Logger.Notification($"[BossHunt] {message}");
         }
 
         private int PickAnotherIndex(int current, int count)
@@ -158,14 +218,18 @@ namespace VsQuest
             int next = current;
             try
             {
-                for (int i = 0; i < 5 && next == current; i++)
+                var rand = sapi?.World?.Rand;
+                if (rand != null)
                 {
-                    next = sapi.World.Rand.Next(0, count);
+                    for (int i = 0; i < 5 && next == current; i++)
+                    {
+                        next = rand.Next(0, count);
+                    }
                 }
             }
             catch
             {
-                next = (current + 1) % count;
+                // fallback below
             }
 
             if (next == current)
@@ -212,6 +276,12 @@ namespace VsQuest
         private bool IsSafeToRelocate(BossHuntConfig cfg, Entity bossEntity, double nowHours)
         {
             if (bossEntity == null) return true;
+
+            // Do not relocate while summon ritual is active
+            if (bossEntity.GetBehavior<EntityBehaviorBossSummonRitual>()?.IsRitualActive == true) return false;
+
+            // Do not relocate while intermission is active (adds may still be alive)
+            if (bossEntity.GetBehavior<EntityBehaviorBossIntermissionDispel>()?.IsInIntermission == true) return false;
 
             var stateMachine = GetOrCreateStateMachine(cfg.bossKey);
             if (stateMachine == null) return true;
@@ -267,6 +337,10 @@ namespace VsQuest
                 st.nextRelocateAtTotalHours = nowHours + cfg.GetRelocateIntervalHours();
 
                 stateDirty = true;
+
+                ScheduleDeadCooldown(cfg.bossKey, st.deadUntilTotalHours);
+                ScheduleRelocate(cfg.bossKey, st.nextRelocateAtTotalHours);
+                CancelScheduledSoftReset(cfg.bossKey);
                 return;
             }
         }

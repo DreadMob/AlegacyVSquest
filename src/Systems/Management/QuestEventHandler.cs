@@ -27,16 +27,16 @@ namespace VsQuest
             }
         }
 
-        public QuestEventHandler(Dictionary<string, Quest> questRegistry, QuestPersistenceManager persistenceManager, ICoreServerAPI sapi)
+        public QuestEventHandler(QuestPersistenceManager persistenceManager, ICoreServerAPI sapi)
         {
-            this.questRegistry = questRegistry;
+            this.questRegistry = QuestRegistryService.QuestRegistry;
             this.persistenceManager = persistenceManager;
             this.sapi = sapi;
         }
 
         public void RegisterEventHandlers()
         {
-            questSystem = QuestSystemCache.Get(sapi);
+            questSystem = sapi.ModLoader.GetModSystem<QuestSystem>();
 
             ApplyCoreConfig();
 
@@ -67,11 +67,12 @@ namespace VsQuest
                         epl.walkSpeed = epl.Stats.GetBlended("walkspeed");
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    sapi.Logger.Warning("[QuestEventHandler] Failed to reset player walkspeed stats on join: {0}", ex.Message);
                 }
 
-                var questSystem = QuestSystemCache.Get(sapi);
+                var questSystem = sapi.ModLoader.GetModSystem<QuestSystem>();
                 QuestSystemAdminUtils.ForgetOutdatedQuestsForPlayer(questSystem, byPlayer, sapi);
             }, 1000);
         }
@@ -99,8 +100,9 @@ namespace VsQuest
                 {
                     summonedBy = entity?.WatchedAttributes?.GetLong(SummonedByEntityIdKey, 0) ?? 0;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    sapi.Logger.Warning("[QuestEventHandler] Failed to get SummonedByEntityId: {0}", ex.Message);
                     summonedBy = 0;
                 }
 
@@ -115,14 +117,16 @@ namespace VsQuest
 
                             sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
                         }
-                        catch
+                        catch (Exception ex)
                         {
+                            sapi.Logger.Warning("[QuestEventHandler] Failed to despawn summoned entity: {0}", ex.Message);
                         }
                     }, 2000);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                sapi.Logger.Warning("[QuestEventHandler] Failed to handle summoned entity death: {0}", ex.Message);
             }
 
             try
@@ -133,8 +137,9 @@ namespace VsQuest
                     bossCombatService.TryHealBossOnKill(killer);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                sapi.Logger.Warning("[QuestEventHandler] Failed to handle boss heal on kill: {0}", ex.Message);
             }
 
             if (damageSource?.SourceEntity is EntityPlayer player && !string.IsNullOrWhiteSpace(player.PlayerUID))
@@ -174,8 +179,9 @@ namespace VsQuest
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    sapi.Logger.Warning("[QuestEventHandler] Failed to calculate boss death credits: {0}", ex.Message);
                 }
             }
 
@@ -190,8 +196,9 @@ namespace VsQuest
                 {
                     iPlayer = sapi?.World?.PlayerByUid(uid);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    sapi.Logger.Warning("[QuestEventHandler] Failed to get player by UID {0}: {1}", uid, ex.Message);
                     iPlayer = null;
                 }
 
@@ -205,7 +212,7 @@ namespace VsQuest
                 }
 
                 var quests = persistenceManager.GetPlayerQuests(uid);
-                QuestDeathUtil.HandleEntityDeath(sapi, quests, epl, entity);
+                Systems.Management.DeathHandler.HandleEntityDeath(sapi, quests, epl, entity);
             }
 
             bossCombatService.AnnounceBossDeath(sapi, entity, creditedPlayers, damageSource);
@@ -219,7 +226,7 @@ namespace VsQuest
                     var serverVictim = victimPlayer.Player as IServerPlayer;
                     if (serverVictim != null)
                     {
-                        var qs = QuestSystemCache.Get(sapi);
+                        var qs = sapi.ModLoader.GetModSystem<QuestSystem>();
                         if (qs?.Config == null || qs.Config.ShowCustomBossDeathMessage)
                         {
                             BossKillAnnouncementUtil.AnnouncePlayerKilledByBoss(sapi, serverVictim, killer);
@@ -244,10 +251,11 @@ namespace VsQuest
             QuestSystem qs = null;
             try
             {
-                qs = QuestSystemCache.Get(sapi);
+                qs = sapi.ModLoader.GetModSystem<QuestSystem>();
             }
-            catch
+            catch (Exception ex)
             {
+                sapi.Logger.Warning("[QuestEventHandler] Failed to get QuestSystem in OnBlockBroken: {0}", ex.Message);
                 qs = null;
             }
 
@@ -264,8 +272,9 @@ namespace VsQuest
                     if (!qs.QuestRegistry.TryGetValue(quest.questId, out var questDef) || questDef == null) continue;
                     if (questDef.blockBreakObjectives == null || questDef.blockBreakObjectives.Count == 0) continue;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    sapi.Logger.Warning("[QuestEventHandler] Failed to check block break objectives for quest {0}: {1}", quest.questId, ex.Message);
                 }
 
                 quest.OnBlockBroken(blockCode, position, byPlayer, null);
@@ -287,10 +296,11 @@ namespace VsQuest
             QuestSystem qs = null;
             try
             {
-                qs = QuestSystemCache.Get(sapi);
+                qs = sapi.ModLoader.GetModSystem<QuestSystem>();
             }
-            catch
+            catch (Exception ex)
             {
+                sapi.Logger.Warning("[QuestEventHandler] Failed to get QuestSystem in OnBlockPlaced: {0}", ex.Message);
                 qs = null;
             }
 
@@ -307,8 +317,9 @@ namespace VsQuest
                     if (!qs.QuestRegistry.TryGetValue(quest.questId, out var questDef) || questDef == null) continue;
                     if (questDef.blockPlaceObjectives == null || questDef.blockPlaceObjectives.Count == 0) continue;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    sapi.Logger.Warning("[QuestEventHandler] Failed to check block place objectives for quest {0}: {1}", quest.questId, ex.Message);
                 }
 
                 quest.OnBlockPlaced(blockCode, position, byPlayer, null);
@@ -334,7 +345,7 @@ namespace VsQuest
 
         private void OnQuestTickInternal(float dt)
         {
-            questSystem ??= QuestSystemCache.Get(sapi);
+            questSystem ??= sapi.ModLoader.GetModSystem<QuestSystem>();
             if (questSystem == null) return;
 
             var players = sapi.World.AllOnlinePlayers;
@@ -351,8 +362,9 @@ namespace VsQuest
                     if (cfg.PassiveCompletionThrottleHours > 0) passiveThrottle = cfg.PassiveCompletionThrottleHours;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                sapi.Logger.Warning("[QuestEventHandler] Failed to read QuestTick config: {0}", ex.Message);
                 missingLogThrottle = 1.0 / 60.0;
                 passiveThrottle = 1.0 / 3600.0;
             }
@@ -375,7 +387,7 @@ namespace VsQuest
             var playerQuests = persistenceManager.GetPlayerQuests(player.PlayerUID);
             if (playerQuests == null || playerQuests.Count == 0) return;
 
-            QuestSystem qs = questSystem ??= QuestSystemCache.Get(sapi);
+            QuestSystem qs = questSystem ??= sapi.ModLoader.GetModSystem<QuestSystem>();
             int[] position = new int[] { message.Position.X, message.Position.Y, message.Position.Z };
 
             for (int i = 0; i < playerQuests.Count; i++)

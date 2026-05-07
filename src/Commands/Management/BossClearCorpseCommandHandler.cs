@@ -1,4 +1,5 @@
-﻿using Vintagestory.API.Common;
+﻿using System;
+using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
@@ -71,13 +72,15 @@ namespace VsQuest
                         sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
                         clearedCount++;
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        sapi.Logger.Warning("[BossClearCorpseCommandHandler] Failed to despawn boss corpse: {0}", ex.Message);
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                sapi.Logger.Warning("[BossClearCorpseCommandHandler] Failed to clear boss corpses: {0}", ex.Message);
             }
 
             string radiusMsg = radiusBlocks > 0 ? $" within {radiusBlocks} blocks" : " in all loaded chunks";

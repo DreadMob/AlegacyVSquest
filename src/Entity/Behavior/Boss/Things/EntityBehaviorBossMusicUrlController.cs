@@ -255,8 +255,9 @@ namespace VsQuest
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                entity?.World?.Logger?.Warning("[EntityBehaviorBossMusicUrlController] Failed to handle music: {0}", ex.Message);
             }
 
             lastShouldPlay = shouldPlay;

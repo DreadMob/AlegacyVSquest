@@ -34,8 +34,9 @@ namespace VsQuest
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    api.Logger.Warning("[MobLocalizationUtils] Failed to load mob display names from domain {0}: {1}", domain, ex.Message);
                 }
             }
 

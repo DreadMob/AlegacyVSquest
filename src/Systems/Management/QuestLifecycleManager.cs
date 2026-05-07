@@ -18,39 +18,14 @@ namespace VsQuest
         private readonly QuestRewardService rewardService;
         private readonly QuestCompletionService completionService;
 
-        public QuestLifecycleManager(Dictionary<string, Quest> questRegistry, Dictionary<string, IQuestAction> actionRegistry, ICoreAPI api)
+        public QuestLifecycleManager(ICoreAPI api)
         {
-            this.questRegistry = questRegistry;
-            this.actionRegistry = actionRegistry;
+            this.questRegistry = QuestRegistryService.QuestRegistry;
+            this.actionRegistry = QuestRegistryService.ActionRegistry;
             this.api = api;
             this.notificationService = new QuestNotificationService(api);
-            this.rewardService = new QuestRewardService(questRegistry, actionRegistry);
-            this.completionService = new QuestCompletionService(notificationService, rewardService, questRegistry);
-        }
-
-        
-        private List<EventTracker> CreateTrackers(List<Objective> objectives)
-        {
-            var trackers = new List<EventTracker>();
-            if (objectives == null) return trackers;
-            foreach (var objective in objectives)
-            {
-                if (objective == null)
-                {
-                    trackers.Add(new EventTracker() { count = 0, relevantCodes = new List<string>() });
-                    continue;
-                }
-
-                var tracker = new EventTracker()
-                {
-                    count = 0,
-                    relevantCodes = objective.validCodes != null
-                        ? new List<string>(objective.validCodes)
-                        : new List<string>()
-                };
-                trackers.Add(tracker);
-            }
-            return trackers;
+            this.rewardService = new QuestRewardService(null, null);
+            this.completionService = new QuestCompletionService(notificationService, rewardService, null);
         }
 
         public void OnQuestAccepted(IServerPlayer fromPlayer, QuestAcceptedMessage message, ICoreServerAPI sapi, System.Func<string, List<ActiveQuest>> getPlayerQuests)
@@ -61,7 +36,7 @@ namespace VsQuest
                 return;
             }
 
-            QuestInteractAtUtil.ResetCompletedInteractAtObjectives(quest, fromPlayer);
+            Systems.Interaction.InteractionService.ResetCompletedInteractAtObjectives(quest, fromPlayer);
             QuestObjectiveCleanupUtil.ClearKillActionTargetProgressOnAccept(fromPlayer, quest);
             var playerQuests = getPlayerQuests(fromPlayer.PlayerUID);
 
@@ -72,24 +47,13 @@ namespace VsQuest
 
             QuestActionObjectiveCompletionUtil.ResetCompletionFlags(quest, fromPlayer);
 
-            // Use first stage objectives for multi-stage quests
-            var firstStage = quest.GetStage(0);
-            var killTrackers = CreateTrackers(firstStage?.killObjectives ?? quest.killObjectives);
-            var blockPlaceTrackers = CreateTrackers(firstStage?.blockPlaceObjectives ?? quest.blockPlaceObjectives);
-            var blockBreakTrackers = CreateTrackers(firstStage?.blockBreakObjectives ?? quest.blockBreakObjectives);
-            var interactTrackers = CreateTrackers(firstStage?.interactObjectives ?? quest.interactObjectives);
-
-            #pragma warning disable CS0618 // Legacy tracker access
-            var activeQuest = new ActiveQuest()
+            // Create new ActiveQuest with simplified structure
+            var activeQuest = new ActiveQuest
             {
                 questGiverId = message.questGiverId,
-                questId = message.questId,
-                killTrackers = killTrackers,
-                blockPlaceTrackers = blockPlaceTrackers,
-                blockBreakTrackers = blockBreakTrackers,
-                interactTrackers = interactTrackers
+                questId = message.questId
             };
-            #pragma warning restore CS0618
+            
             playerQuests.Add(activeQuest);
             foreach (var action in quest.onAcceptedActions)
             {

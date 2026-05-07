@@ -4,8 +4,7 @@ using Vintagestory.API.Common;
 namespace VsQuest
 {
     /// <summary>
-    /// Interface for quest objective trackers.
-    /// Implementations handle specific objective types (kill, gather, block, etc.)
+    /// Base interface for quest objective trackers with common properties and methods.
     /// </summary>
     public interface IObjectiveTracker
     {
@@ -30,10 +29,32 @@ namespace VsQuest
         int RequiredProgress { get; }
         
         /// <summary>
+        /// Reset progress (called on stage advancement)
+        /// </summary>
+        void Reset();
+        
+        /// <summary>
+        /// Get progress as list of integers for serialization/display
+        /// </summary>
+        List<int> GetProgress();
+    }
+
+    /// <summary>
+    /// Interface for kill-based objective trackers.
+    /// </summary>
+    public interface IKillTracker : IObjectiveTracker
+    {
+        /// <summary>
         /// Called when an entity is killed
         /// </summary>
         void OnEntityKilled(string entityCode, IPlayer byPlayer);
-        
+    }
+
+    /// <summary>
+    /// Interface for block-based objective trackers (place, break, use).
+    /// </summary>
+    public interface IBlockTracker : IObjectiveTracker
+    {
         /// <summary>
         /// Called when a block is placed
         /// </summary>
@@ -48,20 +69,16 @@ namespace VsQuest
         /// Called when a block is used (interacted with)
         /// </summary>
         void OnBlockUsed(string blockCode, int[] position, IPlayer byPlayer);
-        
+    }
+
+    /// <summary>
+    /// Interface for gather-based objective trackers (inventory changes).
+    /// </summary>
+    public interface IGatherTracker : IObjectiveTracker
+    {
         /// <summary>
-        /// Called when player inventory changes (for gather objectives)
+        /// Called when player inventory changes
         /// </summary>
         void OnInventoryChanged(IPlayer player);
-        
-        /// <summary>
-        /// Reset progress (called on stage advancement)
-        /// </summary>
-        void Reset();
-        
-        /// <summary>
-        /// Get progress as list of integers for serialization/display
-        /// </summary>
-        List<int> GetProgress();
     }
 }

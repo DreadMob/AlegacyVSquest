@@ -21,8 +21,9 @@ namespace VsQuest
                 {
                     sapi.Network.GetChannel("alegacyvsquest").SendPacket(new PreloadBossMusicMessage { Url = url }, byPlayer);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    sapi.Logger.Warning("[PreloadBossMusicQuestAction] Failed to send preload music packet for URL {0}: {1}", url, ex.Message);
                 }
             }
         }

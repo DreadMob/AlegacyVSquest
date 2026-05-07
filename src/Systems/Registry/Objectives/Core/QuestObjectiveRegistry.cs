@@ -10,7 +10,7 @@ namespace VsQuest
 
         public QuestObjectiveRegistry(Dictionary<string, ActionObjectiveBase> objectiveRegistry, ICoreAPI api)
         {
-            this.objectiveRegistry = objectiveRegistry;
+            this.objectiveRegistry = QuestRegistryService.ActionObjectiveRegistry;
             this.api = api;
         }
 

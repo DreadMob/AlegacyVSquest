@@ -268,7 +268,7 @@ namespace VsQuest
         {
             if (player == null) return;
 
-            var questSystem = QuestSystemCache.Get(sapi);
+            var questSystem = sapi.ModLoader.GetModSystem<QuestSystem>();
             var allActiveQuests = questSystem.GetPlayerQuests(player.PlayerUID);
             
             HashSet<string> allQuestIds;
@@ -297,8 +297,8 @@ namespace VsQuest
                     var quest = questSystem.QuestRegistry.TryGetValue(aq.questId, out var q) ? q : null;
                     aq.IsCompletableOnClient = aq.IsCompletable(player.Player);
                     aq.IsCurrentStageCompleteOnClient = quest?.HasStages == true && aq.IsCurrentStageCompletable(player.Player, quest);
-                    aq.ProgressText = QuestProgressTextUtil.GetActiveQuestText(sapi, player.Player, aq);
-                    return aq;
+                    aq.ProgressText = Systems.Management.ProgressTextFormatter.GetActiveQuestText(sapi, player.Player, aq);
+                    return ActiveQuestDto.FromDomain(aq);
                 })
                 .ToList();
 
@@ -628,7 +628,7 @@ namespace VsQuest
             message.reputationNpcId = reputationNpcId;
             message.reputationFactionId = reputationFactionId;
 
-            var questSystem = QuestSystemCache.Get(sapi);
+            var questSystem = sapi.ModLoader.GetModSystem<QuestSystem>();
             var rewardSystem = sapi.ModLoader.GetModSystem<QuestCompletionRewardSystem>();
             if (rewardSystem != null && questSystem != null)
             {
@@ -741,7 +741,7 @@ namespace VsQuest
 
         private bool predecessorsCompleted(Quest quest, string playerUID)
         {
-            var questSystem = QuestSystemCache.GetFromEntity(entity);
+            var questSystem = entity.Api.ModLoader.GetModSystem<QuestSystem>();
             var completedQuests = questSystem != null
                 ? new List<string>(questSystem.GetNormalizedCompletedQuestIds(entity.World.PlayerByUid(playerUID)))
                 : new List<string>(entity.World.PlayerByUid(playerUID)?.Entity?.WatchedAttributes.GetStringArray("alegacyvsquest:playercompleted", new string[0]) ?? new string[0]);

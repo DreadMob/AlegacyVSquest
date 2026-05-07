@@ -50,8 +50,9 @@ namespace VsQuest
                     player.Entity.WatchedAttributes.MarkPathDirty(chainKey);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                sapi.Logger.Warning("[QuestSystemAdminUtils] Failed to clear quest giver chain cooldowns: {0}", ex.Message);
             }
         }
 
@@ -65,7 +66,7 @@ namespace VsQuest
             var groupIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             // Backfill from quest definition if no per-player tracking is present (e.g. journal entries created before tracking existed)
-            if ((loreCodes == null || loreCodes.Length == 0) && questSystem?.QuestRegistry != null && questSystem.QuestRegistry.TryGetValue(questId, out var quest) && quest != null)
+            if ((loreCodes == null || loreCodes.Length == 0) && QuestRegistryService.QuestRegistry.TryGetValue(questId, out var quest) && quest != null)
             {
                 var fromQuest = new List<string>();
                 void AddFromActions(System.Collections.Generic.List<ActionWithArgs> actions)
@@ -199,8 +200,9 @@ namespace VsQuest
                         loreCodes = fromItems.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    sapi.Logger.Warning("[QuestSystemAdminUtils] Failed to backfill lore codes for quest {0}: {1}", questId, ex.Message);
                 }
             }
 
@@ -344,7 +346,7 @@ namespace VsQuest
 
             // Clear any per-objective completion markers so onCompleteActions can fire again.
             // Stored as flat keys on the player's WatchedAttributes.
-            if (questSystem.QuestRegistry != null && questSystem.QuestRegistry.TryGetValue(questId, out var quest) && quest?.actionObjectives != null)
+            if (QuestRegistryService.QuestRegistry.TryGetValue(questId, out var quest) && quest?.actionObjectives != null)
             {
                 foreach (var ao in quest.actionObjectives)
                 {
@@ -373,7 +375,7 @@ namespace VsQuest
             }
 
             // Clear stage-aware completion flags for multi-stage quests
-            if (questSystem.QuestRegistry != null && questSystem.QuestRegistry.TryGetValue(questId, out var questForStages) && questForStages != null)
+            if (QuestRegistryService.QuestRegistry.TryGetValue(questId, out var questForStages) && questForStages != null)
             {
                 if (questForStages.HasStages)
                 {
@@ -505,7 +507,7 @@ namespace VsQuest
                 ClearQuestGiverChainCooldowns(player, sapi);
             }
             ClearPerQuestPlayerState(player, questId);
-            ClearKillActionTargetProgressForQuest(questSystem, player, questId);
+            ClearKillActionTargetProgressForQuest(questSystem, player, questId, sapi);
             ClearActionObjectiveCompletionFlagsForQuest(questSystem, player, questId);
             ClearQuestStageData(player, questId);
             ClearBossDropVariables(player, questId);
@@ -700,7 +702,7 @@ namespace VsQuest
 
             if (sapi != null)
             {
-                foreach (var questId in questSystem.QuestRegistry.Keys.ToList())
+                foreach (var questId in QuestRegistryService.QuestRegistry.Keys.ToList())
                 {
                     RemoveQuestJournalEntries(sapi, questSystem, player, questId);
                 }
@@ -723,7 +725,7 @@ namespace VsQuest
                 foreach (var questId in questSystem.QuestRegistry.Keys.ToList())
                 {
                     ClearPerQuestPlayerState(player, questId);
-                    ClearKillActionTargetProgressForQuest(questSystem, player, questId);
+                    ClearKillActionTargetProgressForQuest(questSystem, player, questId, sapi);
                     ClearActionObjectiveCompletionFlagsForQuest(questSystem, player, questId);
                     ClearQuestStageData(player, questId);
                     ClearBossDropVariables(player, questId);
@@ -791,8 +793,9 @@ namespace VsQuest
                     wa.RemoveAttribute(onceKeysListKey);
                     wa.MarkPathDirty(onceKeysListKey);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    sapi.Logger.Warning("[QuestSystemAdminUtils] Failed to clear reputation once keys for player {0}: {1}", player.PlayerUID, ex.Message);
                 }
 
                 player.Entity.WatchedAttributes.MarkAllDirty();
@@ -802,7 +805,7 @@ namespace VsQuest
             return removedCount;
         }
 
-        private static void ClearKillActionTargetProgressForQuest(QuestSystem questSystem, IServerPlayer player, string questId)
+        private static void ClearKillActionTargetProgressForQuest(QuestSystem questSystem, IServerPlayer player, string questId, ICoreServerAPI sapi)
         {
             if (questSystem?.QuestRegistry == null) return;
             if (player?.Entity?.WatchedAttributes == null) return;
@@ -831,8 +834,9 @@ namespace VsQuest
                     wa.MarkPathDirty(key);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                sapi.Logger.Warning("[QuestSystemAdminUtils] Failed to clear kill action target progress for quest {0}: {1}", questId, ex.Message);
             }
         }
     }

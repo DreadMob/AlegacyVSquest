@@ -145,8 +145,9 @@ namespace VsQuest
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                sapi.Logger.Warning("[EntityBehaviorQuestDropOnDeath] Failed to get credited players: {0}", ex.Message);
             }
 
             return result;
@@ -299,8 +300,9 @@ namespace VsQuest
                 wa.SetString(fullKey, value);
                 wa.MarkPathDirty(fullKey);
             }
-            catch
+            catch (Exception ex)
             {
+                sapi.Logger.Warning("[EntityBehaviorQuestDropOnDeath] Failed to set player attribute {0}: {1}", fullKey, ex.Message);
             }
         }
 

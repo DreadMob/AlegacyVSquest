@@ -36,6 +36,8 @@ namespace VsQuest
         protected BossCooldownSystem CooldownSystem { get; private set; }
         protected BossTargetingSystem TargetingSystem { get; private set; }
         protected BossMarkingSystem MarkingSystem { get; private set; }
+
+        private readonly List<long> activeCallbackIds = new List<long>();
         
         /// <summary>
         /// Unique key for storing last activation timestamp in WatchedAttributes.
@@ -223,6 +225,7 @@ namespace VsQuest
         {
             StopAbility();
             abilityActive = false;
+            UnregisterAllTrackedCallbacks();
             base.OnEntityDespawn(despawn);
         }
 
@@ -385,6 +388,30 @@ namespace VsQuest
         protected void UnregisterGameTickListenerSafe(ref long listenerId)
         {
             BossBehaviorUtils.UnregisterGameTickListenerSafe(Sapi, ref listenerId);
+        }
+
+        /// <summary>
+        /// Register a callback and track its ID so it can be cancelled on despawn.
+        /// </summary>
+        protected long RegisterCallbackTracked(Action<float> action, int ms)
+        {
+            if (Sapi == null) return 0;
+            long id = Sapi.Event.RegisterCallback(action, ms);
+            if (id != 0) activeCallbackIds.Add(id);
+            return id;
+        }
+
+        /// <summary>
+        /// Unregister all callbacks tracked via RegisterCallbackTracked.
+        /// </summary>
+        protected void UnregisterAllTrackedCallbacks()
+        {
+            if (Sapi == null) return;
+            foreach (var id in activeCallbackIds)
+            {
+                if (id != 0) Sapi.Event.UnregisterCallback(id);
+            }
+            activeCallbackIds.Clear();
         }
 
         /// <summary>

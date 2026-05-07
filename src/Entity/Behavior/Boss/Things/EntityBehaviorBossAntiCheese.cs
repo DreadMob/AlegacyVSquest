@@ -127,8 +127,9 @@ namespace VsQuest
                     stages.Add(stage);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                entity?.World?.Logger?.Warning("[EntityBehaviorBossAntiCheese] Failed to parse stages config: {0}", ex.Message);
             }
         }
 
@@ -197,8 +198,9 @@ namespace VsQuest
 
                     hasLos = cachedHasLos;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    entity?.World?.Logger?.Warning("[EntityBehaviorBossAntiCheese] Failed to check LOS: {0}", ex.Message);
                     hasLos = false;
                 }
 
@@ -281,8 +283,9 @@ namespace VsQuest
                 dist = (float)found.Pos.DistanceTo(entity.Pos);
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
+                entity?.World?.Logger?.Warning("[EntityBehaviorBossAntiCheese] Failed to find target: {0}", ex.Message);
                 return false;
             }
         }
@@ -314,8 +317,9 @@ namespace VsQuest
                 entity.World.RayTraceForSelection(this, rayTraceFrom, rayTraceTo, ref bs, ref es);
                 return bs == null;
             }
-            catch
+            catch (Exception ex)
             {
+                entity?.World?.Logger?.Warning("[EntityBehaviorBossAntiCheese] Failed to check line of sight: {0}", ex.Message);
                 return false;
             }
         }
@@ -342,8 +346,9 @@ namespace VsQuest
                     TeleportEntity(entity, pos, entity.Pos.Dimension);
                     TryPlayAnimation(stage.arriveAnimation);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    entity?.World?.Logger?.Warning("[EntityBehaviorBossAntiCheese] Failed to teleport entity: {0}", ex.Message);
                 }
 
                 pending = false;
@@ -360,8 +365,9 @@ namespace VsQuest
             {
                 target.IsTeleport = true;
             }
-            catch
+            catch (Exception ex)
             {
+                entity?.World?.Logger?.Warning("[EntityBehaviorBossAntiCheese] Failed to set IsTeleport: {0}", ex.Message);
             }
 
             target.Pos.SetPosWithDimension(new Vec3d(pos.X, pos.Y + dim * 32768.0, pos.Z));
@@ -371,8 +377,9 @@ namespace VsQuest
             {
                 target.Pos.Motion.Set(0, 0, 0);
             }
-            catch
+            catch (Exception ex)
             {
+                entity?.World?.Logger?.Warning("[EntityBehaviorBossAntiCheese] Failed to reset motion: {0}", ex.Message);
             }
         }
 
@@ -437,8 +444,9 @@ namespace VsQuest
                 {
                     colliding = ct.IsColliding(ba, selBox, testPos, alsoCheckTouch: false);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    entity?.World?.Logger?.Warning("[EntityBehaviorBossAntiCheese] Failed to check collision (up): {0}", ex.Message);
                     colliding = true;
                 }
 
@@ -454,8 +462,9 @@ namespace VsQuest
                         if (below == null) continue;
                         if (!below.SideSolid[BlockFacing.UP.Index]) continue;
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        entity?.World?.Logger?.Warning("[EntityBehaviorBossAntiCheese] Failed to check solid ground (up): {0}", ex.Message);
                         continue;
                     }
                 }
@@ -476,8 +485,9 @@ namespace VsQuest
                 {
                     colliding = ct.IsColliding(ba, selBox, testPos, alsoCheckTouch: false);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    entity?.World?.Logger?.Warning("[EntityBehaviorBossAntiCheese] Failed to check collision (down): {0}", ex.Message);
                     colliding = true;
                 }
 
@@ -493,8 +503,9 @@ namespace VsQuest
                         if (below == null) continue;
                         if (!below.SideSolid[BlockFacing.UP.Index]) continue;
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        entity?.World?.Logger?.Warning("[EntityBehaviorBossAntiCheese] Failed to check solid ground (down): {0}", ex.Message);
                         continue;
                     }
                 }

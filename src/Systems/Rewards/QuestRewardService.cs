@@ -14,8 +14,8 @@ namespace VsQuest
 
         public QuestRewardService(Dictionary<string, Quest> questRegistry, Dictionary<string, IQuestAction> actionRegistry)
         {
-            this.questRegistry = questRegistry;
-            this.actionRegistry = actionRegistry;
+            this.questRegistry = QuestRegistryService.QuestRegistry;
+            this.actionRegistry = QuestRegistryService.ActionRegistry;
         }
 
         public void RewardPlayer(IServerPlayer fromPlayer, QuestCompletedMessage message, ICoreServerAPI sapi, Entity questgiver)

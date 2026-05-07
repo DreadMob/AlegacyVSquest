@@ -422,7 +422,7 @@ namespace VsQuest
             {
                 if (activeQuest == null || !string.Equals(activeQuest.questId, questId, StringComparison.OrdinalIgnoreCase)) continue;
 
-                if (!questSystem.QuestRegistry.TryGetValue(activeQuest.questId, out var questDef) || questDef == null) continue;
+                if (!QuestRegistryService.QuestRegistry.TryGetValue(activeQuest.questId, out var questDef) || questDef == null) continue;
 
                 // Get action objectives for current stage
                 var stageActionObjectives = questDef.GetActionObjectives(activeQuest.currentStageIndex);
@@ -435,7 +435,7 @@ namespace VsQuest
                     if (string.IsNullOrWhiteSpace(ao.onCompleteActions)) continue;
 
                     // Check if this inland objective matches the current claim
-                    if (questSystem.ActionObjectiveRegistry.TryGetValue("inland", out var impl) && impl != null)
+                    if (QuestRegistryService.ActionObjectiveRegistry.TryGetValue("inland", out var impl) && impl != null)
                     {
                         bool ok = impl.IsCompletable(sp, ao.args);
                         if (ok)

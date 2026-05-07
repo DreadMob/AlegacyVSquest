@@ -9,9 +9,6 @@
 		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
 	</PropertyGroup>
 
-	<PropertyGroup>
-		<Nullable>enable</Nullable>
-	</PropertyGroup>
 
 	<ItemGroup>
 		<Reference Include="VintagestoryAPI">

@@ -12,6 +12,7 @@ namespace VsQuest
 {
     public class EntityBehaviorBossRebirth2 : BossAbilityBase
     {
+        public const string RebirthOldPhaseKey = "alegacyvsquest:rebirth:oldPhase";
         private const string AnchorKeyPrefix = "alegacyvsquest:spawner:";
         private const string TargetIdKey = "alegacyvsquest:killaction:targetid";
 
@@ -67,6 +68,7 @@ namespace VsQuest
         private WeatherSystemBase weatherSystem;
 
         public bool IsFinalStage => stages.Count > 0 && stages[0].isFinalStage;
+        public bool IsRebirthing => phaseTriggered;
 
         public EntityBehaviorBossRebirth2(Entity entity) : base(entity)
         {
@@ -127,7 +129,7 @@ namespace VsQuest
             int delay = Math.Max(0, stage.spawnDelayMs);
             if (delay > 0)
             {
-                Sapi.Event.RegisterCallback(_ =>
+                RegisterCallbackTracked(_ =>
                 {
                     StopLoopSound();
                     TrySpawnNextPhase(stage, pos, dim, yaw);
@@ -175,7 +177,28 @@ namespace VsQuest
             newEntity.Pos.Yaw = yaw;
             newEntity.Pos.SetFrom(newEntity.Pos);
 
+            // Mark old entity so tracker / duplicate enforcer ignore it during transition
+            if (entity?.WatchedAttributes != null)
+            {
+                entity.WatchedAttributes.SetBool(RebirthOldPhaseKey, true);
+                entity.WatchedAttributes.MarkPathDirty(RebirthOldPhaseKey);
+            }
+
             Sapi.World.SpawnEntity(newEntity);
+
+            // Notify BossHuntSystem about rebirth completion
+            try
+            {
+                string targetId = entity?.WatchedAttributes?.GetString(TargetIdKey, null);
+                if (!string.IsNullOrWhiteSpace(targetId))
+                {
+                    var bh = Sapi.ModLoader?.GetModSystem<BossHuntSystem>();
+                    bh?.OnBossRebirthComplete(targetId, newEntity);
+                }
+            }
+            catch
+            {
+            }
 
             TryPlaySound(stage.spawnSound, stage.spawnSoundRange, stage.spawnSoundStartMs, 1f);
 

@@ -20,7 +20,7 @@ namespace VsQuest
         {
             this.notificationService = notificationService;
             this.rewardService = rewardService;
-            this.questRegistry = questRegistry;
+            this.questRegistry = QuestRegistryService.QuestRegistry;
         }
 
         public void CompleteQuest(
@@ -34,7 +34,7 @@ namespace VsQuest
             if (activeQuest == null) return;
 
             // Complete the quest
-            activeQuest.completeQuest(fromPlayer);
+            activeQuest.CompleteQuest(fromPlayer);
             playerQuests.Remove(activeQuest);
 
             // Get quest for notification and timestamp

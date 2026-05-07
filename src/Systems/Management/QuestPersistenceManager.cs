@@ -53,7 +53,13 @@ namespace VsQuest
                 {
                     if (playerQuests.TryGetValue(playerUID, out var quests))
                     {
-                        sapi.WorldManager.SaveGame.StoreData<List<ActiveQuest>>($"quests-{playerUID}", quests);
+                        var dto = new List<ActiveQuestDto>(quests.Count);
+                        for (int i = 0; i < quests.Count; i++)
+                        {
+                            dto.Add(ActiveQuestDto.FromDomain(quests[i]));
+                        }
+
+                        sapi.WorldManager.SaveGame.StoreData<List<ActiveQuestDto>>($"quests-{playerUID}", dto);
                     }
                 }
                 catch (Exception e)
@@ -75,7 +81,18 @@ namespace VsQuest
 
         public void SavePlayerQuests(string playerUID, List<ActiveQuest> activeQuests)
         {
-            sapi.WorldManager.SaveGame.StoreData<List<ActiveQuest>>($"quests-{playerUID}", activeQuests);
+            var dto = new List<ActiveQuestDto>(activeQuests?.Count ?? 0);
+            if (activeQuests != null)
+            {
+                for (int i = 0; i < activeQuests.Count; i++)
+                {
+                    // Export progress before saving
+                    activeQuests[i]?.ExportProgress();
+                    dto.Add(ActiveQuestDto.FromDomain(activeQuests[i]));
+                }
+            }
+
+            sapi.WorldManager.SaveGame.StoreData<List<ActiveQuestDto>>($"quests-{playerUID}", dto);
         }
 
         public void MarkDirty(string playerUID)
@@ -91,12 +108,50 @@ namespace VsQuest
         {
             try
             {
-                return sapi.WorldManager.SaveGame.GetData<List<ActiveQuest>>($"quests-{playerUID}", new List<ActiveQuest>());
+                var dto = sapi.WorldManager.SaveGame.GetData<List<ActiveQuestDto>>($"quests-{playerUID}", new List<ActiveQuestDto>());
+                var domain = new List<ActiveQuest>(dto?.Count ?? 0);
+
+                if (dto != null)
+                {
+                    for (int i = 0; i < dto.Count; i++)
+                    {
+                        domain.Add(dto[i]?.ToDomain());
+                    }
+                }
+
+                return domain;
             }
             catch (ProtoException)
             {
-                sapi.Logger.Error("Could not load quests for player with id {0}, corrupted quests will be deleted.", playerUID);
-                return new List<ActiveQuest>();
+                try
+                {
+                    var legacy = sapi.WorldManager.SaveGame.GetData<List<ActiveQuest>>($"quests-{playerUID}", new List<ActiveQuest>());
+
+                    try
+                    {
+                        var migrated = new List<ActiveQuestDto>(legacy?.Count ?? 0);
+                        if (legacy != null)
+                        {
+                            for (int i = 0; i < legacy.Count; i++)
+                            {
+                                migrated.Add(ActiveQuestDto.FromDomain(legacy[i]));
+                            }
+                        }
+
+                        sapi.WorldManager.SaveGame.StoreData<List<ActiveQuestDto>>($"quests-{playerUID}", migrated);
+                    }
+                    catch (Exception ex)
+                    {
+                        sapi.Logger.Warning("[alegacyvsquest] Failed to migrate legacy quest save for player {0}: {1}", playerUID, ex.Message);
+                    }
+
+                    return legacy;
+                }
+                catch (ProtoException)
+                {
+                    sapi.Logger.Error("Could not load quests for player with id {0}, corrupted quests will be deleted.", playerUID);
+                    return new List<ActiveQuest>();
+                }
             }
         }
 

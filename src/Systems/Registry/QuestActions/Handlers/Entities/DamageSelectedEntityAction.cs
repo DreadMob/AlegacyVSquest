@@ -44,8 +44,9 @@ namespace VsQuest
             {
                 sapi.SendMessage(byPlayer, GlobalConstants.GeneralChatGroup, Lang.Get("alegacyvsquest:damage-selected-done", damage, selectedEntity.Code), EnumChatType.Notification);
             }
-            catch
+            catch (Exception ex)
             {
+                sapi.Logger.Warning("[DamageSelectedEntityAction] Failed to send damage done message: {0}", ex.Message);
             }
         }
     }

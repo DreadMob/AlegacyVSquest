@@ -99,8 +99,9 @@ namespace VsQuest
                         quizRegistry[def.id] = def;
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    api.Logger.Warning("[QuizSystem] Failed to load quiz assets from mod {0}: {1}", mod.Info.ModID, ex.Message);
                 }
             }
         }

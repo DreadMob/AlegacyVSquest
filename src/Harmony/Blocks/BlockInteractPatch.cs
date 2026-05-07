@@ -2,6 +2,7 @@
 using System;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
+using VsQuest.Systems.Client;
 
 namespace VsQuest.Harmony
 {

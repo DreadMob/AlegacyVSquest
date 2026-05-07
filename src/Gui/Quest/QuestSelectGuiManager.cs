@@ -1,5 +1,6 @@
 using Vintagestory.API.Client;
 using Vintagestory.GameContent;
+using VsQuest.Systems.Client;
 
 namespace VsQuest
 {

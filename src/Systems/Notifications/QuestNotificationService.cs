@@ -54,8 +54,9 @@ namespace VsQuest
                     GlobalChatBroadcastUtil.BroadcastGeneralChatWithDiscord(sapi, text, discordText, EnumChatType.Notification, DiscordBroadcastKind.QuestCompleted);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                api.Logger.Warning("[QuestNotificationService] Failed to broadcast quest completion: {0}", ex.Message);
             }
         }
 

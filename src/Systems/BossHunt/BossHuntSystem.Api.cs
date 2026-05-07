@@ -8,6 +8,14 @@ namespace VsQuest
 {
     public partial class BossHuntSystem
     {
+        /// <summary>
+        /// Reload anchor points by scanning loaded chunks around online players.
+        /// </summary>
+        /// <param name="radiusBlocks">Radius in blocks to scan around each player.</param>
+        /// <param name="clearedAnchors">Number of anchors cleared from state.</param>
+        /// <param name="reRegisteredAnchors">Number of anchors re-registered.</param>
+        /// <param name="details">Detailed information about the operation.</param>
+        /// <returns>True if successful, false otherwise.</returns>
         public bool TryReloadAnchors(int radiusBlocks, out int clearedAnchors, out int reRegisteredAnchors, out string details)
         {
             clearedAnchors = 0;
@@ -100,6 +108,14 @@ namespace VsQuest
             }
         }
 
+        /// <summary>
+        /// Get the current position of the active boss.
+        /// </summary>
+        /// <param name="bossKey">The boss key to look up.</param>
+        /// <param name="pos">The position of the boss.</param>
+        /// <param name="dimension">The dimension of the boss.</param>
+        /// <param name="isLiveEntity">True if the boss is a live entity, false if it's a spawn point.</param>
+        /// <returns>True if the boss was found, false otherwise.</returns>
         public bool TryGetBossPosition(string bossKey, out Vec3d pos, out int dimension, out bool isLiveEntity)
         {
             pos = null;
@@ -133,11 +149,19 @@ namespace VsQuest
             return true;
         }
 
+        /// <summary>
+        /// Get the currently active boss key.
+        /// </summary>
+        /// <returns>The active boss key, or null if none.</returns>
         public string GetActiveBossKey()
         {
             return state?.activeBossKey;
         }
 
+        /// <summary>
+        /// Get the quest ID for the currently active boss.
+        /// </summary>
+        /// <returns>The quest ID, or null if no active boss or quest.</returns>
         public string GetActiveBossQuestId()
         {
             if (!HasAnyRegisteredAnchors()) return null;
@@ -149,6 +173,12 @@ namespace VsQuest
             return cfg?.questId;
         }
 
+        /// <summary>
+        /// Force rotation to the next boss immediately.
+        /// </summary>
+        /// <param name="bossKey">The boss key of the new active boss.</param>
+        /// <param name="questId">The quest ID of the new active boss.</param>
+        /// <returns>True if rotation succeeded, false otherwise.</returns>
         public bool ForceRotateToNext(out string bossKey, out string questId)
         {
             bossKey = null;
@@ -162,6 +192,18 @@ namespace VsQuest
             if (state == null) state = new BossHuntWorldState();
             if (state.entries == null) state.entries = new System.Collections.Generic.List<BossHuntStateEntry>();
 
+            string currentBossKey = state.activeBossKey;
+            if (!string.IsNullOrWhiteSpace(currentBossKey))
+            {
+                var currentCfg = FindConfig(currentBossKey);
+                if (currentCfg != null)
+                {
+                    TryDespawnBossEntity(currentCfg);
+                }
+            }
+
+            TryReloadAnchors(512, out _, out _, out _);
+
             state.nextBossRotationTotalHours = nowHours - 0.01;
             stateDirty = true;
 
@@ -170,11 +212,25 @@ namespace VsQuest
             var cfg = GetActiveBossConfig(nowHours);
             if (cfg == null) return false;
 
+            var st = GetOrCreateState(cfg.bossKey);
+            st.currentPointIndex = 0;
+            st.deadUntilTotalHours = 0;
+            st.lastSoftResetAtTotalHours = 0;
+            st.nextRelocateAtTotalHours = nowHours + cfg.GetRelocateIntervalHours();
+            stateDirty = true;
+
             bossKey = cfg.bossKey;
             questId = cfg.questId;
             return true;
         }
 
+        /// <summary>
+        /// Get the current boss hunt status.
+        /// </summary>
+        /// <param name="bossKey">The current active boss key.</param>
+        /// <param name="questId">The current active quest ID.</param>
+        /// <param name="hoursUntilRotation">Hours until the next boss rotation.</param>
+        /// <returns>True if status retrieved, false otherwise.</returns>
         public bool TryGetBossHuntStatus(out string bossKey, out string questId, out double hoursUntilRotation)
         {
             bossKey = null;

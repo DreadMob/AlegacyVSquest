@@ -296,8 +296,18 @@ namespace VsQuest
 
             var prevStatuses = new Dictionary<string, string>(lastRewardStatuses, StringComparer.OrdinalIgnoreCase);
 
-            ApplyData(message.questGiverId, message.availableQestIds, message.activeQuests, message.noAvailableQuestDescLangKey, message.noAvailableQuestCooldownDescLangKey, message.noAvailableQuestCooldownDaysLeft, message.noAvailableQuestRotationDaysLeft);
+            var domainActiveQuests = new List<ActiveQuest>(message?.activeQuests?.Count ?? 0);
+            if (message?.activeQuests != null)
+            {
+                for (int i = 0; i < message.activeQuests.Count; i++)
+                {
+                    var dto = message.activeQuests[i];
+                    if (dto == null) continue;
+                    domainActiveQuests.Add(dto.ToDomain());
+                }
+            }
 
+            ApplyData(message.questGiverId, message.availableQestIds, domainActiveQuests, message.noAvailableQuestDescLangKey, message.noAvailableQuestCooldownDescLangKey, message.noAvailableQuestCooldownDaysLeft, message.noAvailableQuestRotationDaysLeft);
             reputationNpcId = message.reputationNpcId;
 
             reputationFactionId = message.reputationFactionId;

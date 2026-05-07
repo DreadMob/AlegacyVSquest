@@ -201,8 +201,9 @@ namespace VsQuest
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    sapi.Logger.Warning("[WalkDistanceObjective] Failed to handle completion for quest {0}: {1}", activeQuest.questId, ex.Message);
                 }
             }
 

@@ -1,3 +1,4 @@
+using System;
 using Vintagestory.API.Client;
 using Vintagestory.GameContent;
 
@@ -18,8 +19,9 @@ namespace VsQuest
                     gui.TryClose();
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                capi.Logger.Warning("[ServerInfoGuiManager] Failed to close existing GUI: {0}", ex.Message);
             }
 
             gui = new ServerInfoGui(capi, message?.startTab ?? 0);
@@ -48,8 +50,9 @@ namespace VsQuest
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                capi.Logger.Warning("[ServerInfoGuiManager] Failed to close open dialogues: {0}", ex.Message);
             }
         }
     }

@@ -120,6 +120,8 @@ namespace VsQuest
 
         public override string PropertyName() => "bossintermissiondispel";
 
+        public bool IsInIntermission => IsAbilityActive;
+
         protected override void InitializeStages(JsonObject attributes)
         {
             stages = ParseStages<Stage>(attributes);
@@ -370,7 +372,7 @@ namespace VsQuest
 
                 if (spawn.spawnDelayMs > 0)
                 {
-                    Sapi.Event.RegisterCallback(_ =>
+                    RegisterCallbackTracked(_ =>
                     {
                         SpawnAddEntityAt(type, spawnPos, yaw);
                     }, spawn.spawnDelayMs);
@@ -509,7 +511,7 @@ namespace VsQuest
             int stopMs = stage.animationStopMs;
             if (stopMs <= 0) return;
 
-            Sapi.Event.RegisterCallback(_ =>
+            RegisterCallbackTracked(_ =>
             {
                 entity?.AnimManager?.StopAnimation(stage.animation);
             }, stopMs);
@@ -527,7 +529,7 @@ namespace VsQuest
 
             if (stage.soundStartMs > 0)
             {
-                Sapi.Event.RegisterCallback(_ =>
+                RegisterCallbackTracked(_ =>
                 {
                     float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
                     Sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, stage.soundVolume);

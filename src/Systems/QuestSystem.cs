@@ -12,13 +12,13 @@ namespace VsQuest
 {
     public class QuestSystem : ModSystem
     {
-        public Dictionary<string, Quest> QuestRegistry { get; private set; } = new Dictionary<string, Quest>();
-        public Dictionary<string, IQuestAction> ActionRegistry { get; private set; } = new Dictionary<string, IQuestAction>();
-        public Dictionary<string, ActionObjectiveBase> ActionObjectiveRegistry { get; private set; } = new Dictionary<string, ActionObjectiveBase>();
+        // Registries are now managed by QuestRegistryService
+        public Dictionary<string, Quest> QuestRegistry => QuestRegistryService.QuestRegistry;
+        public Dictionary<string, IQuestAction> ActionRegistry => QuestRegistryService.ActionRegistry;
+        public Dictionary<string, ActionObjectiveBase> ActionObjectiveRegistry => QuestRegistryService.ActionObjectiveRegistry;
 
         private QuizSystem quizSystem;
 
-        private QuestNetworkHandler networkHandler;
         private QuestPersistenceManager persistenceManager;
         private QuestLifecycleManager lifecycleManager;
         private QuestEventHandler eventHandler;
@@ -40,7 +40,6 @@ namespace VsQuest
         private long lagMonitorListenerId;
 
         public QuizSystem QuizSystem => quizSystem;
-        public QuestNetworkHandler NetworkHandler => networkHandler;
 
         private static T LoadOrCreateModConfig<T>(ICoreAPI api, string filename) where T : class, new()
         {
@@ -109,12 +108,8 @@ namespace VsQuest
         {
             base.Start(api);
 
-            networkHandler = new QuestNetworkHandler(this);
-
-            /* QuestSystem cache (used by other subsystems to safely resolve the active instance). */
-            QuestSystemCache.Initialize(api);
-
-            MobLocalizationUtils.LoadFromAssets(api);
+            /* Initialize the centralized registry service. */
+            QuestRegistryService.Initialize(api);
 
             quizSystem = new QuizSystem(this);
 
@@ -172,14 +167,14 @@ namespace VsQuest
         {
             base.StartServerSide(sapi);
 
-            QuestSystemCache.Initialize(sapi);
+            QuestRegistryService.Initialize(sapi);
 
             sapi.Logger.VerboseDebug($"[alegacyvsquest] QuestSystem.StartServerSide loaded ({DateTime.UtcNow:O})");
 
             /* Server-only wiring: persistence + lifecycle logic + event subscriptions. */
             persistenceManager = new QuestPersistenceManager(sapi);
-            lifecycleManager = new QuestLifecycleManager(QuestRegistry, ActionRegistry, api);
-            eventHandler = new QuestEventHandler(QuestRegistry, persistenceManager, sapi);
+            lifecycleManager = new QuestLifecycleManager(api);
+            eventHandler = new QuestEventHandler(persistenceManager, sapi);
 
             if (networkChannelRegistry == null)
             {
@@ -293,9 +288,7 @@ namespace VsQuest
             if (quest == null) return;
             if (string.IsNullOrWhiteSpace(quest.id)) return;
 
-            if (QuestRegistry.ContainsKey(quest.id)) return;
-
-            QuestRegistry.Add(quest.id, quest);
+            QuestRegistryService.RegisterQuest(quest, source);
         }
 
         public List<ActiveQuest> GetPlayerQuests(string playerUID)

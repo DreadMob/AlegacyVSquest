@@ -124,6 +124,7 @@ namespace VsQuest
 
             CopyTargetId(newEntity);
             CopyAnchor(newEntity);
+            CopyLeash(newEntity);
 
             Vec3d pos = new Vec3d(entity.Pos.X, entity.Pos.Y, entity.Pos.Z);
             int dim = entity.Pos.Dimension;
@@ -137,13 +138,27 @@ namespace VsQuest
 
             Sapi.World.SpawnEntity(newEntity);
 
+            // Notify BossHuntSystem so state machine and timers stay in sync
+            try
+            {
+                string targetId = newEntity.WatchedAttributes?.GetString(TargetIdKey, null);
+                if (!string.IsNullOrWhiteSpace(targetId))
+                {
+                    var bh = Sapi.ModLoader?.GetModSystem<BossHuntSystem>();
+                    bh?.OnBossRebirthComplete(targetId, newEntity);
+                }
+            }
+            catch
+            {
+            }
+
             // Keep any existing player clones alive by rebinding them to the newly spawned boss entity.
             TryRebindPlayerClones(oldEntityId, newEntity.EntityId);
 
             if (stage.keepHealthFraction)
             {
                 float fraction = GameMath.Clamp(healthFraction, 0.05f, 1f);
-                Sapi.Event.RegisterCallback(_ =>
+                RegisterCallbackTracked(_ =>
                 {
                     TryApplyHealthFraction(newEntity, fraction);
                 }, 1);
@@ -162,7 +177,7 @@ namespace VsQuest
 
             if (stage.soundStartMs > 0)
             {
-                Sapi.Event.RegisterCallback(_ =>
+                RegisterCallbackTracked(_ =>
                 {
                     if (entity == null || !entity.Alive) return;
                     float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
@@ -219,6 +234,25 @@ namespace VsQuest
             newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "y");
             newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "z");
             newEntity.WatchedAttributes.MarkPathDirty(AnchorKeyPrefix + "dim");
+        }
+
+        private void CopyLeash(Entity newEntity)
+        {
+            if (newEntity?.WatchedAttributes == null || entity?.WatchedAttributes == null) return;
+
+            float leashRange = entity.WatchedAttributes.GetFloat(EntityBehaviorQuestTarget.LeashRangeKey, float.NaN);
+            if (!float.IsNaN(leashRange))
+            {
+                newEntity.WatchedAttributes.SetFloat(EntityBehaviorQuestTarget.LeashRangeKey, leashRange);
+                newEntity.WatchedAttributes.MarkPathDirty(EntityBehaviorQuestTarget.LeashRangeKey);
+            }
+
+            float outOfCombatLeashRange = entity.WatchedAttributes.GetFloat(EntityBehaviorQuestTarget.OutOfCombatLeashRangeKey, float.NaN);
+            if (!float.IsNaN(outOfCombatLeashRange))
+            {
+                newEntity.WatchedAttributes.SetFloat(EntityBehaviorQuestTarget.OutOfCombatLeashRangeKey, outOfCombatLeashRange);
+                newEntity.WatchedAttributes.MarkPathDirty(EntityBehaviorQuestTarget.OutOfCombatLeashRangeKey);
+            }
         }
 
         // Required abstract overrides for BossAbilityBase (event-driven mode)

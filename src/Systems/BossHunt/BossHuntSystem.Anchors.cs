@@ -37,6 +37,10 @@ namespace VsQuest
             return false;
         }
 
+        /// <summary>
+        /// Get all known boss keys from loaded configurations.
+        /// </summary>
+        /// <returns>Array of boss keys, sorted alphabetically.</returns>
         public string[] GetKnownBossKeys()
         {
             if (configs == null || configs.Count == 0) return Array.Empty<string>();
@@ -55,12 +59,34 @@ namespace VsQuest
             return list.ToArray();
         }
 
+        /// <summary>
+        /// Register an anchor point for a boss.
+        /// </summary>
+        /// <param name="bossKey">The boss key to register the anchor for.</param>
+        /// <param name="anchorId">Unique identifier for the anchor.</param>
+        /// <param name="pointOrder">Order of this anchor point (for spawning sequence).</param>
+        /// <param name="pos">Position of the anchor.</param>
+        /// <param name="leashRange">Combat leash range (must be non-negative).</param>
+        /// <param name="outOfCombatLeashRange">Out-of-combat leash range (must be non-negative).</param>
+        /// <param name="yOffset">Y-axis offset for spawn position.</param>
         public void SetAnchorPoint(string bossKey, string anchorId, int pointOrder, BlockPos pos, float leashRange, float outOfCombatLeashRange, float yOffset)
         {
             if (sapi == null) return;
             if (string.IsNullOrWhiteSpace(bossKey)) return;
             if (pos == null) return;
             if (string.IsNullOrWhiteSpace(anchorId)) return;
+
+            if (leashRange < 0)
+            {
+                sapi.Logger.Warning("[BossHuntSystem.Anchors] Invalid leashRange {0} for anchor {1}, using 0", leashRange, anchorId);
+                leashRange = 0;
+            }
+
+            if (outOfCombatLeashRange < 0)
+            {
+                sapi.Logger.Warning("[BossHuntSystem.Anchors] Invalid outOfCombatLeashRange {0} for anchor {1}, using 0", outOfCombatLeashRange, anchorId);
+                outOfCombatLeashRange = 0;
+            }
 
             var cfg = FindConfig(bossKey);
             if (cfg == null) return;
@@ -105,6 +131,12 @@ namespace VsQuest
             DebugLog($"Anchor registered: bossKey={bossKey} id={anchorId} order={pointOrder} pos={pos.X},{pos.Y},{pos.Z} dim={pos.dimension}", force: true);
         }
 
+        /// <summary>
+        /// Unregister an anchor point for a boss.
+        /// </summary>
+        /// <param name="bossKey">The boss key to unregister the anchor for.</param>
+        /// <param name="anchorId">Unique identifier for the anchor.</param>
+        /// <param name="pos">Position of the anchor to remove.</param>
         public void UnsetAnchorPoint(string bossKey, string anchorId, BlockPos pos)
         {
             if (sapi == null) return;
@@ -137,6 +169,13 @@ namespace VsQuest
             }
         }
 
+        /// <summary>
+        /// Get the currently active anchor point for the active boss.
+        /// </summary>
+        /// <param name="pos">The position of the active anchor.</param>
+        /// <param name="dimension">The dimension of the active anchor.</param>
+        /// <param name="anchorId">The ID of the active anchor.</param>
+        /// <returns>True if an active anchor was found, false otherwise.</returns>
         public bool TryGetActiveBossAnchor(out Vec3d pos, out int dimension, out string anchorId)
         {
             pos = null;
@@ -224,7 +263,7 @@ namespace VsQuest
         {
             if (st == null || string.IsNullOrWhiteSpace(st.bossKey) || st.anchorPoints == null || st.anchorPoints.Count == 0)
             {
-                return new List<BossHuntAnchorPoint>();
+                return EmptyAnchorList;
             }
 
             if (!orderedAnchorsCache.TryGetValue(st.bossKey, out var ordered) || ordered == null || orderedAnchorsDirty.Contains(st.bossKey))
@@ -239,7 +278,7 @@ namespace VsQuest
 
         private List<BossHuntAnchorPoint> GetOrderedAnchors(List<BossHuntAnchorPoint> anchors)
         {
-            if (anchors == null || anchors.Count == 0) return new List<BossHuntAnchorPoint>();
+            if (anchors == null || anchors.Count == 0) return EmptyAnchorList;
 
             var list = new List<BossHuntAnchorPoint>();
             for (int i = 0; i < anchors.Count; i++)

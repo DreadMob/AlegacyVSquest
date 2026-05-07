@@ -22,8 +22,9 @@ namespace VsQuest
                 {
                     byPlayer?.Entity?.Api?.Logger?.Warning($"[alegacyvsquest] interactwithentity objective has invalid args (args='{string.Join("|", args ?? Array.Empty<string>())}'). Treating as completable to avoid stuck quest.");
                 }
-                catch
+                catch (Exception)
                 {
+                    // Swallow - this is a fail-safe logging attempt
                 }
 
                 // Fail-open: an invalid objective should not permanently block quest turn-in.

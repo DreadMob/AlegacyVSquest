@@ -72,8 +72,9 @@ namespace VsQuest
                 if (cfg.InventoryScanIntervalMs > 0) inventoryScanIntervalMs = cfg.InventoryScanIntervalMs;
                 if (cfg.HotbarEnforceIntervalMs > 0) hotbarEnforceIntervalMs = cfg.HotbarEnforceIntervalMs;
             }
-            catch
+            catch (Exception ex)
             {
+                api.Logger.Warning("[ItemSystem] Failed to apply ActionItems config: {0}", ex.Message);
             }
         }
 

@@ -128,6 +128,8 @@ namespace VsQuest
 
         public override string PropertyName() => "bosssummonritual";
 
+        public bool IsRitualActive => IsAbilityActive;
+
         protected override void InitializeStages(JsonObject attributes)
         {
             stages = ParseStages<Stage>(attributes);

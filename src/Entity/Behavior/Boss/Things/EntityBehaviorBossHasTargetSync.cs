@@ -1,4 +1,5 @@
-﻿using Vintagestory.API.Common;
+﻿using System;
+using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.GameContent;
 
@@ -57,8 +58,9 @@ namespace VsQuest
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                entity?.World?.Logger?.Warning("[EntityBehaviorBossHasTargetSync] Failed to check target: {0}", ex.Message);
                 hasTarget = false;
             }
 
@@ -75,8 +77,9 @@ namespace VsQuest
                     entity.SetWatchedBoolDirty(BossBehaviorUtils.HasTargetKey, false);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                entity?.World?.Logger?.Warning("[EntityBehaviorBossHasTargetSync] Failed to clear target on despawn: {0}", ex.Message);
             }
 
             base.OnEntityDespawn(despawn);

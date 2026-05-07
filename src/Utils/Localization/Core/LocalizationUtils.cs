@@ -525,8 +525,9 @@ namespace VsQuest
                     return t;
                 }
             }
-            catch
+            catch (Exception)
             {
+                // Swallow - Lang.Get may fail for missing keys
             }
 
             return null;

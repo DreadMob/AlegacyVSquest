@@ -179,7 +179,10 @@ namespace VsQuest.Harmony.Items
                 tree.SetLong("t", stats.Timestamp);
                 player.WatchedAttributes.SetAttribute(CacheKey, tree);
             }
-            catch { }
+            catch (Exception)
+            {
+                // Swallow - attribute set may fail
+            }
         }
     }
 }

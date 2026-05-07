@@ -6,6 +6,18 @@ using Vintagestory.API.Server;
 namespace VsQuest
 {
     /// <summary>
+    /// Represents a block position with X, Y, Z coordinates.
+    /// </summary>
+    public struct BlockPosition
+    {
+        public int X { get; set; }
+        public int Y { get; set; }
+        public int Z { get; set; }
+        
+        public BlockPosition(int x, int y, int z) { X = x; Y = y; Z = z; }
+    }
+    
+    /// <summary>
     /// Block objective types
     /// </summary>
     public enum BlockObjectiveType
@@ -27,6 +39,15 @@ namespace VsQuest
         private readonly bool positionLocked;
         
         public override string ObjectiveType => objectiveType.ToString().ToLower();
+        
+        /// <summary>
+        /// Get list of completed placed positions (for block removal after quest completion).
+        /// </summary>
+        public IEnumerable<BlockPosition> PlacedPositions => completedPositions.Select(p => 
+        {
+            var parts = p.Split(',');
+            return new BlockPosition(int.Parse(parts[0]), int.Parse(parts[1]), int.Parse(parts[2]));
+        });
         
         public BlockObjectiveTracker(
             BlockObjectiveType type,

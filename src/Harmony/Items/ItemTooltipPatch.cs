@@ -114,7 +114,7 @@ namespace VsQuest.Harmony
             string hideVanillaJson = attrs.GetString("alegacyvsquest:hideVanilla");
             if (!string.IsNullOrEmpty(hideVanillaJson))
             {
-                try { hideVanilla = new HashSet<string>(JsonConvert.DeserializeObject<List<string>>(hideVanillaJson)); } catch { }
+                try { hideVanilla = new HashSet<string>(JsonConvert.DeserializeObject<List<string>>(hideVanillaJson)); } catch (Exception) { /* Swallow - invalid JSON, use default */ }
             }
 
             string customDesc = attrs.GetString(ItemAttributeUtils.QuestDescKey);
@@ -289,7 +289,7 @@ namespace VsQuest.Harmony
             string showAttrsJson = attrs.GetString("alegacyvsquest:showAttrs");
             if (!string.IsNullOrEmpty(showAttrsJson))
             {
-                try { showAttrs = new HashSet<string>(JsonConvert.DeserializeObject<List<string>>(showAttrsJson)); } catch { }
+                try { showAttrs = new HashSet<string>(JsonConvert.DeserializeObject<List<string>>(showAttrsJson)); } catch (Exception) { /* Swallow - invalid JSON, use default */ }
             }
 
             string currentDsc = dsc.ToString();

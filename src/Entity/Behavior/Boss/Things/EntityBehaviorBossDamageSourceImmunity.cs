@@ -1,3 +1,4 @@
+using System;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
@@ -49,8 +50,9 @@ namespace VsQuest
                             return;
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        entity?.World?.Logger?.Warning("[EntityBehaviorBossDamageSourceImmunity] Failed to check cause entity: {0}", ex.Message);
                         // If we cannot resolve cause safely, default to blocking the damage when in strict mode.
                         damage = 0f;
                         return;
@@ -79,13 +81,15 @@ namespace VsQuest
                             return;
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        entity?.World?.Logger?.Warning("[EntityBehaviorBossDamageSourceImmunity] Failed to check damage type: {0}", ex.Message);
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                entity?.World?.Logger?.Warning("[EntityBehaviorBossDamageSourceImmunity] Failed to process damage immunity: {0}", ex.Message);
             }
         }
     }
