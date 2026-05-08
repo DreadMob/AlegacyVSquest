@@ -86,7 +86,8 @@
       "trigger": "openquests",
       "text": [
         { "value": "albase:dialogue-bosshunter-openquests-confirm" }
-      ]
+      ],
+      "jumpTo": "close"
     },
     {
       "code": "reroll",

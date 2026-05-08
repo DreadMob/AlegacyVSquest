@@ -1,4 +1,6 @@
 using Vintagestory.API.Common;
+using Vintagestory.API.Server;
+using Vintagestory.GameContent;
 
 namespace VsQuest
 {
@@ -9,6 +11,17 @@ namespace VsQuest
             RegisterEntityBehaviors(api);
             RegisterItems(api);
             RegisterBlocksAndBlockEntities(api);
+            RegisterAiTasks(api);
+        }
+
+        private static void RegisterAiTasks(ICoreAPI api)
+        {
+            // AI tasks need to be registered on server side
+            if (api.Side == EnumAppSide.Server)
+            {
+                var sapi = api as ICoreServerAPI;
+                sapi?.RegisterAiTask<AiTaskSeekTargetPlayer>("seektargetplayer");
+            }
         }
 
         private static void RegisterEntityBehaviors(ICoreAPI api)
@@ -44,6 +57,7 @@ namespace VsQuest
             api.RegisterEntityBehaviorClass("bosstrapclone", typeof(EntityBehaviorBossTrapClone));
             api.RegisterEntityBehaviorClass("bossformswap", typeof(EntityBehaviorBossFormSwap));
             api.RegisterEntityBehaviorClass("bossformswaplist", typeof(EntityBehaviorBossFormSwapList));
+            api.RegisterEntityBehaviorClass("bossmodelswap", typeof(EntityBehaviorBossModelSwap));
             api.RegisterEntityBehaviorClass("bossintermissiondispel", typeof(EntityBehaviorBossIntermissionDispel));
             api.RegisterEntityBehaviorClass("bossparasiteleech", typeof(EntityBehaviorBossParasiteLeech));
             api.RegisterEntityBehaviorClass("explosivelocust", typeof(EntityBehaviorExplosiveLocust));
@@ -60,6 +74,7 @@ namespace VsQuest
             api.RegisterEntityBehaviorClass("bosspassiveregen", typeof(EntityBehaviorBossPassiveRegen));
             api.RegisterEntityBehaviorClass("bosscorpseexplosion", typeof(EntityBehaviorBossCorpseExplosion));
             api.RegisterEntityBehaviorClass("bossrequiemchains", typeof(EntityBehaviorBossRequiemChains));
+            api.RegisterEntityBehaviorClass("bossmindcontrol", typeof(EntityBehaviorBossMindControl));
             api.RegisterEntityBehaviorClass("explodeondeath", typeof(EntityBehaviorExplodeOnDeath));
             api.RegisterEntityBehaviorClass("alegacyvsquest:questdropondeath", typeof(EntityBehaviorQuestDropOnDeath));
             api.RegisterEntityBehaviorClass("alegacyvsquestguionclick", typeof(EntityBehaviorGuiOnClick));

@@ -158,6 +158,8 @@
     "alegacyvsquest:reroll-success-message": "Ancient forces redistributed the trophies. You gained: {0}",
     "alegacyvsquest:reroll-failed": "Failed to influence the trophy's fate.",
     "alegacyvsquest:reroll-animation-title": "Wheel of Fate",
-    "alegacyvsquest:reroll-animation-claim": "Claim Boon"
+    "alegacyvsquest:reroll-animation-claim": "Claim Boon",
+    "alegacyvsquest:mindcontrol-start": "The Crypt Mirror has seized control of your mind!",
+    "alegacyvsquest:mindcontrol-end": "The mind control fades. You are free again."
 }
 

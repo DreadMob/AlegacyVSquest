@@ -293,9 +293,13 @@
       { "code": "questtarget", "targetId": "albase:bosshunt:crypt-mirror", "leashRange": 120, "returnMoveSpeed": 0.04, "leashCheckMs": 1000 },
       {
         "code": "bossplayerclone",
-        "cloneEntityCode": "albase:crypt-mirror-clone",
-        "cloneRange": 50,
-        "checkIntervalMs": 500
+        "stages": [
+          {
+            "whenHealthRelBelow": 1.0,
+            "cloneEntityCode": "albase:crypt-mirror-clone",
+            "cloneRange": 50
+          }
+        ]
       },
       {
         "code": "bosshook",
@@ -513,6 +517,178 @@
             "explodeSound": "albase:shock-sound-effect-horror",
             "explodeSoundRange": 30,
             "explodeSoundVolume": 0.2
+          }
+        ]
+      },
+      {
+        "code": "bossmindcontrol",
+        "stages": [
+          {
+            "whenHealthRelBelow": 0.6,
+            "cooldownSeconds": 25,
+            "controlDurationSeconds": 5,
+            "controlRange": 30,
+            "victimMoveSpeed": 0.04,
+            "attackDamage": 8,
+            "attackDamageTier": 3,
+            "controlSound": "albase:dark-magic-charge-up"
+          },
+          {
+            "whenHealthRelBelow": 0.3,
+            "cooldownSeconds": 18,
+            "controlDurationSeconds": 6,
+            "controlRange": 35,
+            "victimMoveSpeed": 0.05,
+            "attackDamage": 12,
+            "attackDamageTier": 4,
+            "controlSound": "albase:deathmagic"
+          }
+        ]
+      },
+      {
+        "code": "bossashfloor",
+        "stages": [
+          {
+            "whenHealthRelBelow": 0.7,
+            "cooldownSeconds": 22,
+            "minTargetRange": 4,
+            "maxTargetRange": 35,
+            "minRadius": 2,
+            "maxRadius": 6,
+            "tries": 8,
+            "blockCount": 40,
+            "durationMs": 12000,
+            "tickIntervalMs": 1200,
+            "victimWalkSpeedMult": 0.4,
+            "windupMs": 300,
+            "windupAnimation": "hit",
+            "sound": "albase:mechanical/mecha plimm",
+            "soundRange": 20,
+            "soundStartMs": 0,
+            "soundVolume": 0.4
+          },
+          {
+            "whenHealthRelBelow": 0.35,
+            "cooldownSeconds": 16,
+            "minTargetRange": 4,
+            "maxTargetRange": 40,
+            "minRadius": 4,
+            "maxRadius": 9,
+            "tries": 10,
+            "blockCount": 60,
+            "durationMs": 18000,
+            "tickIntervalMs": 1000,
+            "victimWalkSpeedMult": 0.35,
+            "windupMs": 200,
+            "windupAnimation": "hit",
+            "sound": "albase:mechanical/mecha rage",
+            "soundRange": 24,
+            "soundStartMs": 0,
+            "soundVolume": 0.4
+          }
+        ]
+      },
+      {
+        "code": "bosssummonritual",
+        "stages": [
+          {
+            "whenHealthRelBelow": 0.75,
+            "cooldownSeconds": 30,
+            "spawns": [
+              { "entityCode": "albase:bone-wolf", "minCount": 1, "maxCount": 1 },
+              { "entityCode": "albase:distorted-locust", "minCount": 1, "maxCount": 2 }
+            ],
+            "maxNearby": 4,
+            "nearbyRange": 25,
+            "ritualMs": 3000,
+            "healPerSecond": 0.5,
+            "spawnRange": 8,
+            "circleRadius": 2.5,
+            "circleMoveSpeed": 0.8,
+            "animation": "attack",
+            "sound": "game:sounds/creature/wolf/howl1",
+            "soundRange": 32,
+            "soundStartMs": 300,
+            "soundVolume": 0.4,
+            "spawnDelayMs": 400
+          },
+          {
+            "whenHealthRelBelow": 0.4,
+            "cooldownSeconds": 22,
+            "spawns": [
+              { "entityCode": "albase:bone-wolf", "minCount": 1, "maxCount": 2 },
+              { "entityCode": "albase:explosive-locust", "minCount": 1, "maxCount": 2 }
+            ],
+            "maxNearby": 6,
+            "nearbyRange": 30,
+            "ritualMs": 3500,
+            "healPerSecond": 1,
+            "spawnRange": 10,
+            "circleRadius": 3.0,
+            "circleMoveSpeed": 1.0,
+            "animation": "attack",
+            "sound": "albase:mechanical/robotic-monster-roar",
+            "soundRange": 36,
+            "soundStartMs": 400,
+            "soundVolume": 0.4,
+            "spawnDelayMs": 350
+          }
+        ]
+      },
+      {
+        "code": "bossmodelswap",
+        "stages": [
+          {
+            "whenHealthRelBelow": 0.75,
+            "cooldownSeconds": 60,
+            "swapSound": "albase:dark-magic-charge-up",
+            "soundRange": 32,
+            "forms": [
+              {
+                "shape": "game:entity/lore/drifter/deerhorn",
+                "texture": "albase:boss-ossuarywarden-deerhorn",
+                "durationMs": 20000
+              }
+            ]
+          },
+          {
+            "whenHealthRelBelow": 0.55,
+            "cooldownSeconds": 55,
+            "swapSound": "albase:dark-magic-charge-up",
+            "soundRange": 32,
+            "forms": [
+              {
+                "shape": "game:entity/animal/mammal/wolf/eurasian-adult",
+                "texture": "albase:boss-bonecolossus-wolf",
+                "durationMs": 20000
+              }
+            ]
+          },
+          {
+            "whenHealthRelBelow": 0.35,
+            "cooldownSeconds": 50,
+            "swapSound": "albase:deathmagic",
+            "soundRange": 36,
+            "forms": [
+              {
+                "shape": "albase:entity/lore/locust/locust-corrupt-sawblade",
+                "texture": "albase:boss-ashenlurker-locust",
+                "durationMs": 20000
+              }
+            ]
+          },
+          {
+            "whenHealthRelBelow": 0.15,
+            "cooldownSeconds": 45,
+            "swapSound": "albase:deathmagic",
+            "soundRange": 40,
+            "forms": [
+              {
+                "shape": "game:entity/lore/bowtorn/gearfoot",
+                "texture": "albase:boss-subduction-maw-gearfoot",
+                "durationMs": 25000
+              }
+            ]
           }
         ]
       },

@@ -46,21 +46,12 @@ namespace VsQuest
                 return TextCommandResult.Error("Player not found.");
             }
 
-            // Find item in player's hotbar (active slot)
-            var hotbar = targetPlayer.InventoryManager.GetHotbarInventory();
-            ItemSlot activeSlot = null;
-            for (int i = 0; i < hotbar.Count; i++)
-            {
-                if (!hotbar[i].Empty)
-                {
-                    activeSlot = hotbar[i];
-                    break;
-                }
-            }
-
+            // Get active hotbar slot (item in hand)
+            var activeSlot = targetPlayer.InventoryManager.ActiveHotbarSlot;
+            
             if (activeSlot == null || activeSlot.Empty)
             {
-                return TextCommandResult.Error("No item found in player's hotbar.");
+                return TextCommandResult.Error("No item found in player's active hotbar slot (item in hand).");
             }
 
             var stack = activeSlot.Itemstack;
@@ -126,21 +117,12 @@ namespace VsQuest
                 return TextCommandResult.Error("Player not found.");
             }
 
-            // Find item in player's hotbar (active slot)
-            var hotbar = targetPlayer.InventoryManager.GetHotbarInventory();
-            ItemSlot activeSlot = null;
-            for (int i = 0; i < hotbar.Count; i++)
-            {
-                if (!hotbar[i].Empty)
-                {
-                    activeSlot = hotbar[i];
-                    break;
-                }
-            }
-
+            // Get active hotbar slot (item in hand)
+            var activeSlot = targetPlayer.InventoryManager.ActiveHotbarSlot;
+            
             if (activeSlot == null || activeSlot.Empty)
             {
-                return TextCommandResult.Error("No item found in player's hotbar.");
+                return TextCommandResult.Error("No item found in player's active hotbar slot (item in hand).");
             }
 
             var stack = activeSlot.Itemstack;

@@ -162,6 +162,25 @@ namespace VsQuest
                 return 0;
             }
 
+            if (value == "openrerolldialog" && triggeringEntity.Api is ICoreServerAPI sapiReroll)
+            {
+                var behaviorConversable = entity.GetBehavior<EntityBehaviorConversable>();
+                behaviorConversable.Dialog?.TryClose();
+
+                var serverPlayer = (triggeringEntity as EntityPlayer)?.Player as IServerPlayer;
+                if (serverPlayer == null) return 0;
+
+                // Execute the openrerolldialog action
+                var questSystem = sapiReroll.ModLoader.GetModSystem<QuestSystem>();
+                var message = new QuestAcceptedMessage { questId = "dialog-action" };
+                
+                if (questSystem.ActionRegistry.TryGetValue("openrerolldialog", out var action))
+                {
+                    action.Execute(sapiReroll, message, serverPlayer, new string[0]);
+                }
+                return 0;
+            }
+
             if (value == QuestGiverConstants.DialogTriggerOpenServerInfo && triggeringEntity.Api is ICoreServerAPI sapi2)
             {
                 var behaviorConversable = entity.GetBehavior<EntityBehaviorConversable>();

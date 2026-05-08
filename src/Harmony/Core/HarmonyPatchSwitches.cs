@@ -10,6 +10,7 @@ namespace VsQuest
         public static bool Item_EntityBehaviorHealth_OnFallToGround { get; private set; } = true;
         public static bool Item_EntityBehaviorTemporalStabilityAffected_OnGameTick { get; private set; } = true;
         public static bool Item_CollectibleObject_GetAttackPower { get; private set; } = true;
+        public static bool Item_CollectibleObject_OnHeldAttackStart_AttackSpeed { get; private set; } = true;
         public static bool Item_CollectibleBehaviorWearable_GetWarmth { get; private set; } = true;
         public static bool Item_EntityBehaviorBodyTemperature_WarmthBonus { get; private set; } = true;
         public static bool Item_CollectibleObject_GetMiningSpeed_MiningSpeedMult { get; private set; } = true;
@@ -101,6 +102,7 @@ namespace VsQuest
             Item_EntityBehaviorHealth_OnFallToGround = item?.EntityBehaviorHealth_OnFallToGround ?? true;
             Item_EntityBehaviorTemporalStabilityAffected_OnGameTick = item?.EntityBehaviorTemporalStabilityAffected_OnGameTick ?? true;
             Item_CollectibleObject_GetAttackPower = item?.CollectibleObject_GetAttackPower ?? true;
+            Item_CollectibleObject_OnHeldAttackStart_AttackSpeed = item?.CollectibleObject_OnHeldAttackStart_AttackSpeed ?? true;
             Item_CollectibleBehaviorWearable_GetWarmth = item?.CollectibleBehaviorWearable_GetWarmth ?? true;
             Item_EntityBehaviorBodyTemperature_WarmthBonus = item?.EntityBehaviorBodyTemperature_WarmthBonus ?? true;
             Item_CollectibleObject_GetMiningSpeed_MiningSpeedMult = item?.CollectibleObject_GetMiningSpeed_MiningSpeedMult ?? true;

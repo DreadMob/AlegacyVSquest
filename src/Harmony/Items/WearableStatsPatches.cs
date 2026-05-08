@@ -254,6 +254,7 @@ namespace VsQuest.Harmony.Items
                 float jumpHeightMult = 0f;
                 float maxHealthFlat = 0f;
                 float maxOxygenBonus = 0f;
+                float attackSpeed = 0f;
 
                 foreach (ItemSlot slot in inv)
                 {
@@ -269,6 +270,7 @@ namespace VsQuest.Harmony.Items
                         jumpHeightMult += ItemAttributeUtils.GetAttributeFloatScaled(stack, ItemAttributeUtils.AttrJumpHeightMul);
                         maxHealthFlat += ItemAttributeUtils.GetAttributeFloatScaled(stack, ItemAttributeUtils.AttrMaxHealthFlat);
                         maxOxygenBonus += ItemAttributeUtils.GetAttributeFloatScaled(stack, ItemAttributeUtils.AttrMaxOxygen);
+                        attackSpeed += ItemAttributeUtils.GetAttributeFloatScaled(stack, ItemAttributeUtils.AttrAttackSpeed);
                     }
                 }
 
@@ -288,7 +290,8 @@ namespace VsQuest.Harmony.Items
                         !ApproximatelyEqual(lastTree.GetFloat("mining", float.NaN), miningSpeedMult) ||
                         !ApproximatelyEqual(lastTree.GetFloat("jump", float.NaN), jumpHeightMult) ||
                         !ApproximatelyEqual(lastTree.GetFloat("health", float.NaN), maxHealthFlat) ||
-                        !ApproximatelyEqual(lastTree.GetFloat("oxygen", float.NaN), maxOxygenBonus);
+                        !ApproximatelyEqual(lastTree.GetFloat("oxygen", float.NaN), maxOxygenBonus) ||
+                        !ApproximatelyEqual(lastTree.GetFloat("attackSpeed", float.NaN), attackSpeed);
                 }
 
                 if (!changed) return;
@@ -304,6 +307,7 @@ namespace VsQuest.Harmony.Items
                     statsDict["rangedWeaponsSpeed"] = rangedWeaponsSpeed;
                     statsDict["miningSpeedMul"] = miningSpeedMult;
                     statsDict["jumpHeightMul"] = jumpHeightMult;
+                    statsDict["attackSpeed"] = attackSpeed;
 
                     StatCoalescingEngine.QueueStatUpdates(sapi, ep, statsDict);
                 }
@@ -317,6 +321,7 @@ namespace VsQuest.Harmony.Items
                     player.Entity.Stats.Set("rangedWeaponsSpeed", "vsquestmod", rangedWeaponsSpeed, true);
                     player.Entity.Stats.Set("miningSpeedMul", "vsquestmod", miningSpeedMult, true);
                     player.Entity.Stats.Set("jumpHeightMul", "vsquestmod", jumpHeightMult, true);
+                    player.Entity.Stats.Set("attackSpeed", "vsquestmod", attackSpeed, true);
                 }
 
                 var healthBehavior = player.Entity.GetBehavior<EntityBehaviorHealth>();
@@ -384,6 +389,7 @@ namespace VsQuest.Harmony.Items
                 newTree.SetFloat("jump", jumpHeightMult);
                 newTree.SetFloat("health", maxHealthFlat);
                 newTree.SetFloat("oxygen", maxOxygenBonus);
+                newTree.SetFloat("attackSpeed", attackSpeed);
                 wa.SetAttribute(LastAppliedPrefix.TrimEnd(':'), newTree);
             }
         }

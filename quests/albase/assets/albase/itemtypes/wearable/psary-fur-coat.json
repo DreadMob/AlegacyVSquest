@@ -25,7 +25,7 @@
       "base": "game:block/transparent"
     },
     "upperbodyover": {
-      "base": "albase:fur-coat-new"
+      "base": "albase:entity/humanoid/seraphclothes/upperbodyover/fur-coat-new"
     }
   },
   "renderAlphaTest": 0.25,

@@ -11,7 +11,7 @@
     "killedByInfoText": "deadcreature-eaten-large",
     "deadEntityCode": "albase:item-dead-creature-bonecolossus",
     "reckless": true,
-    "vsquestSoundPitchMul": 0.75,
+    "vsquestSoundPitchMul": 0.45,
     "alegacyvsquestHideInfoText": true
   },
   "client": {

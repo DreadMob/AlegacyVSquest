@@ -24,6 +24,7 @@ namespace VsQuest.Harmony.Items
             public float FlatProtection { get; set; }
             public float KnockbackMult { get; set; }
             public float AttackPower { get; set; }
+            public float AttackSpeed { get; set; }
             public float RangedDamageMult { get; set; }
             public long Timestamp { get; set; }
 
@@ -101,6 +102,7 @@ namespace VsQuest.Harmony.Items
             stats.FlatProtection += ItemAttributeUtils.GetAttributeFloatScaled(stack, ItemAttributeUtils.AttrProtection);
             stats.KnockbackMult += ItemAttributeUtils.GetAttributeFloatScaled(stack, ItemAttributeUtils.AttrKnockbackMult);
             stats.AttackPower += ItemAttributeUtils.GetAttributeFloatScaled(stack, ItemAttributeUtils.AttrAttackPower);
+            stats.AttackSpeed += ItemAttributeUtils.GetAttributeFloatScaled(stack, ItemAttributeUtils.AttrAttackSpeed);
             stats.RangedDamageMult += ItemAttributeUtils.GetAttributeFloatScaled(stack, ItemAttributeUtils.AttrRangedDamageMult);
         }
 
@@ -153,6 +155,7 @@ namespace VsQuest.Harmony.Items
                         FlatProtection = tree.GetFloat("pf"),
                         KnockbackMult = tree.GetFloat("k"),
                         AttackPower = tree.GetFloat("ap"),
+                        AttackSpeed = tree.GetFloat("as"),
                         RangedDamageMult = tree.GetFloat("rd"),
                         Timestamp = timestamp
                     };
@@ -175,6 +178,7 @@ namespace VsQuest.Harmony.Items
                 tree.SetFloat("pf", stats.FlatProtection);
                 tree.SetFloat("k", stats.KnockbackMult);
                 tree.SetFloat("ap", stats.AttackPower);
+                tree.SetFloat("as", stats.AttackSpeed);
                 tree.SetFloat("rd", stats.RangedDamageMult);
                 tree.SetLong("t", stats.Timestamp);
                 player.WatchedAttributes.SetAttribute(CacheKey, tree);

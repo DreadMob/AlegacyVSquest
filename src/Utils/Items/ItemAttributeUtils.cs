@@ -39,6 +39,7 @@ namespace VsQuest
         public const string ItemQualityBonusDataKey = "alegacyvsquest:qualityBonusData";
 
         public const string AttrAttackPower = "attackpower";
+        public const string AttrAttackSpeed = "attackspeed";
         public const string AttrWarmth = "warmth";
         public const string AttrProtection = "protection";
         public const string AttrWalkSpeed = "walkspeed";

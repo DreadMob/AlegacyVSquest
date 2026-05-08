@@ -168,5 +168,7 @@
     "alegacyvsquest:reroll-success-message": "Древние силы перераспределили трофеи. Вы обрели: {0}",
     "alegacyvsquest:reroll-failed": "Не удалось повлиять на судьбу трофея.",
     "alegacyvsquest:reroll-animation-title": "Вращение судьбы",
-    "alegacyvsquest:reroll-animation-claim": "Забрать дар"
+    "alegacyvsquest:reroll-animation-claim": "Забрать дар",
+    "alegacyvsquest:mindcontrol-start": "Криптовое Зеркало захватило контроль над вашим разумом!",
+    "alegacyvsquest:mindcontrol-end": "Контроль над разумом ослаблен. Вы снова свободны."
 }

@@ -306,32 +306,27 @@
             "soundVolume": 3
           },
           {
+            "code": "seektargetplayer",
+            "priority": 1.7,
+            "movespeed": 0.05,
+            "seekingRange": 50,
+            "maxFollowTime": 300,
+            "animation": "run",
+            "animationSpeed": 1.35
+          },
+          {
             "code": "seekentity",
             "entityCodes": ["player"],
-            "priority": 1.6,
+            "priority": 1.5,
             "mincooldown": 200,
             "maxcooldown": 400,
-            "movespeed": 0.02,
+            "movespeed": 0.04,
             "seekingRange": 45,
             "maxFollowTime": 300,
             "searchWaitMs": 500,
             "executionChance": 1,
             "animationSpeed": 1.15,
             "animation": "walk"
-          },
-          {
-            "code": "seekentity",
-            "entityCodes": ["player"],
-            "priority": 1.4,
-            "mincooldown": 200,
-            "maxcooldown": 400,
-            "movespeed": 0.05,
-            "seekingRange": 25,
-            "maxFollowTime": 200,
-            "searchWaitMs": 250,
-            "executionChance": 0.75,
-            "animationSpeed": 1.35,
-            "animation": "run"
           },
           { "code": "lookaround", "priority": 0.5 }
         ]

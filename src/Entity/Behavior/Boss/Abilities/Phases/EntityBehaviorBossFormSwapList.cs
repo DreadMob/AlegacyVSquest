@@ -16,7 +16,7 @@ namespace VsQuest
 
         protected override string CooldownKey => "alegacyvsquest:bossformswaplist:lastStartMs";
         protected override bool UseHealthBasedStages() => false;
-        protected override bool RequiresTarget() => true; // Can be configured per stage
+        protected override bool RequiresTarget() => false; // Configured per stage in ActivateAbility
         protected override int CheckIntervalMs => 500;
 
         private const string CloneFlagKey = "alegacyvsquest:bossplayerclone";
