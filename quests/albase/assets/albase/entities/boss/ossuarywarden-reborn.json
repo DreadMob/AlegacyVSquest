@@ -12,7 +12,6 @@
     "deadEntityCode": "albase:item-dead-creature-ossuarywarden-reborn",
     "reckless": true,
     "vsquestSoundPitchMul": 0.6,
-    "SoundVolumeMulBySound": { "albase:bosshunt_1": 0.36, "albase:magic-sparkling": 0.36, "albase:dark-magic-charge-up": 0.36, "albase:shock-sound-effect-horror": 0.36 },
     "alegacyvsquestHideInfoText": true,
     "oddsToAlter": 999999,
     "alternativeCollisionBox": [2.4, 2.2],
@@ -83,7 +82,7 @@
             "sound": "albase:dash",
             "soundRange": 20,
             "soundStartMs": 0,
-            "soundVolume": 0.18
+            "soundVolume": 0.5
           },
           {
             "whenHealthRelBelow": 0.35,
@@ -98,7 +97,7 @@
             "sound": "albase:dash",
             "soundRange": 22,
             "soundStartMs": 0,
-            "soundVolume": 0.18
+            "soundVolume": 0.5
           }
         ]
       },
@@ -119,7 +118,7 @@
             "sound": "albase:magic-sparkling",
             "soundRange": 22,
             "soundStartMs": 0,
-            "soundVolume": 0.18
+            "soundVolume": 0.5
           },
           {
             "whenHealthRelBelow": 0.35,
@@ -135,7 +134,7 @@
             "sound": "albase:magic-sparkling",
             "soundRange": 24,
             "soundStartMs": 0,
-            "soundVolume": 0.18
+            "soundVolume": 0.5
           }
         ]
       },
@@ -156,7 +155,7 @@
             "sound": "albase:dark-magic-charge-up",
             "soundRange": 40,
             "soundStartMs": 0,
-            "soundVolume": 0.2,
+            "soundVolume": 0.5,
             "requireSolidGround": true
           }
         ]

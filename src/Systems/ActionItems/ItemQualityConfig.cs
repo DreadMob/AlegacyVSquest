@@ -54,6 +54,12 @@ namespace VsQuest
         public string bonusMode { get; set; } = "all";
 
         /// <summary>
+        /// If true, each attribute gets its own random bonus percentage.
+        /// If false, one percentage is rolled and applied to all attributes.
+        /// </summary>
+        public bool perAttribute { get; set; } = false;
+
+        /// <summary>
         /// If true, only one quality can be applied to an item.
         /// If false, multiple qualities could stack (not recommended).
         /// </summary>

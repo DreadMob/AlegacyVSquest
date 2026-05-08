@@ -28,7 +28,8 @@
       "applyQuality": false,
       "rewardItems": [
         "albase:bosshunt-reward-sea-spirit",
-        "albase:bosshunt-reward-life-amulet"
+        "albase:bosshunt-reward-life-amulet",
+        "albase:bosshunt-reward-ultrawarm-coat"
       ]
     },
     {
@@ -37,20 +38,9 @@
       "itemsRequired": 2,
       "applyQuality": false,
       "rewardItems": [
-        "albase:bosshunt-reward-ultrawarm-coat",
+        "albase:bosshunt-reward-duelist",
         "albase:bosshunt-reward-subduction-filter",
         "albase:bosshunt-reward-subduction-quiver"
-      ]
-    },
-    {
-      "id": "deceptionmaster",
-      "name": "Мастер Обмана",
-      "itemsRequired": 2,
-      "applyQuality": false,
-      "rewardItems": [
-        "albase:bosshunt-reward-duelist",
-        "albase:bosshunt-reward-secondchance-mask",
-        "albase:bosshunt-reward-cryptsight"
       ]
     }
   ],
@@ -58,7 +48,6 @@
     "albase:bosshunt-ossuarywarden": "ossuarywarden",
     "albase:bosshunt-ashenlurker": "ashenlurker",
     "albase:bosshunt-bonecolossus": "bonecolossus",
-    "albase:bosshunt-subduction-maw": "subductionmaw",
-    "albase:bosshunt-deception-master": "deceptionmaster"
+    "albase:bosshunt-subduction-maw": "subductionmaw"
   }
 }

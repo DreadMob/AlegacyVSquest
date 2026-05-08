@@ -94,12 +94,11 @@ namespace VsQuest
             int currentGrowthStage = entity.WatchedAttributes.GetInt(GrowthStageKey, 0);
             if (!entity.TryGetHealthFraction(out float frac)) return false;
 
-            for (int i = 0; i < stages.Count; i++)
+            // Iterate HIGHEST threshold FIRST to find the best matching stage
+            for (int i = stages.Count - 1; i >= 0; i--)
             {
                 if (frac <= stages[i].whenHealthRelBelow)
                 {
-                    // This is the stage that should be active (highest matching)
-                    // Only allow if we haven't reached it yet
                     if (currentGrowthStage < i + 1)
                         return true;
                     return false;
@@ -301,6 +300,14 @@ namespace VsQuest
             double td = (entity.touchDistance = entity.GetTouchDistance());
             entity.touchDistanceSq = td * td;
 
+            entity.MarkShapeModified();
+
+            // Force position sync to trigger visual re-render on client
+            if (entity.Pos != null)
+            {
+                entity.Pos.SetFrom(entity.Pos);
+            }
+
             if (applySpeed && entity?.Stats != null)
             {
                 if (baseWalkSpeed <= 0f)
@@ -382,6 +389,15 @@ namespace VsQuest
             float range = stage.soundRange;
             if (range <= 0f) range = 24f;
 
+            // Apply pitch multiplier from entity attributes
+            float pitchMult = 1f;
+            try
+            {
+                pitchMult = entity?.Properties?.Attributes?["vsquestSoundPitchMul"].AsFloat(1f) ?? 1f;
+            }
+            catch { }
+            if (pitchMult <= 0f || Math.Abs(pitchMult - 1f) < 0.0001f) pitchMult = 1f;
+
             int startMs = stage.soundStartMs;
             if (startMs > 0)
             {
@@ -389,14 +405,16 @@ namespace VsQuest
                 {
                     if (entity == null || !entity.Alive) return;
                     float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-                    Sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, 1f);
+                    if (pitchMult != 1f) pitch *= pitchMult;
+                    Sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, 1.5f);
                 }, startMs);
                 return;
             }
 
             if (entity == null || !entity.Alive) return;
             float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
-            Sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, 1f);
+            if (pitchMult != 1f) pitch *= pitchMult;
+            Sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, 1.5f);
         }
 
         private void CaptureBaseSizes()
@@ -501,6 +519,12 @@ namespace VsQuest
             entity.touchDistanceSq = td * td;
 
             entity.MarkShapeModified();
+
+            // Force position sync to trigger visual re-render
+            if (entity.Pos != null)
+            {
+                entity.Pos.SetFrom(entity.Pos);
+            }
         }
 
         // Required abstract overrides for BossAbilityBase (event-driven mode)

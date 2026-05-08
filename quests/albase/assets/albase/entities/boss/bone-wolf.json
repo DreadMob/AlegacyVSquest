@@ -10,10 +10,6 @@
   "attributes": {
     "killedByInfoText": "deadcreature-eaten-large",
     "deadEntityCode": "albase:item-dead-creature-bone-wolf",
-    "SoundVolumeMulBySound": {
-      "game:sounds/creature/wolf/hurt": 4.0,
-      "game:sounds/creature/wolf/hurt": 4.0
-    },
     "alegacyvsquestHideInfoText": true
   },
   "client": {

@@ -49,6 +49,7 @@ namespace VsQuest
         }
 
         private List<Stage> stages = new List<Stage>();
+        private readonly List<long> spawnedEntityIds = new List<long>();
 
         public EntityBehaviorBossPeriodicSpawn(Entity entity) : base(entity)
         {
@@ -202,6 +203,8 @@ namespace VsQuest
 
                 Sapi.World.SpawnEntity(spawned);
 
+                spawnedEntityIds.Add(spawned.EntityId);
+
                 TryDisableFleeForSummonedWolves(spawned);
             }
         }
@@ -237,6 +240,37 @@ namespace VsQuest
                     }
                 }
             }, 1);
+        }
+
+        public override void OnEntityDeath(DamageSource damageSourceForDeath)
+        {
+            DespawnAllSpawned();
+            base.OnEntityDeath(damageSourceForDeath);
+        }
+
+        public override void OnEntityDespawn(EntityDespawnData despawn)
+        {
+            DespawnAllSpawned();
+            base.OnEntityDespawn(despawn);
+        }
+
+        private void DespawnAllSpawned()
+        {
+            if (Sapi == null) return;
+
+            for (int i = spawnedEntityIds.Count - 1; i >= 0; i--)
+            {
+                long id = spawnedEntityIds[i];
+                if (id <= 0) continue;
+
+                var e = Sapi.World.GetEntityById(id);
+                if (e != null && e.Alive)
+                {
+                    Sapi.World.DespawnEntity(e, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
+                }
+            }
+
+            spawnedEntityIds.Clear();
         }
 
         // Required abstract overrides for BossAbilityBase (not used in periodic tick mode)

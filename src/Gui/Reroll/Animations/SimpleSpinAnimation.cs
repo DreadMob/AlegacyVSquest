@@ -27,6 +27,7 @@ namespace VsQuest
 
         public bool IsComplete => elapsed >= TotalDuration;
         public float Progress => Math.Min(1f, elapsed / TotalDuration);
+        public float SpinSpeed => spinSpeed;
 
         public void Initialize(string[] itemIds, string[] itemNames, string[] itemCodes, string resultItemId, string resultItemName, string resultItemCode)
         {

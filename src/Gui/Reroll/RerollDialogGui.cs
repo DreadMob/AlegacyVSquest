@@ -95,8 +95,8 @@ namespace VsQuest
         private void recompose()
         {
             // Fixed size dialog - increased width for text
-            double dialogWidth = 600;
-            double dialogHeight = Math.Max(250, 100 + groups.Count * 60);
+            double dialogWidth = 700;
+            double dialogHeight = Math.Max(300, 120 + groups.Count * 70);
 
             ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
             ElementBounds bgBounds = ElementBounds.Fixed(0, 0, dialogWidth, dialogHeight).WithFixedPadding(GuiStyle.ElementToDialogPadding);
@@ -108,7 +108,7 @@ namespace VsQuest
                 .AddDialogTitleBar(titleText, () => TryClose())
                 .BeginChildElements(bgBounds);
 
-            int yOffset = 30; // Increased top margin
+            int yOffset = 35; // Top margin
 
             if (groups.Count == 0)
             {
@@ -120,17 +120,14 @@ namespace VsQuest
             {
                 foreach (var group in groups)
                 {
-                    // Group name and count
-                    string groupText = $"{group.groupName}";
-                    string countText = $"({group.itemCount}/{group.itemsRequired})";
+                    // Group name with count on same line
+                    string groupText = $"{group.groupName} ({group.itemCount}/{group.itemsRequired})";
 
-                    ElementBounds textBounds = ElementBounds.Fixed(60, yOffset + 5, 380, 20);
-                    ElementBounds countBounds = ElementBounds.Fixed(60, yOffset + 25, 100, 16);
-                    ElementBounds buttonBounds = ElementBounds.Fixed(dialogWidth - 140, yOffset + 5, 130, 30);
+                    ElementBounds textBounds = ElementBounds.Fixed(80, yOffset + 8, 480, 24);
+                    ElementBounds buttonBounds = ElementBounds.Fixed(dialogWidth - 160, yOffset + 5, 150, 32);
 
                     SingleComposer
-                        .AddStaticText(groupText, CairoFont.WhiteSmallishText(), textBounds)
-                        .AddStaticText(countText, group.canReroll ? CairoFont.WhiteSmallishText() : CairoFont.WhiteSmallishText().WithColor(new double[] { 0.6, 0.6, 0.6, 1.0 }), countBounds);
+                        .AddStaticText(groupText, CairoFont.WhiteSmallishText(), textBounds);
 
                     if (group.canReroll)
                     {
@@ -141,14 +138,14 @@ namespace VsQuest
                     {
                         string disabledText = LocalizationUtils.GetSafe("alegacyvsquest:reroll-button-disabled");
                         SingleComposer.AddStaticText(disabledText, CairoFont.WhiteSmallishText().WithColor(new double[] { 0.5, 0.5, 0.5, 1.0 }), 
-                            ElementBounds.Fixed(dialogWidth - 130, yOffset + 10, 120, 16));
+                            ElementBounds.Fixed(dialogWidth - 150, yOffset + 12, 140, 20));
                     }
 
-                    yOffset += 60; // Increased spacing between items
+                    yOffset += 70; // Increased spacing between groups
                 }
             }
 
-            ElementBounds closeButtonBounds = ElementBounds.Fixed(dialogWidth / 2 - 100, yOffset + 10, 200, 24);
+            ElementBounds closeButtonBounds = ElementBounds.Fixed(dialogWidth / 2 - 100, yOffset + 15, 200, 28);
             SingleComposer.AddButton(Lang.Get("alegacyvsquest:button-cancel"), TryClose, closeButtonBounds);
 
             SingleComposer.EndChildElements().Compose();
@@ -158,8 +155,8 @@ namespace VsQuest
         {
             base.OnRenderGUI(deltaTime);
 
-            // Render item icons
-            int yOffset = 30; // Match recompose offset
+            // Render item icons centered with text
+            int yOffset = 35; // Match recompose offset
             foreach (var group in groups)
             {
                 if (!string.IsNullOrWhiteSpace(group.iconItemCode))
@@ -168,19 +165,20 @@ namespace VsQuest
                     if (stack != null)
                     {
                         var slot = new DummySlot(stack);
-                        double iconX = SingleComposer.Bounds.absX + GuiElement.scaled(20);
-                        double iconY = SingleComposer.Bounds.absY + GuiElement.scaled(48 + yOffset);
+                        // Position icon 6px more to the right and 6px higher
+                        double iconX = SingleComposer.Bounds.absX + GuiElement.scaled(42);
+                        double iconY = SingleComposer.Bounds.absY + GuiElement.scaled(39 + yOffset);
                         float size = (float)GuiElement.scaled(36);
                         capi.Render.RenderItemstackToGui(slot, iconX, iconY, 500, size, -1, false, false, false);
                     }
                 }
-                yOffset += 60; // Match spacing
+                yOffset += 70; // Match spacing
             }
         }
 
         private bool OnRerollClick(string groupId)
         {
-            capi.Network.GetChannel("alegacyvsquest").SendPacket(new ExecuteRerollMessage
+            capi.Network.GetChannel(VsQuestNetworkRegistry.RerollChannelName).SendPacket(new ExecuteRerollMessage
             {
                 GroupId = groupId
             });

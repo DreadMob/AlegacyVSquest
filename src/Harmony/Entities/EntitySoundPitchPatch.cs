@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using HarmonyLib;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -18,7 +17,6 @@ namespace VsQuest.Harmony
                 if (!__instance.Properties.Sounds.TryGetValue(type, out var sound) || sound.Location == null) return true;
 
                 float mult = 1f;
-                Dictionary<string, float> volumeBySound = null;
                 try
                 {
                     mult = __instance.Properties.Attributes?["vsquestSoundPitchMul"].AsFloat(1f) ?? 1f;
@@ -30,14 +28,6 @@ namespace VsQuest.Harmony
                 if (mult <= 0f || Math.Abs(mult - 1f) < 0.0001f)
                 {
                     mult = 1f;
-                }
-
-                try
-                {
-                    volumeBySound = __instance.Properties.Attributes?["SoundVolumeMulBySound"].AsObject<Dictionary<string, float>>();
-                }
-                catch
-                {
                 }
 
                 if (__instance.Properties.ResolvedSounds == null || !__instance.Properties.ResolvedSounds.TryGetValue(type, out var locations) || locations.Length == 0)
@@ -54,16 +44,13 @@ namespace VsQuest.Harmony
                     pitch *= mult;
                 }
 
-                float volume = 1f;
-                if (volumeBySound != null && volumeBySound.Count > 0 && TryGetVolumeMultiplier(volumeBySound, location, out float volumeMult))
+                // Use entity-relative PlaySoundAt with proper range (min 32 blocks)
+                float range = 40f;
+                if (__instance.Properties.Attributes?["vsquestSoundRange"].Exists == true)
                 {
-                    if (volumeMult > 0f)
-                    {
-                        volume = volumeMult;
-                    }
+                    range = __instance.Properties.Attributes["vsquestSoundRange"].AsFloat(40f);
                 }
-
-                __instance.World.PlaySoundAt(location, (float)__instance.Pos.X, (float)__instance.Pos.InternalY, (float)__instance.Pos.Z, dualCallByPlayer, pitch, volume);
+                __instance.World.PlaySoundAt(location, __instance, dualCallByPlayer, pitch, range, 1.5f);
                 return false;
             }
             catch
@@ -71,29 +58,6 @@ namespace VsQuest.Harmony
                 // On any error, let vanilla handle it
                 return true;
             }
-        }
-
-        private static bool TryGetVolumeMultiplier(Dictionary<string, float> volumeBySound, AssetLocation location, out float mult)
-        {
-            mult = 1f;
-            if (volumeBySound == null || location == null) return false;
-
-            string fullKey = location.ToString();
-            string pathKey = location.Path;
-
-            foreach (var entry in volumeBySound)
-            {
-                if (string.IsNullOrWhiteSpace(entry.Key)) continue;
-
-                if (string.Equals(entry.Key, fullKey, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(entry.Key, pathKey, StringComparison.OrdinalIgnoreCase))
-                {
-                    mult = entry.Value;
-                    return true;
-                }
-            }
-
-            return false;
         }
     }
 }

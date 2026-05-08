@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -20,8 +21,9 @@ namespace VsQuest
         private bool showingResult;
         private readonly Dictionary<string, IRerollAnimation> animationRegistry = new Dictionary<string, IRerollAnimation>();
         private float soundTimer;
-        private const float SoundInterval = 0.15f; // Play tick every 150ms
         private readonly Dictionary<string, ItemStack> iconStacks = new Dictionary<string, ItemStack>();
+        private float autoCloseTimer;
+        private const float AutoCloseDelay = 3f; // Auto-close after 3 seconds
 
         public RerollAnimationGui(ICoreClientAPI capi, StartRerollAnimationMessage message) : base(capi)
         {
@@ -46,6 +48,7 @@ namespace VsQuest
             accum = 0f;
             showingResult = false;
             soundTimer = 0f;
+            autoCloseTimer = 0f;
 
             recompose();
         }
@@ -60,7 +63,17 @@ namespace VsQuest
             if (string.IsNullOrWhiteSpace(itemCode)) return null;
             if (iconStacks.TryGetValue(itemCode, out var stack)) return stack;
 
-            var asset = AssetLocation.Create(itemCode, "game");
+            // Handle item codes that may or may not include domain
+            AssetLocation asset;
+            if (itemCode.Contains(":"))
+            {
+                asset = new AssetLocation(itemCode);
+            }
+            else
+            {
+                asset = AssetLocation.Create(itemCode, "game");
+            }
+
             var collectible = capi.World.GetItem(asset) as CollectibleObject ?? capi.World.GetBlock(asset) as CollectibleObject;
             if (collectible != null)
             {
@@ -70,36 +83,73 @@ namespace VsQuest
             return stack;
         }
 
+        private string GetLocalizedName(string itemCode)
+        {
+            if (string.IsNullOrWhiteSpace(itemCode)) return itemCode;
+            
+            // Try direct lookup with the itemCode (albase:item-name format)
+            string directName = Lang.Get(itemCode);
+            if (!string.IsNullOrEmpty(directName) && directName != itemCode)
+            {
+                return StripHtml(directName);
+            }
+            
+            // Try with domain-item format (albase-item-name)
+            string dashedCode = itemCode.Replace(":", "-");
+            string dashedName = Lang.Get(dashedCode);
+            if (!string.IsNullOrEmpty(dashedName) && dashedName != dashedCode)
+            {
+                return StripHtml(dashedName);
+            }
+            
+            // Try item-domain-item format
+            string itemKey = $"item-{dashedCode}";
+            string itemName = Lang.Get(itemKey);
+            if (!string.IsNullOrEmpty(itemName) && itemName != itemKey)
+            {
+                return StripHtml(itemName);
+            }
+            
+            // Fallback: try getting from stack
+            var stack = GetIconStack(itemCode);
+            if (stack != null)
+            {
+                string name = stack.GetName();
+                if (!string.IsNullOrEmpty(name) && name != itemCode && !name.Contains(":"))
+                {
+                    return StripHtml(name);
+                }
+            }
+            
+            // Last resort: return the code itself (this is the bug we need to fix)
+            // Return empty string or placeholder instead of raw code
+            return "";
+        }
+
+        private string StripHtml(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            return Regex.Replace(text, "<[^>]*>", "");
+        }
+
         private void recompose()
         {
             ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
             ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
-            // Icon area centered
-            ElementBounds iconBounds = ElementBounds.Fixed(0, 40, 200, 100);
-            // Text below icon
-            ElementBounds textBounds = ElementBounds.Fixed(0, 150, 200, 60);
-            ElementBounds buttonBounds = ElementBounds.Fixed(0, 220, 200, 30);
+            // Icon area centered - larger area for bigger icon
+            ElementBounds iconBounds = ElementBounds.Fixed(0, 40, 200, 120);
 
             bgBounds.BothSizing = ElementSizing.FitToChildren;
 
             string titleText = LocalizationUtils.GetSafe("alegacyvsquest:reroll-animation-title");
 
-            // Get current text to display
-            string currentText = animation?.IsComplete == true 
-                ? animation.GetCurrentItemName() 
-                : "";
-
             SingleComposer = capi.Gui.CreateCompo("RerollAnimation-", dialogBounds)
                 .AddShadedDialogBG(bgBounds)
-                .AddDialogTitleBar(titleText, () => { if (animation.IsComplete) TryClose(); })
+                .AddDialogTitleBar(titleText, () => { }) // Disable close button during animation
                 .BeginChildElements(bgBounds)
-                .AddStaticText("", CairoFont.WhiteSmallishText(), iconBounds, "iconarea") // Placeholder for icon
-                .AddDynamicText(currentText, CairoFont.WhiteSmallishText().WithOrientation(EnumTextOrientation.Center), textBounds, "itemtext");
+                .AddStaticText("", CairoFont.WhiteSmallishText(), iconBounds, "iconarea"); // Placeholder for icon
 
-            if (animation.IsComplete)
-            {
-                SingleComposer.AddButton(LocalizationUtils.GetSafe("alegacyvsquest:reroll-animation-claim"), OnClaim, buttonBounds);
-            }
+            // No button - auto-claim after delay
 
             SingleComposer.EndChildElements().Compose();
         }
@@ -109,7 +159,7 @@ namespace VsQuest
             // Send claim message to server
             if (!string.IsNullOrWhiteSpace(message.GroupId))
             {
-                capi.Network.GetChannel("alegacyvsquest").SendPacket(new ClaimRerollRewardMessage
+                capi.Network.GetChannel(VsQuestNetworkRegistry.RerollChannelName).SendPacket(new ClaimRerollRewardMessage
                 {
                     GroupId = message.GroupId
                 });
@@ -130,13 +180,11 @@ namespace VsQuest
                 accum += deltaTime;
                 animation.Update(deltaTime);
 
-                // Update displayed text
-                string currentItemName = animation.GetCurrentItemName();
-                SingleComposer.GetDynamicText("itemtext")?.SetNewText(currentItemName);
-
-                // Play tick sound periodically
+                // Play tick sound - interval based on animation speed
+                float currentSpeed = animation.SpinSpeed; // items per second
+                float soundInterval = 1f / Math.Max(0.5f, currentSpeed); // slower sound when animation slows
                 soundTimer += deltaTime;
-                if (soundTimer >= SoundInterval)
+                if (soundTimer >= soundInterval)
                 {
                     soundTimer = 0f;
                     try
@@ -156,8 +204,17 @@ namespace VsQuest
                     recompose();
                 }
             }
+            else
+            {
+                // Animation complete - auto-close after delay
+                autoCloseTimer += deltaTime;
+                if (autoCloseTimer >= AutoCloseDelay)
+                {
+                    OnClaim();
+                }
+            }
 
-            // Render item icon centered
+            // Render item icon centered in dialog
             string currentItemCode = animation.GetCurrentItemCode();
             if (!string.IsNullOrWhiteSpace(currentItemCode))
             {
@@ -165,7 +222,7 @@ namespace VsQuest
                 if (stack != null)
                 {
                     var slot = new DummySlot(stack);
-                    // Center icon in dialog
+                    // Center icon in dialog (center of the dialog bounds)
                     double iconX = SingleComposer.Bounds.absX + SingleComposer.Bounds.InnerWidth / 2;
                     double iconY = SingleComposer.Bounds.absY + GuiElement.scaled(90);
                     float size = (float)GuiElement.scaled(64);

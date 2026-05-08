@@ -13,16 +13,6 @@
     "deadEntityCode": "albase:item-dead-creature-subduction-maw",
     "reckless": true,
     "vsquestSoundPitchMul": 0.6,
-    "SoundVolumeMulBySound": {
-      "albase:deathmagic": 0.36,
-      "albase:dark-magic-charge-up": 0.36,
-      "albase:breath-out": 0.36,
-      "albase:horror-hit": 0.36,
-      "effect/smallexplosion": 0.36,
-      "albase:warning": 0.36,
-      "game:effect/translocate-breakdimension": 0.36,
-      "game:sounds/creature/drifter-hit": 0.36
-    },
     "alegacyvsquestHideInfoText": true
   },
   "client": {
@@ -153,7 +143,7 @@
             "sound": "albase:deathmagic",
             "soundRange": 24,
             "soundStartMs": 0,
-            "soundVolume": 0.18
+            "soundVolume": 0.5
           },
           {
             "whenHealthRelBelow": 0.35,
@@ -166,7 +156,7 @@
             "sound": "albase:deathmagic",
             "soundRange": 26,
             "soundStartMs": 0,
-            "soundVolume": 0.18
+            "soundVolume": 0.5
           }
         ]
       },
@@ -181,8 +171,8 @@
       {
         "code": "bossteleport",
         "stages": [
-          { "whenHealthRelBelow": 0.6, "cooldownSeconds": 10, "minTargetRange": 10, "maxTargetRange": 42, "minRadius": 3, "maxRadius": 8, "tries": 12, "windupMs": 250, "windupAnimation": "turret", "arriveAnimation": "stab", "sound": "albase:dark-magic-charge-up", "soundRange": 40, "soundStartMs": 0, "soundVolume": 0.2, "requireSolidGround": true, "teleportClones": true, "swapWithClones": true },
-          { "whenHealthRelBelow": 0.3, "cooldownSeconds": 8, "minTargetRange": 8, "maxTargetRange": 40, "minRadius": 5, "maxRadius": 8, "tries": 12, "windupMs": 220, "windupAnimation": "load", "arriveAnimation": "stab", "sound": "albase:breath-out", "soundRange": 40, "soundStartMs": 0, "soundVolume": 0.2, "requireSolidGround": true, "teleportClones": true, "swapWithClones": true }
+          { "whenHealthRelBelow": 0.6, "cooldownSeconds": 10, "minTargetRange": 10, "maxTargetRange": 42, "minRadius": 3, "maxRadius": 8, "tries": 12, "windupMs": 250, "windupAnimation": "turret", "arriveAnimation": "stab", "sound": "albase:dark-magic-charge-up", "soundRange": 40, "soundStartMs": 0, "soundVolume": 0.5, "requireSolidGround": true, "teleportClones": true, "swapWithClones": true },
+          { "whenHealthRelBelow": 0.3, "cooldownSeconds": 8, "minTargetRange": 8, "maxTargetRange": 40, "minRadius": 5, "maxRadius": 8, "tries": 12, "windupMs": 220, "windupAnimation": "load", "arriveAnimation": "stab", "sound": "albase:breath-out", "soundRange": 40, "soundStartMs": 0, "soundVolume": 0.5, "requireSolidGround": true, "teleportClones": true, "swapWithClones": true }
         ]
       },
       {
@@ -207,7 +197,7 @@
             "sound": "albase:horror-hit",
             "soundRange": 32,
             "soundStartMs": 0,
-            "soundVolume": 0.2,
+            "soundVolume": 0.5,
             "explodeSound": "effect/smallexplosion",
             "explodeSoundRange": 34,
             "explodeSoundVolume": 0.2
@@ -231,7 +221,7 @@
             "sound": "albase:breath-out",
             "soundRange": 34,
             "soundStartMs": 0,
-            "soundVolume": 0.2,
+            "soundVolume": 0.5,
             "explodeSound": "effect/smallexplosion",
             "explodeSoundRange": 36,
             "explodeSoundVolume": 0.2

@@ -11,10 +11,6 @@
     "killedByInfoText": "deadcreature-vile",
     "reckless": true,
     "vsquestSoundPitchMul": 0.6,
-    "SoundVolumeMulBySound": {
-      "albase:dark-magic-charge-up": 0.55,
-      "albase:shock-sound-effect-horror": 0.55
-    },
     "alegacyvsquestHideInfoText": true
   },
   "drops": [],

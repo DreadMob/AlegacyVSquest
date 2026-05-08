@@ -84,14 +84,21 @@ namespace VsQuest
                 return TextCommandResult.Error($"Quality '{qualityId}' not found. Available qualities: {string.Join(", ", qualityService.GetAllQualities().Select(q => q.id))}");
             }
 
-            // Apply quality
-            stack.Attributes.SetString(ItemAttributeUtils.ItemQualityIdKey, quality.id);
-            stack.Attributes.SetString(ItemAttributeUtils.ItemQualityNameKey, quality.name);
-            stack.Attributes.SetString(ItemAttributeUtils.ItemQualityColorKey, quality.color);
+            // Get action item for the stack to apply quality properly
+            string actionItemId = stack.Attributes.GetString(ItemAttributeUtils.ActionItemIdKey);
+            if (string.IsNullOrWhiteSpace(actionItemId))
+            {
+                return TextCommandResult.Error("This item is not an action item (no actionItemId attribute).");
+            }
 
-            // Roll bonus percent
-            float bonusPercent = (float)sapi.World.Rand.NextDouble() * (quality.maxBonusPercent - quality.minBonusPercent) + quality.minBonusPercent;
-            stack.Attributes.SetFloat(ItemAttributeUtils.ItemQualityBonusPercentKey, bonusPercent);
+            // Get ActionItem from registry
+            if (!itemSystem.ActionItemRegistry.TryGetValue(actionItemId, out var actionItem))
+            {
+                return TextCommandResult.Error($"Action item '{actionItemId}' not found in registry.");
+            }
+
+            // Apply quality with full attribute calculation
+            qualityService.ApplyQuality(stack, actionItem, quality, sapi.World.Rand);
 
             activeSlot.MarkDirty();
 
@@ -157,6 +164,12 @@ namespace VsQuest
                 return TextCommandResult.Error("This item is not an action item (no actionItemId attribute).");
             }
 
+            // Get ActionItem from registry
+            if (!itemSystem.ActionItemRegistry.TryGetValue(actionItemId, out var actionItem))
+            {
+                return TextCommandResult.Error($"Action item '{actionItemId}' not found in registry.");
+            }
+
             // Roll random quality
             var qualities = qualityService.GetAllQualities().ToList();
             if (qualities.Count == 0)
@@ -164,7 +177,7 @@ namespace VsQuest
                 return TextCommandResult.Error("No qualities configured.");
             }
 
-            // Weighted random selection based on chance (inverse - lower chance = rarer = higher weight)
+            // Weighted random selection based on chance
             float totalWeight = qualities.Sum(q => q.chance > 0 ? q.chance : 0.1f);
             float roll = (float)sapi.World.Rand.NextDouble() * totalWeight;
             float cumulative = 0;
@@ -181,14 +194,8 @@ namespace VsQuest
                 }
             }
 
-            // Apply quality
-            stack.Attributes.SetString(ItemAttributeUtils.ItemQualityIdKey, selectedQuality.id);
-            stack.Attributes.SetString(ItemAttributeUtils.ItemQualityNameKey, selectedQuality.name);
-            stack.Attributes.SetString(ItemAttributeUtils.ItemQualityColorKey, selectedQuality.color);
-
-            // Roll bonus percent
-            float bonusPercent = (float)sapi.World.Rand.NextDouble() * (selectedQuality.maxBonusPercent - selectedQuality.minBonusPercent) + selectedQuality.minBonusPercent;
-            stack.Attributes.SetFloat(ItemAttributeUtils.ItemQualityBonusPercentKey, bonusPercent);
+            // Apply quality with full attribute calculation
+            qualityService.ApplyQuality(stack, actionItem, selectedQuality, sapi.World.Rand);
 
             activeSlot.MarkDirty();
 

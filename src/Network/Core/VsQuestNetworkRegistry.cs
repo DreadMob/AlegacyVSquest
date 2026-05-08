@@ -9,6 +9,7 @@ namespace VsQuest
         public const string QuestChannelName = "alegacyvsquest";
         public const string ItemActionChannelName = "alegacyvsquest-itemaction";
         public const string BossMusicChannelName = "alegacyvsquestmusic";
+        public const string RerollChannelName = "alegacyvsquest-reroll";
 
         #region Client Registration
 
@@ -42,11 +43,7 @@ namespace VsQuest
                 .RegisterMessageType<ShowNotificationMessage>().SetMessageHandler<ShowNotificationMessage>(message => questSystem.DialogPacketHandler.OnShowNotificationMessage(message, capi))
                 .RegisterMessageType<ShowDiscoveryMessage>().SetMessageHandler<ShowDiscoveryMessage>(message => questSystem.DialogPacketHandler.OnShowDiscoveryMessage(message, capi))
                 .RegisterMessageType<ShowQuestDialogMessage>().SetMessageHandler<ShowQuestDialogMessage>(message => questSystem.DialogPacketHandler.OnShowQuestDialogMessage(message, capi))
-                .RegisterMessageType<DialogTriggerMessage>()
-                .RegisterMessageType<ShowRerollDialogMessage>().SetMessageHandler<ShowRerollDialogMessage>(message => questSystem.DialogPacketHandler.OnShowRerollDialogMessage(message, capi))
-                .RegisterMessageType<ExecuteRerollMessage>()
-                .RegisterMessageType<StartRerollAnimationMessage>().SetMessageHandler<StartRerollAnimationMessage>(message => questSystem.DialogPacketHandler.OnStartRerollAnimationMessage(message, capi))
-                .RegisterMessageType<ClaimRerollRewardMessage>();
+                .RegisterMessageType<DialogTriggerMessage>();
         }
 
         /// <summary>Quiz system messages: show, submit, open.</summary>
@@ -107,11 +104,7 @@ namespace VsQuest
                 .RegisterMessageType<ShowNotificationMessage>()
                 .RegisterMessageType<ShowDiscoveryMessage>()
                 .RegisterMessageType<ShowQuestDialogMessage>()
-                .RegisterMessageType<DialogTriggerMessage>().SetMessageHandler<DialogTriggerMessage>((player, message) => questSystem.DialogPacketHandler.OnDialogTriggerMessage(player, message, sapi))
-                .RegisterMessageType<ShowRerollDialogMessage>()
-                .RegisterMessageType<ExecuteRerollMessage>().SetMessageHandler<ExecuteRerollMessage>((player, message) => questSystem.DialogPacketHandler.OnExecuteRerollMessage(player, message, sapi))
-                .RegisterMessageType<StartRerollAnimationMessage>()
-                .RegisterMessageType<ClaimRerollRewardMessage>().SetMessageHandler<ClaimRerollRewardMessage>((player, message) => questSystem.DialogPacketHandler.OnClaimRerollRewardMessage(player, message, sapi));
+                .RegisterMessageType<DialogTriggerMessage>().SetMessageHandler<DialogTriggerMessage>((player, message) => questSystem.DialogPacketHandler.OnDialogTriggerMessage(player, message, sapi));
         }
 
         /// <summary>Quiz system messages: show, submit, open.</summary>
@@ -136,6 +129,30 @@ namespace VsQuest
         {
             return channel
                 .RegisterMessageType<PreloadBossMusicMessage>();
+        }
+
+        #endregion
+
+        #region Reroll Channel
+
+        public static void RegisterRerollClient(ICoreClientAPI capi, QuestSystem questSystem)
+        {
+            var channel = capi.Network.RegisterChannel(RerollChannelName);
+            channel
+                .RegisterMessageType<ShowRerollDialogMessage>().SetMessageHandler<ShowRerollDialogMessage>(message => questSystem.DialogPacketHandler.OnShowRerollDialogMessage(message, capi))
+                .RegisterMessageType<ExecuteRerollMessage>()
+                .RegisterMessageType<StartRerollAnimationMessage>().SetMessageHandler<StartRerollAnimationMessage>(message => questSystem.DialogPacketHandler.OnStartRerollAnimationMessage(message, capi))
+                .RegisterMessageType<ClaimRerollRewardMessage>();
+        }
+
+        public static void RegisterRerollServer(ICoreServerAPI sapi, QuestSystem questSystem)
+        {
+            var channel = sapi.Network.RegisterChannel(RerollChannelName);
+            channel
+                .RegisterMessageType<ShowRerollDialogMessage>()
+                .RegisterMessageType<ExecuteRerollMessage>().SetMessageHandler<ExecuteRerollMessage>((player, message) => questSystem.DialogPacketHandler.OnExecuteRerollMessage(player, message, sapi))
+                .RegisterMessageType<StartRerollAnimationMessage>()
+                .RegisterMessageType<ClaimRerollRewardMessage>().SetMessageHandler<ClaimRerollRewardMessage>((player, message) => questSystem.DialogPacketHandler.OnClaimRerollRewardMessage(player, message, sapi));
         }
 
         #endregion

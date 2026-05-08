@@ -523,6 +523,7 @@ namespace VsQuest
         public override void OnEntityDespawn(EntityDespawnData despawn)
         {
             StopRitual();
+            DespawnSummonedMinions();
             base.OnEntityDespawn(despawn);
         }
 

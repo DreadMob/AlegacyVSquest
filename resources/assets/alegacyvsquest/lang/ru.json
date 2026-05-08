@@ -159,14 +159,14 @@
     "alegacyvsquest:discord-boss-defeated": "{0} поверг {1}. Пепел осел, но эхо битвы еще живо.",
     "alegacyvsquest:discord-boss-defeated-multi": "{0} повергли {1}. Их имена запомнит сама пустошь.",
     "alegacyvsquest:discord-bosskill-default-template": "{victim} пал перед {boss}. Пепельные земли приняли еще одну душу.",
-    "alegacyvsquest:reroll-dialog-title": "Рерол предметов босса",
-    "alegacyvsquest:reroll-no-groups": "Нет доступных групп для обмена.",
-    "alegacyvsquest:reroll-no-items": "У вас нет предметов для рерола.",
-    "alegacyvsquest:reroll-button": "Обменять",
+    "alegacyvsquest:reroll-dialog-title": "Дары поверженных",
+    "alegacyvsquest:reroll-no-groups": "Нет доступных трофеев.",
+    "alegacyvsquest:reroll-no-items": "У вас нет трофеев для перераспределения.",
+    "alegacyvsquest:reroll-button": "Озарение",
     "alegacyvsquest:reroll-button-disabled": "Недостаточно",
-    "alegacyvsquest:reroll-success": "Предмет переброшен! Вы получили новый предмет.",
-    "alegacyvsquest:reroll-success-message": "Обмен завершён! Вы получили: {0}",
-    "alegacyvsquest:reroll-failed": "Не удалось выполнить рерол.",
-    "alegacyvsquest:reroll-animation-title": "Открытие награды",
-    "alegacyvsquest:reroll-animation-claim": "Забрать"
+    "alegacyvsquest:reroll-success": "Судьба трофея решена! Вы получили новый дар.",
+    "alegacyvsquest:reroll-success-message": "Древние силы перераспределили трофеи. Вы обрели: {0}",
+    "alegacyvsquest:reroll-failed": "Не удалось повлиять на судьбу трофея.",
+    "alegacyvsquest:reroll-animation-title": "Вращение судьбы",
+    "alegacyvsquest:reroll-animation-claim": "Забрать дар"
 }

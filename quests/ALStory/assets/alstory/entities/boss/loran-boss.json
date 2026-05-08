@@ -29,7 +29,8 @@
       { "code": "seraphinventory" },
       { "code": "boss", "bossHpBarRange": 70 },
       { "code": "bossmusicurl", "musicKey": "theme_alstory_loran", "range": 70 },
-      { "code": "bossnametag", "nameLangKey": "alstory:item-creature-loran-boss", "color": "#8B0000", "backgroundColor": "#000000", "backgroundOpacity": 0.5, "renderRange": 90 }
+      { "code": "bossnametag", "nameLangKey": "alstory:item-creature-loran-boss", "color": "#8B0000", "backgroundColor": "#000000", "backgroundOpacity": 0.5, "renderRange": 90 },
+      { "code": "bossgrowthritual" }
     ],
     "animations": [
       { "code": "walk", "animation": "walk", "blendMode": "Average", "mulWithWalkSpeed": true, "animationSpeed": 1.15 },

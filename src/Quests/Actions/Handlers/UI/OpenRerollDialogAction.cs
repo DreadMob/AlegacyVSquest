@@ -39,7 +39,7 @@ namespace VsQuest
                 groupStrings.Add($"{group.id}|{group.name}|{itemCount}|{group.itemsRequired}|{iconCode}");
             }
 
-            sapi.Network.GetChannel("alegacyvsquest").SendPacket(new ShowRerollDialogMessage
+            sapi.Network.GetChannel(VsQuestNetworkRegistry.RerollChannelName).SendPacket(new ShowRerollDialogMessage
             {
                 AvailableGroups = groupStrings.ToArray()
             }, byPlayer);

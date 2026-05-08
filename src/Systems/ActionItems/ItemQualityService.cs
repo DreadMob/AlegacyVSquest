@@ -147,11 +147,11 @@ namespace VsQuest
         /// <summary>
         /// Applies a specific quality to an item stack, modifying attributes
         /// </summary>
-        private void ApplyQuality(ItemStack stack, ActionItem actionItem, ItemQuality quality, Random rand)
+        public void ApplyQuality(ItemStack stack, ActionItem actionItem, ItemQuality quality, Random rand)
         {
-            // Roll bonus percentage
-            float bonusPercent = (float)rand.NextDouble() * (quality.maxBonusPercent - quality.minBonusPercent) + quality.minBonusPercent;
-            float bonusMult = bonusPercent / 100f;
+            // Roll bonus percentage (used when perAttribute is false, or as base for average)
+            float baseBonusPercent = (float)rand.NextDouble() * (quality.maxBonusPercent - quality.minBonusPercent) + quality.minBonusPercent;
+            float baseBonusMult = baseBonusPercent / 100f;
 
             // Parse bonus mode
             var bonusMode = ParseBonusMode(quality.bonusMode);
@@ -160,10 +160,12 @@ namespace VsQuest
             stack.Attributes.SetString(ItemAttributeUtils.ItemQualityIdKey, quality.id);
             stack.Attributes.SetString(ItemAttributeUtils.ItemQualityNameKey, quality.name);
             stack.Attributes.SetString(ItemAttributeUtils.ItemQualityColorKey, quality.color);
-            stack.Attributes.SetFloat(ItemAttributeUtils.ItemQualityBonusPercentKey, bonusPercent);
+            stack.Attributes.SetFloat(ItemAttributeUtils.ItemQualityBonusPercentKey, baseBonusPercent);
 
             // Calculate and apply bonuses
             var bonusData = new Dictionary<string, float>();
+            float totalBonusPercent = 0f;
+            int appliedCount = 0;
 
             if (actionItem.attributes != null)
             {
@@ -179,6 +181,17 @@ namespace VsQuest
 
                     if (shouldApply && originalValue != 0)
                     {
+                        // Roll individual bonus if perAttribute is enabled
+                        float bonusMult = quality.perAttribute
+                            ? ((float)rand.NextDouble() * (quality.maxBonusPercent - quality.minBonusPercent) + quality.minBonusPercent) / 100f
+                            : baseBonusMult;
+
+                        if (quality.perAttribute)
+                        {
+                            totalBonusPercent += bonusMult * 100f;
+                            appliedCount++;
+                        }
+
                         float bonus;
                         float newValue;
 
@@ -202,6 +215,13 @@ namespace VsQuest
                         stack.Attributes.SetFloat(ItemAttributeUtils.GetKey(attr.Key), newValue);
                     }
                 }
+            }
+
+            // If perAttribute, store the average bonus percent for display
+            if (quality.perAttribute && appliedCount > 0)
+            {
+                float avgBonusPercent = totalBonusPercent / appliedCount;
+                stack.Attributes.SetFloat(ItemAttributeUtils.ItemQualityBonusPercentKey, avgBonusPercent);
             }
 
             // Store bonus data as JSON for tooltip

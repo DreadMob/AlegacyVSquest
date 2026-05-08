@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -101,7 +102,32 @@ namespace VsQuest
 
         public void OnShowRerollDialogMessage(ShowRerollDialogMessage message, ICoreClientAPI capi)
         {
+            // Close any open NPC dialog before showing reroll dialog
+            CloseAllDialogs(capi);
             RerollDialogGui.ShowFromMessage(message, capi);
+        }
+
+        private void CloseAllDialogs(ICoreClientAPI capi)
+        {
+            try
+            {
+                // Close all opened GuiDialogs
+                var guis = capi.Gui.OpenedGuis?.ToArray();
+                if (guis != null)
+                {
+                    foreach (var gui in guis)
+                    {
+                        if (gui is GuiDialog dialog && dialog.IsOpened())
+                        {
+                            dialog.TryClose();
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Ignore errors when closing dialogs
+            }
         }
 
         public void OnStartRerollAnimationMessage(StartRerollAnimationMessage message, ICoreClientAPI capi)
@@ -122,7 +148,7 @@ namespace VsQuest
             if (result.Success)
             {
                 // Send animation message to client
-                sapi.Network.GetChannel("alegacyvsquest").SendPacket(new StartRerollAnimationMessage
+                sapi.Network.GetChannel(VsQuestNetworkRegistry.RerollChannelName).SendPacket(new StartRerollAnimationMessage
                 {
                     ItemIds = result.AllItemIds,
                     ItemNames = result.AllItemNames,
@@ -133,10 +159,7 @@ namespace VsQuest
                     AnimationType = result.AnimationType,
                     GroupId = result.GroupId
                 }, player);
-
-                // Send chat message about result
-                string msg = string.Format(LocalizationUtils.GetSafe("alegacyvsquest:reroll-success-message"), result.ResultItemName);
-                sapi.SendMessage(player, GlobalConstants.GeneralChatGroup, msg, EnumChatType.Notification);
+                // Chat message will be sent when player claims the reward
             }
             else
             {
@@ -154,9 +177,14 @@ namespace VsQuest
             var rerollService = itemSystem?.RerollService;
             if (rerollService == null) return;
 
-            if (rerollService.ClaimReward(player))
+            var reward = rerollService.ClaimReward(player);
+            if (reward != null)
             {
-                // Reward claimed successfully - message already sent during animation start
+                // Broadcast to all players (like quest completion)
+                string playerName = ChatFormatUtil.Font(player.PlayerName, "#ffd75e");
+                string itemName = ChatFormatUtil.Font(reward.RewardItemName, "#77ddff");
+                string text = ChatFormatUtil.PrefixAlert($"{playerName} обрёл дар судьбы: {itemName}");
+                GlobalChatBroadcastUtil.BroadcastGeneralChat(sapi, text, EnumChatType.Notification);
             }
         }
     }

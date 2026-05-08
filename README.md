@@ -29,6 +29,8 @@ Full documentation is available in the [`docs/`](docs/) folder:
 - **[Actions](docs/actions.md)** — All available quest actions
 - **[Objectives](docs/objectives.md)** — All available quest objectives
 - **[Action Items](docs/actionitems.md)** — Custom item system
+- **[Item Quality](docs/itemquality.md)** — Item quality and attributes system
+- **[Reroll System](docs/reroll.md)** — Boss reward rerolling
 - **[Dialogues](docs/dialogue.md)** — NPC dialogue system
 - **[Commands](docs/commands.md)** — Chat commands
 

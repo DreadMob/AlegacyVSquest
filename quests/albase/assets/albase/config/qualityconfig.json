@@ -4,10 +4,11 @@
       "id": "prestigious",
       "name": "ПРЕСТИЖНОЕ",
       "color": "#FFD700",
-      "chance": 0.15,
+      "chance": 0.05,
       "minBonusPercent": 5,
-      "maxBonusPercent": 25,
+      "maxBonusPercent": 30,
       "bonusMode": "all",
+      "perAttribute": true,
       "exclusive": true,
       "applicableItems": [
         "albase:bosshunt-reward-miner-belt",

@@ -58,9 +58,9 @@
       "actions": [],
       "attributes": {
         "healonkill": 0.05,
-        "hungerrate": 0.22,
+        "hungerrate": 0.25,
         "attackpower": 2.5,
-        "maxhealthflat": -5.0
+        "maxhealthflat": -4.5
       },
       "showAttributes": [
         "healonkill",
@@ -88,7 +88,7 @@
         "maxhealthflat": -3.0,
         "hungerrate": 0.4,
         "walkspeed": -0.05,
-        "knockbackmult": 0.44
+        "knockbackmult": 0.6
       },
       "showAttributes": [
         "attackpower",
@@ -169,14 +169,18 @@
       "attributes": {
         "maxhealthflat": -3.0,
         "rangedaccuracy": 0.2,
-        "rangedchargspeed": 0.4,
-        "hungerrate": 0.4
+        "rangedchargspeed": 2.0,
+        "hungerrate": 0.18,
+        "attackpower": -1.7,
+        "rangeddamagemult": -0.125
       },
       "showAttributes": [
         "maxhealthflat",
         "rangedaccuracy",
         "rangedchargspeed",
-        "hungerrate"
+        "hungerrate",
+        "attackpower",
+        "rangeddamagemult"
       ],
       "hideVanillaTooltips": [
         "armor",
@@ -224,16 +228,18 @@
       "description": "<font color=\"#FCA5A5\">Ткань пропитана маслом и ядовитой гарью. Если долго смотреть на складки, на краю зрения вспыхивают силуэты — призрачные двойники, как в криптовом тумане.</font>",
       "actions": [],
       "attributes": {
-        "hungerrate": -0.5,
-        "walkspeed": -0.06,
+        "hungerrate": -0.6,
+        "walkspeed": 0.03,
         "maxhealthflat": -2.0,
-        "temporaldrainmult": -0.5
+        "temporaldrainmult": -0.8,
+        "viewdistance": -0.45
       },
       "showAttributes": [
         "hungerrate",
         "walkspeed",
         "maxhealthflat",
-        "temporaldrainmult"
+        "temporaldrainmult",
+        "viewdistance"
       ],
       "hideVanillaTooltips": [
         "armor",
@@ -330,16 +336,18 @@
       "attributes": {
         "maxoxygen": 84000,
         "temporaldrainmult": 0.15,
-        "hungerrate": 0.15,
+        "hungerrate": -0.1,
         "walkspeed": -0.03,
-        "maxhealthflat": -1.0
+        "maxhealthflat": -1.0,
+        "viewdistance": -0.25
       },
       "showAttributes": [
         "maxoxygen",
         "temporaldrainmult",
         "hungerrate",
         "walkspeed",
-        "maxhealthflat"
+        "maxhealthflat",
+        "viewdistance"
       ],
       "hideVanillaTooltips": [
         "armor",
@@ -374,9 +382,9 @@
       "description": "<font color=\"#D1D5DB\">Потёртый кожаный колчан с костяными вставками. Стрелы лежат плотнее, чем должны.</font>",
       "actions": [],
       "attributes": {
-        "rangedaccuracy": 0.25,
-        "rangeddamagemult": 0.175,
-        "rangedchargspeed": 0.1,
+        "rangedaccuracy": 0.18,
+        "rangeddamagemult": 0.12,
+        "rangedchargspeed": 0.07,
         "walkspeed": -0.065,
         "maxhealthflat": -2.0
       },

@@ -359,44 +359,32 @@ namespace VsQuest
 
             float volume = stage.soundVolume;
             if (volume <= 0f) volume = 1f;
-
-            Dictionary<string, float> volumeBySound = entity?.Properties?.Attributes?["SoundVolumeMulBySound"]?.AsObject<Dictionary<string, float>>();
-
-            if (volumeBySound != null && volumeBySound.Count > 0)
-            {
-                string fullKey = soundLoc.ToString();
-                string pathKey = soundLoc.Path;
-
-                foreach (var entry in volumeBySound)
-                {
-                    if (string.IsNullOrWhiteSpace(entry.Key)) continue;
-
-                    if (string.Equals(entry.Key, fullKey, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(entry.Key, pathKey, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(entry.Key, stage.sound, StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (entry.Value > 0f)
-                        {
-                            volume *= entry.Value;
-                        }
-                        break;
-                    }
-                }
-            }
+            volume *= 1.5f;
 
             float range = stage.soundRange > 0f ? stage.soundRange : 32f;
+
+            // Apply pitch multiplier from entity attributes
+            float pitchMult = 1f;
+            try
+            {
+                pitchMult = entity?.Properties?.Attributes?["vsquestSoundPitchMul"].AsFloat(1f) ?? 1f;
+            }
+            catch { }
+            if (pitchMult <= 0f || Math.Abs(pitchMult - 1f) < 0.0001f) pitchMult = 1f;
 
             if (stage.soundStartMs > 0)
             {
                 Sapi.Event.RegisterCallback(_ =>
                 {
                     float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
+                    if (pitchMult != 1f) pitch *= pitchMult;
                     Sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, volume);
                 }, stage.soundStartMs);
             }
             else
             {
                 float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
+                if (pitchMult != 1f) pitch *= pitchMult;
                 Sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, range, volume);
             }
         }

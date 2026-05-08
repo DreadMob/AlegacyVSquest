@@ -276,8 +276,8 @@ namespace VsQuest
                 qualityService?.TryApplyQuality(stack, actionItem, sapi.World.Rand);
             }
 
-            // Get item name for animation - use GetHeldItemName directly
-            string rewardItemName = collectible.GetHeldItemName(stack);
+            // Get item name for animation - use GetName for cleaner result
+            string rewardItemName = stack.GetName();
             string rewardItemCode = actionItem.itemCode;
 
             // Build animation data
@@ -291,10 +291,11 @@ namespace VsQuest
                 {
                     if (ItemAttributeUtils.TryResolveCollectible(sapi, item.itemCode, out var c))
                     {
+                        var tempStack = new ItemStack(c);
                         allItemIds.Add(itemId);
                         allItemCodes.Add(item.itemCode);
-                        // Use GetHeldItemName directly for proper localization
-                        allItemNames.Add(c.GetHeldItemName(new ItemStack(c)));
+                        // Use GetName for cleaner result
+                        allItemNames.Add(tempStack.GetName());
                     }
                 }
             }
@@ -324,18 +325,18 @@ namespace VsQuest
         /// Claims a pending reroll reward for a player.
         /// Called after animation completes.
         /// </summary>
-        public bool ClaimReward(IServerPlayer player)
+        public PendingRerollReward ClaimReward(IServerPlayer player)
         {
             if (!pendingRewards.TryGetValue(player.PlayerUID, out var pending))
             {
-                return false;
+                return null;
             }
 
             pendingRewards.Remove(player.PlayerUID);
 
             if (pending.RewardStack == null)
             {
-                return false;
+                return null;
             }
 
             // Give item to player
@@ -344,7 +345,7 @@ namespace VsQuest
                 sapi.World.SpawnItemEntity(pending.RewardStack, player.Entity.Pos.XYZ);
             }
 
-            return true;
+            return pending;
         }
 
         /// <summary>

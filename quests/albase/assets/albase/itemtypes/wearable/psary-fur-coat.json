@@ -13,10 +13,10 @@
     "repairItemCode": { "code": "gear-temporal", "strength": 0.4 }
   },
   "shape": {
-    "base": "game:entity/humanoid/seraph/clothing/upperbodyover/longsleeve-hood",
+    "base": "albase:entity/humanoid/seraph/clothing/upperbodyover/longsleeve-hood",
     "overlays": [
       {
-        "base": "game:entity/humanoid/seraph/clothing/upperbodyover/collar-longsleeve-fur"
+        "base": "albase:entity/humanoid/seraph/clothing/upperbodyover/collar-longsleeve-fur"
       }
     ]
   },
@@ -25,7 +25,7 @@
       "base": "game:block/transparent"
     },
     "upperbodyover": {
-      "base": "albase:fur-coat"
+      "base": "albase:fur-coat-new"
     }
   },
   "renderAlphaTest": 0.25,

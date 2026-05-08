@@ -85,6 +85,14 @@ namespace VsQuest
                 ScheduleRespawn(stage);
             }
 
+            // Safety: if a new boss of the same type already exists (spawned by BossHuntSystem),
+            // despawn this corpse immediately so it doesn't linger.
+            if (BossAlreadyExists(stage))
+            {
+                Sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Expire });
+                return;
+            }
+
             double respawnAt = entity.WatchedAttributes.GetDouble(AttrRespawnAtHours, double.NaN);
             if (double.IsNaN(respawnAt)) return;
 
@@ -96,8 +104,23 @@ namespace VsQuest
                 return;
             }
 
-            // Default: only remove corpse after timer. Actual respawn can be handled by a separate spawner.
+            // Default: remove corpse after timer expires
             Sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Expire });
+        }
+
+        private bool BossAlreadyExists(Stage stage)
+        {
+            string bossCode = string.IsNullOrWhiteSpace(stage.respawnEntityCode)
+                ? entity.Code?.ToShortString()
+                : stage.respawnEntityCode;
+
+            if (string.IsNullOrWhiteSpace(bossCode) || Sapi == null || entity?.Pos == null) return false;
+
+            var nearby = Sapi.World.GetEntitiesAround(entity.Pos.XYZ, 80f, 80f, e =>
+                e != null && e.Alive && e.EntityId != entity.EntityId &&
+                string.Equals(e.Code?.ToShortString(), bossCode, StringComparison.OrdinalIgnoreCase));
+
+            return nearby != null && nearby.Length > 0;
         }
 
         private void ScheduleRespawn(Stage stage)

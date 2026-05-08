@@ -51,5 +51,10 @@ namespace VsQuest
         /// Animation progress (0-1)
         /// </summary>
         float Progress { get; }
+
+        /// <summary>
+        /// Current spin speed (items per second)
+        /// </summary>
+        float SpinSpeed { get; }
     }
 }

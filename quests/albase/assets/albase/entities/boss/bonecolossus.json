@@ -12,13 +12,6 @@
     "deadEntityCode": "albase:item-dead-creature-bonecolossus",
     "reckless": true,
     "vsquestSoundPitchMul": 0.75,
-    "SoundVolumeMulBySound": {
-      "albase:bosshunt_1": 0.36,
-      "albase:magic-sparkling": 0.36,
-      "albase:dark-magic-charge-up": 0.36,
-      "albase:shock-sound-effect-horror": 0.36,
-      "game:sounds/creature/wolf/attack1": 0.36
-    },
     "alegacyvsquestHideInfoText": true
   },
   "client": {
@@ -33,7 +26,8 @@
       { "code": "interpolateposition" },
       { "code": "boss", "bossHpBarRange": 70 },
       { "code": "bossmusicurl", "musicKey": "theme_bosshunt_1", "range": 80, "startRange": 35, "combatTimeoutMs": 20000, "fadeOutSeconds": 4, "usePhases": true, "phaseSwitching": false, "phases": [ { "whenHealthRelBelow": 0.7, "startAtRel": 0.33333334 }, { "whenHealthRelBelow": 0.3, "startAtRel": 0.6666667 } ] },
-      { "code": "bossnametag", "nameLangKey": "item-creature-bonecolossus", "color": "#ff0000", "backgroundColor": "#000000", "backgroundOpacity": 0.35, "renderRange": 100 }
+      { "code": "bossnametag", "nameLangKey": "item-creature-bonecolossus", "color": "#ff0000", "backgroundColor": "#000000", "backgroundOpacity": 0.35, "renderRange": 100 },
+      { "code": "bossgrowthritual" }
     ],
     "animations": [
       { "code": "hurt", "animation": "hurt", "animationSpeed": 2.2, "weight": 10, "blendMode": "AddAverage" },
@@ -90,7 +84,7 @@
             "sound": "albase:dark-magic-charge-up",
             "soundRange": 40,
             "soundStartMs": 0,
-            "soundVolume": 0.18
+            "soundVolume": 0.5
           }
         ]
       },
@@ -118,7 +112,7 @@
             "sound": "game:sounds/creature/wolf/attack1",
             "soundRange": 24,
             "soundStartMs": 150,
-            "soundVolume": 0.18
+            "soundVolume": 0.5
           },
           {
             "whenHealthRelBelow": 0.3,
@@ -133,7 +127,7 @@
             "sound": "game:sounds/creature/wolf/attack1",
             "soundRange": 28,
             "soundStartMs": 120,
-            "soundVolume": 0.18
+            "soundVolume": 0.5
           }
         ]
       },
@@ -151,7 +145,7 @@
             "sound": "albase:shock-sound-effect-horror",
             "soundRange": 26,
             "soundStartMs": 0,
-            "soundVolume": 0.18
+            "soundVolume": 0.5
           },
           {
             "whenHealthRelBelow": 0.35,
@@ -164,7 +158,7 @@
             "sound": "albase:shock-sound-effect-horror",
             "soundRange": 30,
             "soundStartMs": 0,
-            "soundVolume": 0.18
+            "soundVolume": 0.5
           }
         ]
       },
@@ -232,39 +226,6 @@
         "code": "bosssurroundedresponse",
         "stages": [
           { "whenHealthRelBelow": 0.6, "cooldownSeconds": 18, "minPlayers": 3, "range": 28, "response": "howl" }
-        ]
-      },
-      {
-        "code": "bosscorpseexplosion",
-        "stages": [
-          {
-            "whenHealthRelBelow": 0.55,
-            "cooldownSeconds": 22,
-            "range": 20,
-            "corpseSearchRange": 30,
-            "windupMs": 1500,
-            "explosionRadius": 5,
-            "explosionDamage": 17,
-            "damageTier": 4,
-            "animation": "attack-withwindup",
-            "sound": "albase:dark-magic-charge-up",
-            "soundRange": 32,
-            "soundVolume": 0.4
-          },
-          {
-            "whenHealthRelBelow": 0.2,
-            "cooldownSeconds": 16,
-            "range": 25,
-            "corpseSearchRange": 35,
-            "windupMs": 1200,
-            "explosionRadius": 7,
-            "explosionDamage": 25,
-            "damageTier": 5,
-            "animation": "attack-withwindup",
-            "sound": "albase:dark-magic-charge-up",
-            "soundRange": 36,
-            "soundVolume": 0.2
-          }
         ]
       },
       {

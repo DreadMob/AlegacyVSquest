@@ -149,15 +149,15 @@
     "alegacyvsquest:block-ashfloor": "Ashen Floor",
     "block-alegacyvsquest:temporalriftprojector": "Temporal Rift Projector",
     "alegacyvsquest:interactat-hold-item": "Must hold in hand: {0}",
-    "alegacyvsquest:reroll-dialog-title": "Boss Item Reroll",
-    "alegacyvsquest:reroll-no-groups": "No groups available for exchange.",
-    "alegacyvsquest:reroll-no-items": "You have no items available for reroll.",
-    "alegacyvsquest:reroll-button": "Exchange",
+    "alegacyvsquest:reroll-dialog-title": "Fallen Foes' Boons",
+    "alegacyvsquest:reroll-no-groups": "No trophies available.",
+    "alegacyvsquest:reroll-no-items": "You have no trophies to redistribute.",
+    "alegacyvsquest:reroll-button": "Revelation",
     "alegacyvsquest:reroll-button-disabled": "Not enough",
-    "alegacyvsquest:reroll-success": "Item rerolled! You received a new item.",
-    "alegacyvsquest:reroll-success-message": "Exchange complete! You received: {0}",
-    "alegacyvsquest:reroll-failed": "Failed to reroll item.",
-    "alegacyvsquest:reroll-animation-title": "Opening Reward",
-    "alegacyvsquest:reroll-animation-claim": "Claim"
+    "alegacyvsquest:reroll-success": "Fate has decided! You received a new boon.",
+    "alegacyvsquest:reroll-success-message": "Ancient forces redistributed the trophies. You gained: {0}",
+    "alegacyvsquest:reroll-failed": "Failed to influence the trophy's fate.",
+    "alegacyvsquest:reroll-animation-title": "Wheel of Fate",
+    "alegacyvsquest:reroll-animation-claim": "Claim Boon"
 }
 

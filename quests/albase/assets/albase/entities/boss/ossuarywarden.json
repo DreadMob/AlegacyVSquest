@@ -12,12 +12,6 @@
     "deadEntityCode": "albase:item-dead-creature-ossuarywarden",
     "reckless": true,
     "vsquestSoundPitchMul": 0.6,
-    "SoundVolumeMulBySound": {
-      "albase:bosshunt_1": 0.36,
-      "effect/translocate-active": 0.7,
-      "effect/translocate-idle": 0.6,
-      "weather/lightning-verynear": 0.6
-    },
     "alternativeCollisionBox": [2.4, 2.2],
     "alegacyvsquestHideInfoText": true
   },

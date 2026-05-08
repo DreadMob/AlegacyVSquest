@@ -248,14 +248,6 @@
       }
     ],
     "alegacyvsquestNoUndress": true,
-    "SoundVolumeMulBySound": {
-      "game:sounds/creature/wolf/attack1": 0.36,
-      "albase:dash": 0.36,
-      "albase:shock-sound-effect-horror": 0.36,
-      "albase:horror-hit": 0.36,
-      "game:sounds/creature/drifter-hit": 0.36,
-      "albase:dark-magic-charge-up": 0.36
-    },
     "alegacyvsquestHideInfoText": true,
     "inventory": [
       { "type": "item", "code": "game:armor-head-antique-forlorn-damaged" },

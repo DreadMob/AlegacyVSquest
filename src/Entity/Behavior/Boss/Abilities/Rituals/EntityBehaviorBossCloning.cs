@@ -8,6 +8,10 @@ using Vintagestory.API.Server;
 
 namespace VsQuest
 {
+    /// <summary>
+    /// Boss cloning ability: spawns permanent clones of the boss at health thresholds.
+    /// Clones persist indefinitely, attack players, and more spawn at lower health.
+    /// </summary>
     public class EntityBehaviorBossCloning : BossAbilityBase
     {
         private const string CloneStageKey = "alegacyvsquest:bossclonestage";
@@ -24,29 +28,39 @@ namespace VsQuest
         private class Stage : BossAbilityStage
         {
             public int cloneCount;
-            public int durationMs;
             public float spawnRange;
             public float cloneDamageMult;
             public float cloneWalkSpeedMult;
             public bool cloneInvulnerable;
             public bool cloneFollowOwner;
 
+            // Optional visual feedback
+            public string animation;
+            public string sound;
+            public float soundRange;
+            public int soundStartMs;
+            public float soundVolume;
+
             public override void FromJson(JsonObject json)
             {
                 base.FromJson(json);
                 cloneCount = json["cloneCount"].AsInt(2);
-                durationMs = json["durationMs"].AsInt(12000);
                 spawnRange = json["spawnRange"].AsFloat(6f);
                 cloneDamageMult = json["cloneDamageMult"].AsFloat(0.35f);
                 cloneWalkSpeedMult = json["cloneWalkSpeedMult"].AsFloat(0.85f);
                 cloneInvulnerable = json["cloneInvulnerable"].AsBool(true);
                 cloneFollowOwner = json["cloneFollowOwner"].AsBool(false);
+
+                // Optional visual feedback
+                animation = json["animation"].AsString(null);
+                sound = json["sound"].AsString(null);
+                soundRange = json["soundRange"].AsFloat(24f);
+                soundStartMs = json["soundStartMs"].AsInt(0);
+                soundVolume = json["soundVolume"].AsFloat(0.6f);
             }
         }
 
         private List<Stage> stages = new List<Stage>();
-
-        private long cloningEndsAtMs;
         private readonly List<long> activeCloneEntityIds = new List<long>();
 
         public EntityBehaviorBossCloning(Entity entity) : base(entity)
@@ -62,49 +76,21 @@ namespace VsQuest
 
         protected override bool ShouldCheckAbility()
         {
-            if (!base.ShouldCheckAbility()) return false; // Checks for clone
+            if (!base.ShouldCheckAbility()) return false;
             if (IsAbilityActive) return false;
 
-            // Only activate if we haven't already applied the matching (or higher) stage
-            // OR if all clones are dead (ability ended but stage tracking needs reset)
-            int currentCloneStage = entity.WatchedAttributes.GetInt(CloneStageKey, 0);
-            
-            // If ability is not active and no clones exist, we can re-check
-            bool hasActiveClones = false;
-            if (Sapi != null)
-            {
-                for (int i = 0; i < activeCloneEntityIds.Count; i++)
-                {
-                    long id = activeCloneEntityIds[i];
-                    if (id <= 0) continue;
-                    var e = Sapi.World.GetEntityById(id);
-                    if (e != null && e.Alive)
-                    {
-                        hasActiveClones = true;
-                        break;
-                    }
-                }
-            }
-            
-            // If no active clones, allow re-activation
-            if (!hasActiveClones && activeCloneEntityIds.Count > 0)
-            {
-                // Clones died/expired, clear tracking
-                activeCloneEntityIds.Clear();
-                entity.WatchedAttributes.SetInt(CloneStageKey, 0);
-                entity.WatchedAttributes.MarkPathDirty(CloneStageKey);
-                currentCloneStage = 0;
-            }
-            
+            // Don't re-activate while clones still exist
+            if (AnyCloneAlive()) return false;
+
+            int currentStage = entity.WatchedAttributes.GetInt(CloneStageKey, 0);
             if (!entity.TryGetHealthFraction(out float frac)) return false;
 
-            for (int i = 0; i < stages.Count; i++)
+            // Iterate HIGHEST threshold FIRST to find the best matching stage
+            for (int i = stages.Count - 1; i >= 0; i--)
             {
                 if (frac <= stages[i].whenHealthRelBelow)
                 {
-                    // This is the stage that should be active (highest matching)
-                    // Only allow if we haven't reached it yet
-                    if (currentCloneStage < i + 1)
+                    if (currentStage < i + 1)
                         return true;
                     return false;
                 }
@@ -115,21 +101,21 @@ namespace VsQuest
 
         protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
-            Sapi.Logger.Notification("[BossCloning] ActivateAbility called, stageObj type: {0}, stageIndex: {1}", stageObj?.GetType().Name ?? "null", stageIndex);
-            
-            if (stageObj is not Stage stage) 
-            {
-                Sapi.Logger.Notification("[BossCloning] ActivateAbility: stageObj is not Stage type");
-                return;
-            }
+            if (stageObj is not Stage stage) return;
 
-            Sapi.Logger.Notification("[BossCloning] ActivateAbility: calling StartCloning");
             MarkCooldownStart();
 
             entity.WatchedAttributes.SetInt(CloneStageKey, stageIndex + 1);
             entity.WatchedAttributes.MarkPathDirty(CloneStageKey);
 
-            StartCloning(stage, stageIndex);
+            SetAbilityActive(true);
+
+            // Play visual feedback before spawning
+            TryPlayAnimation(stage.animation);
+            TryPlaySound(stage.sound, stage.soundRange, stage.soundStartMs, stage.soundVolume);
+
+            CleanupClones();
+            SpawnClones(stage);
         }
 
         protected override void StopAbility()
@@ -139,21 +125,74 @@ namespace VsQuest
 
         protected override bool OnAbilityTick(float dt)
         {
-            if (!IsAbilityActive) return false;
+            if (!IsAbilityActive || Sapi == null || entity == null) return false;
 
-            if (Sapi.World.ElapsedMilliseconds >= cloningEndsAtMs)
+            int currentStage = entity.WatchedAttributes.GetInt(CloneStageKey, 0);
+
+            // Clean dead clone entries from tracking list
+            for (int i = activeCloneEntityIds.Count - 1; i >= 0; i--)
             {
-                StopCloning();
-                return false;
+                long id = activeCloneEntityIds[i];
+                if (id <= 0) { activeCloneEntityIds.RemoveAt(i); continue; }
+                var e = Sapi.World.GetEntityById(id);
+                if (e == null || !e.Alive)
+                {
+                    activeCloneEntityIds.RemoveAt(i);
+                }
             }
-            return true;
+
+            // Check for stage upgrade (more clones at lower health)
+            if (currentStage < stages.Count && entity.TryGetHealthFraction(out float frac))
+            {
+                for (int i = stages.Count - 1; i >= 0; i--)
+                {
+                    if (frac <= stages[i].whenHealthRelBelow)
+                    {
+                        int newStage = i + 1;
+                        if (newStage > currentStage)
+                        {
+                            // Upgrade stage - clean old clones, spawn new set
+                            entity.WatchedAttributes.SetInt(CloneStageKey, newStage);
+                            entity.WatchedAttributes.MarkPathDirty(CloneStageKey);
+                            currentStage = newStage;
+
+                            CleanupClones();
+
+                            TryPlayAnimation(stages[i].animation);
+                            TryPlaySound(stages[i].sound, stages[i].soundRange, stages[i].soundStartMs, stages[i].soundVolume);
+
+                            SpawnClones(stages[i]);
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // Replenish dead clones for current stage
+            if (currentStage > 0 && currentStage <= stages.Count)
+            {
+                Stage stage = stages[currentStage - 1];
+                int aliveCount = activeCloneEntityIds.Count;
+                int targetCount = stage.cloneCount;
+
+                if (aliveCount < targetCount)
+                {
+                    int toSpawn = Math.Min(targetCount - aliveCount, 10);
+                    for (int i = 0; i < toSpawn; i++)
+                    {
+                        SpawnOneClone(stage);
+                    }
+                }
+            }
+
+            return true; // Keep active permanently
         }
 
         public override void OnGameTick(float dt)
         {
             base.OnGameTick(dt);
 
-            // Clone entity special handling (not part of ability activation cycle)
+            // Clone entity special handling
             if (IsCloneEntity())
             {
                 DespawnIfOwnerMissing();
@@ -161,101 +200,77 @@ namespace VsQuest
             }
         }
 
-        private void StartCloning(Stage stage, int index)
+        private bool AnyCloneAlive()
         {
-            Sapi.Logger.Notification("[BossCloning] StartCloning: count={0}, durationMs={1}", stage.cloneCount, stage.durationMs);
-            SetAbilityActive(true);
-            cloningEndsAtMs = Sapi.World.ElapsedMilliseconds + Math.Max(500, stage.durationMs);
-
-            CleanupClones();
-            SpawnClones(stage);
-            Sapi.Logger.Notification("[BossCloning] Spawned {0} clones, total tracked: {1}", stage.cloneCount, activeCloneEntityIds.Count);
+            if (Sapi == null) return false;
+            for (int i = activeCloneEntityIds.Count - 1; i >= 0; i--)
+            {
+                long id = activeCloneEntityIds[i];
+                if (id <= 0) continue;
+                var e = Sapi.World.GetEntityById(id);
+                if (e != null && e.Alive) return true;
+            }
+            return false;
         }
 
         private void StopCloning()
         {
             if (!IsAbilityActive) return;
-
             SetAbilityActive(false);
-
-            if (Sapi == null) return;
-
-            for (int i = 0; i < activeCloneEntityIds.Count; i++)
-            {
-                long id = activeCloneEntityIds[i];
-                if (id <= 0) continue;
-
-                var e = Sapi.World.GetEntityById(id);
-                if (e != null)
-                {
-                    Sapi.World.DespawnEntity(e, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
-                }
-            }
-
-            activeCloneEntityIds.Clear();
+            CleanupClones();
         }
 
         private void SpawnClones(Stage stage)
         {
-            if (Sapi == null || entity == null) 
-            {
-                Sapi?.Logger.Notification("[BossCloning] SpawnClones: Sapi or entity is null");
-                return;
-            }
-
-            string code = entity.Code?.ToShortString();
-            if (string.IsNullOrWhiteSpace(code)) 
-            {
-                Sapi.Logger.Notification("[BossCloning] SpawnClones: entity code is empty");
-                return;
-            }
-
-            var type = Sapi.World.GetEntityType(new AssetLocation(code));
-            if (type == null) 
-            {
-                Sapi.Logger.Notification("[BossCloning] SpawnClones: entity type not found for code '{0}'", code);
-                return;
-            }
-
-            Sapi.Logger.Notification("[BossCloning] SpawnClones: spawning {0} clones of type '{1}'", stage.cloneCount, code);
-
-            Vec3d basePos = new Vec3d(entity.Pos.X, entity.Pos.Y, entity.Pos.Z);
-            int dim = entity.Pos.Dimension;
-            float yaw = entity.Pos.Yaw;
+            if (Sapi == null || entity == null) return;
 
             int count = Math.Max(1, stage.cloneCount);
             for (int i = 0; i < count; i++)
             {
-                Entity clone = Sapi.World.ClassRegistry.CreateEntity(type);
-                if (clone == null)
-                {
-                    Sapi.Logger.Notification("[BossCloning] SpawnClones: failed to create clone {0}", i);
-                    continue;
-                }
-
-                CopyTargetId(clone);
-                CopyAnchor(clone);
-                ApplyCloneAttributes(clone, stage);
-
-                Vec3d offset = RandomOffset(stage.spawnRange);
-                clone.Pos.SetPosWithDimension(new Vec3d(basePos.X + offset.X, basePos.Y, basePos.Z + offset.Z));
-                clone.Pos.Yaw = yaw + (float)((Sapi.World.Rand.NextDouble() - 0.5) * 0.4);
-                clone.Pos.SetFrom(clone.Pos);
-
-                Sapi.World.SpawnEntity(clone);
-                Sapi.Logger.Notification("[BossCloning] Spawned clone {0} with entity ID {1}, pos: {2:F1}, {3:F1}, {4:F1}", 
-                    i, clone.EntityId, clone.Pos.X, clone.Pos.Y, clone.Pos.Z);
-
-                activeCloneEntityIds.Add(clone.EntityId);
+                SpawnOneClone(stage);
             }
-            Sapi.Logger.Notification("[BossCloning] Finished spawning clones. Total in list: {0}", activeCloneEntityIds.Count);
+        }
+
+        private void SpawnOneClone(Stage stage)
+        {
+            if (Sapi == null || entity == null || stage == null) return;
+
+            string code = entity.Code?.ToShortString();
+            if (string.IsNullOrWhiteSpace(code)) return;
+
+            var type = Sapi.World.GetEntityType(new AssetLocation(code));
+            if (type == null) return;
+
+            Vec3d basePos = entity.Pos.XYZ;
+            int dim = entity.Pos.Dimension;
+
+            Entity clone = Sapi.World.ClassRegistry.CreateEntity(type);
+            if (clone == null) return;
+
+            CopyTargetId(clone);
+            CopyAnchor(clone);
+            ApplyCloneAttributes(clone, stage);
+
+            Vec3d offset = RandomOffset(stage.spawnRange);
+            double px = basePos.X + offset.X;
+            double pz = basePos.Z + offset.Z;
+
+            // Validate spawn position is loaded
+            if (!Sapi.World.BlockAccessor.IsValidPos(new BlockPos((int)px, (int)basePos.Y, (int)pz, dim)))
+                return;
+
+            clone.Pos.SetPosWithDimension(new Vec3d(px, basePos.Y, pz));
+            clone.Pos.Yaw = entity.Pos.Yaw + (float)((Sapi.World.Rand.NextDouble() - 0.5) * 0.4);
+            clone.Pos.SetFrom(clone.Pos);
+
+            Sapi.World.SpawnEntity(clone);
+
+            activeCloneEntityIds.Add(clone.EntityId);
         }
 
         private Vec3d RandomOffset(float range)
         {
-            double r = range;
-            if (r < 0.5) r = 0.5;
-
+            double r = Math.Max(0.5, range);
             double angle = Sapi.World.Rand.NextDouble() * Math.PI * 2.0;
             double dist = Sapi.World.Rand.NextDouble() * r;
             return new Vec3d(Math.Cos(angle) * dist, 0, Math.Sin(angle) * dist);
@@ -264,40 +279,41 @@ namespace VsQuest
         private void ApplyCloneAttributes(Entity clone, Stage stage)
         {
             if (clone?.WatchedAttributes == null) return;
+            var wa = clone.WatchedAttributes;
 
-            clone.WatchedAttributes.SetBool("showHealthbar", false);
-            clone.WatchedAttributes.MarkPathDirty("showHealthbar");
+            wa.SetBool("showHealthbar", false);
+            wa.MarkPathDirty("showHealthbar");
 
-            clone.WatchedAttributes.SetBool("alegacyvsquest:bossclone", true);
-            clone.WatchedAttributes.MarkPathDirty("alegacyvsquest:bossclone");
+            wa.SetBool("alegacyvsquest:bossclone", true);
+            wa.MarkPathDirty("alegacyvsquest:bossclone");
 
-            clone.WatchedAttributes.SetLong(CloneOwnerIdKey, entity.EntityId);
-            clone.WatchedAttributes.MarkPathDirty(CloneOwnerIdKey);
+            wa.SetLong(CloneOwnerIdKey, entity.EntityId);
+            wa.MarkPathDirty(CloneOwnerIdKey);
 
-            clone.WatchedAttributes.SetBool("alegacyvsquest:bossclone:invulnerable", stage.cloneInvulnerable);
-            clone.WatchedAttributes.MarkPathDirty("alegacyvsquest:bossclone:invulnerable");
+            wa.SetBool("alegacyvsquest:bossclone:invulnerable", stage.cloneInvulnerable);
+            wa.MarkPathDirty("alegacyvsquest:bossclone:invulnerable");
 
             if (stage.cloneDamageMult > 0f)
             {
-                clone.WatchedAttributes.SetFloat("alegacyvsquest:bossclone:damagemult", stage.cloneDamageMult);
-                clone.WatchedAttributes.MarkPathDirty("alegacyvsquest:bossclone:damagemult");
+                wa.SetFloat("alegacyvsquest:bossclone:damagemult", stage.cloneDamageMult);
+                wa.MarkPathDirty("alegacyvsquest:bossclone:damagemult");
             }
 
             if (stage.cloneWalkSpeedMult > 0f)
             {
-                clone.WatchedAttributes.SetFloat("alegacyvsquest:bossclone:walkspeedmult", stage.cloneWalkSpeedMult);
-                clone.WatchedAttributes.MarkPathDirty("alegacyvsquest:bossclone:walkspeedmult");
+                wa.SetFloat("alegacyvsquest:bossclone:walkspeedmult", stage.cloneWalkSpeedMult);
+                wa.MarkPathDirty("alegacyvsquest:bossclone:walkspeedmult");
             }
 
-            clone.WatchedAttributes.SetBool("alegacyvsquest:bossclone:followowner", stage.cloneFollowOwner);
-            clone.WatchedAttributes.MarkPathDirty("alegacyvsquest:bossclone:followowner");
+            wa.SetBool("alegacyvsquest:bossclone:followowner", stage.cloneFollowOwner);
+            wa.MarkPathDirty("alegacyvsquest:bossclone:followowner");
         }
 
         private void CleanupClones()
         {
             if (Sapi == null) return;
 
-            for (int i = 0; i < activeCloneEntityIds.Count; i++)
+            for (int i = activeCloneEntityIds.Count - 1; i >= 0; i--)
             {
                 long id = activeCloneEntityIds[i];
                 if (id <= 0) continue;
@@ -368,31 +384,41 @@ namespace VsQuest
 
             if (ownerId <= 0)
             {
+                Sapi.Logger.Notification("[BossCloning] Clone {0} has no owner, despawning", entity.EntityId);
                 Sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
                 return;
             }
 
             var owner = Sapi.World.GetEntityById(ownerId);
-            if (owner == null || !owner.Alive)
+            if (owner == null)
             {
+                if (entity.WatchedAttributes.GetBool("alegacyvsquest:clone:ownerchecked", false))
+                {
+                    Sapi.Logger.Notification("[BossCloning] Clone {0} owner {1} not found, despawning", entity.EntityId, ownerId);
+                    Sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
+                }
+                return;
+            }
+
+            entity.WatchedAttributes.SetBool("alegacyvsquest:clone:ownerchecked", true);
+            entity.WatchedAttributes.MarkPathDirty("alegacyvsquest:clone:ownerchecked");
+
+            if (!owner.Alive)
+            {
+                Sapi.Logger.Notification("[BossCloning] Clone {0} owner {1} not alive, despawning", entity.EntityId, ownerId);
                 Sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
                 return;
             }
 
-            // Check if this clone should follow owner
             bool followOwner = entity.WatchedAttributes.GetBool("alegacyvsquest:bossclone:followowner", false);
-
             if (!followOwner) return;
 
-            // Follow the owner - teleport if too far away
             double dx = entity.Pos.X - owner.Pos.X;
             double dz = entity.Pos.Z - owner.Pos.Z;
             double distSq = dx * dx + dz * dz;
-            double maxDist = 25.0; // Max distance before teleport
 
-            if (distSq > maxDist * maxDist)
+            if (distSq > 625.0) // 25^2
             {
-                // Teleport clone near the owner
                 double angle = Sapi.World.Rand.NextDouble() * Math.PI * 2.0;
                 double offsetDist = 3.0 + Sapi.World.Rand.NextDouble() * 4.0;
                 double newX = owner.Pos.X + Math.Cos(angle) * offsetDist;
@@ -403,7 +429,7 @@ namespace VsQuest
             }
         }
 
-        // Required abstract overrides for BossAbilityBase (event-driven mode)
+        // Required abstract overrides for BossAbilityBase
         protected override int GetStageCount() => stages.Count;
         protected override object GetStage(int index) => index >= 0 && index < stages.Count ? stages[index] : null;
         protected override float GetStageHealthThreshold(object stage) => stage is Stage s ? s.whenHealthRelBelow : 1f;

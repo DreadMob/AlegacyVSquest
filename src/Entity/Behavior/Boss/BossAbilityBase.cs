@@ -147,7 +147,19 @@ namespace VsQuest
 
             if (!entity.Alive)
             {
-                StopAbility();
+                // For periodic tick abilities (respawn, auras), still allow OnPeriodicTick
+                // even when entity is dead, so they can handle corpse cleanup/timers
+                if (UsePeriodicTick())
+                {
+                    long now = Sapi.World.ElapsedMilliseconds;
+                    if (now - lastCheckMs < CheckIntervalMs) return;
+                    lastCheckMs = now;
+                    OnPeriodicTick(dt);
+                }
+                else
+                {
+                    StopAbility();
+                }
                 return;
             }
 
@@ -214,21 +226,13 @@ namespace VsQuest
             {
                 if (!entity.TryGetHealthFraction(out float frac))
                 {
-                    Sapi.Logger.Warning("[BossAbility] {0} failed to get health fraction for {1}", PropertyName(), entity.Code);
                     return;
                 }
                 (stage, stageIndex) = FindStageForHealth(frac);
                 if (stage == null)
                 {
-                    // No stage matches current health - this is normal if health is too high
-                    // Log occasionally to help diagnose
-                    if (Sapi.World.Rand.NextDouble() < 0.01)
-                    {
-                        Sapi.Logger.Notification("[BossAbility] {0} no stage for health frac {1:F2} (need whenHealthRelBelow threshold)", PropertyName(), frac);
-                    }
                     return;
                 }
-                Sapi.Logger.Notification("[BossAbility] {0} found stage {1} for health frac {2:F2}", PropertyName(), stageIndex, frac);
             }
             else
             {
@@ -243,7 +247,6 @@ namespace VsQuest
 
             if (!IsCooldownReady(stage))
             {
-                Sapi.Logger.Notification("[BossAbility] {0} cooldown not ready for {1}", PropertyName(), entity.Code);
                 return;
             }
 
@@ -253,19 +256,15 @@ namespace VsQuest
                 float maxRange = ApplyRangeMultiplier(GetMaxTargetRange(stage));
                 if (!TargetingSystem.TryFindTarget(maxRange, MinTargetRange, out target, out float dist))
                 {
-                    Sapi.Logger.Notification("[BossAbility] {0} no target found for {1} in range {2}", PropertyName(), entity.Code, maxRange);
                     return;
                 }
-                Sapi.Logger.Notification("[BossAbility] {0} found target at distance {2:F1}", PropertyName(), entity.Code, dist);
             }
 
             if (!CanActivateWithConditions(stage, target))
             {
-                Sapi.Logger.Notification("[BossAbility] {0} CanActivateWithConditions returned false for {1}", PropertyName(), entity.Code);
                 return;
             }
 
-            Sapi.Logger.Notification("[BossAbility] {0} ACTIVATING for {1} stage {2}", PropertyName(), entity.Code, stageIndex);
             abilityActive = true;
             ActivateAbility(stage, stageIndex, target);
         }
@@ -354,7 +353,7 @@ namespace VsQuest
         }
 
         /// <summary>
-        /// Play sound with optional delay and volume adjustment from entity attributes.
+        /// Play sound with pitch randomization, optional delay, and volume boost.
         /// </summary>
         protected void TryPlaySound(string sound, float range = 24f, int startDelayMs = 0, float volume = 1f)
         {
@@ -363,8 +362,22 @@ namespace VsQuest
             AssetLocation soundLoc = AssetLocation.Create(sound, "game").WithPathPrefixOnce("sounds/");
             if (soundLoc == null) return;
 
-            float adjustedVolume = AdjustSoundVolume(soundLoc, sound, volume);
+            // Pitch randomization (0.75-1.25)
+            float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
+
+            // Apply vsquestSoundPitchMul from entity attributes
+            try
+            {
+                float pitchMult = entity?.Properties?.Attributes?["vsquestSoundPitchMul"].AsFloat(1f) ?? 1f;
+                if (pitchMult > 0f && Math.Abs(pitchMult - 1f) > 0.0001f)
+                {
+                    pitch *= pitchMult;
+                }
+            }
+            catch { }
+
             float finalRange = range > 0f ? range : 32f;
+            float finalVolume = volume * 1.5f; // Boost volume 1.5x
 
             if (startDelayMs > 0)
             {
@@ -372,7 +385,7 @@ namespace VsQuest
                 {
                     try
                     {
-                        Sapi.World.PlaySoundAt(soundLoc, entity, null, false, finalRange, adjustedVolume);
+                        Sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, finalRange, finalVolume);
                     }
                     catch (Exception ex)
                     {
@@ -382,14 +395,9 @@ namespace VsQuest
             }
             else
             {
-                Sapi.World.PlaySoundAt(soundLoc, entity, null, false, finalRange, adjustedVolume);
+                Sapi.World.PlaySoundAt(soundLoc, entity, null, pitch, finalRange, finalVolume);
             }
         }
-
-        /// <summary>
-        /// Override to modify sound volume based on entity attributes.
-        /// </summary>
-        protected virtual float AdjustSoundVolume(AssetLocation soundLoc, string sound, float volume) => volume;
 
         protected void TryPlayAnimation(string animation)
         {

@@ -18,13 +18,6 @@
     "isMechanical": true,
     "reckless": true,
     "vsquestSoundPitchMul": 0.45,
-    "SoundVolumeMulBySound": {
-      "albase:mechanical/mecha plimm": 0.36,
-      "albase:mechanical/mecha rage": 0.36,
-      "albase:mechanical/robotic-monster-roar": 0.36,
-      "albase:atmospheric-metallic-swipe": 0.36,
-      "game:sounds/creature/locust/saw": 0.36
-    },
     "alegacyvsquestHideInfoText": true
   },
   "drops": [],
@@ -86,7 +79,7 @@
             "sound": "albase:mechanical/mecha plimm",
             "soundRange": 24,
             "soundStartMs": 150,
-            "soundVolume": 0.18
+            "soundVolume": 0.5
           },
           {
             "whenHealthRelBelow": 0.35,
@@ -101,7 +94,7 @@
             "sound": "albase:mechanical/mecha plimm",
             "soundRange": 28,
             "soundStartMs": 120,
-            "soundVolume": 0.18
+            "soundVolume": 0.5
           }
         ]
       },
@@ -122,7 +115,7 @@
             "sound": "albase:mechanical/mecha rage",
             "soundRange": 55,
             "soundStartMs": 0,
-            "soundVolume": 0.18,
+            "soundVolume": 0.5,
             "requireSolidGround": true
           }
         ]
@@ -148,7 +141,7 @@
             "sound": "albase:mechanical/robotic-monster-roar",
             "soundRange": 28,
             "soundStartMs": 500,
-            "soundVolume": 0.18,
+            "soundVolume": 0.5,
             "spawnDelayMs": 500
           },
           {
@@ -169,7 +162,7 @@
             "sound": "albase:atmospheric-metallic-swipe",
             "soundRange": 32,
             "soundStartMs": 400,
-            "soundVolume": 0.18,
+            "soundVolume": 0.5,
             "spawnDelayMs": 600
           }
         ]
@@ -227,7 +220,7 @@
             "sound": "albase:mechanical/mecha plimm",
             "soundRange": 24,
             "soundStartMs": 0,
-            "soundVolume": 0.18
+            "soundVolume": 0.5
           },
           {
             "whenHealthRelBelow": 0.35,
@@ -246,7 +239,7 @@
             "sound": "albase:mechanical/mecha rage",
             "soundRange": 28,
             "soundStartMs": 0,
-            "soundVolume": 0.18
+            "soundVolume": 0.5
           }
         ]
       },
@@ -297,7 +290,7 @@
             "animation": "attack",
             "sound": "albase:mechanical/mecha rage",
             "soundRange": 28,
-            "soundVolume": 0.18
+            "soundVolume": 0.5
           },
           {
             "whenHealthRelBelow": 0.3,
@@ -312,7 +305,7 @@
             "animation": "rundrill",
             "sound": "albase:mechanical/mecha rage",
             "soundRange": 32,
-            "soundVolume": 0.18
+            "soundVolume": 0.5
           }
         ]
       },

@@ -43,6 +43,22 @@ Manages rewards for completing quests:
 - Claim status
 - Requirements checking
 
+### RerollSystem
+Manages boss hunt reward item exchange:
+- Reroll group definitions from `rerollconfig.json`
+- Item counting per group per player
+- Random reward selection from group pool
+- Quality application (when enabled)
+- Pending reward storage until animation completes
+- Auto-claim after animation finish
+
+### ItemQualitySystem
+Applies randomized quality tiers to action items:
+- 5 tiers: Common, Uncommon, Rare, Epic, Legendary
+- Attribute multipliers based on tier
+- Per-item quality configuration in `itemconfig.json`
+- Group-level quality via `applyQuality` in `rerollconfig.json`
+
 ---
 
 ## Entity Behaviors
@@ -189,9 +205,13 @@ src/
 ├── Entity/Behavior/    # Entity behaviors
 │   └── QuestGiver/     # Quest giver services
 ├── Gui/                # UI components
+│   └── Reroll/         # Reroll dialog and animation
 ├── Network/            # Network messages
 ├── Quests/             # Quest definitions
 │   ├── Actions/        # Action handlers
 │   └── Core/           # Core quest classes
-└── Systems/            # Mod systems
+├── Systems/            # Mod systems
+│   ├── Reroll/         # Reroll service and quality
+│   └── Services/       # Quest services
+└── Utils/              # Utility classes
 ```

@@ -194,6 +194,13 @@ namespace VsQuest
         {
             if (entity == null) return;
 
+            // Skip boss clones - they have the same targetId as the original boss
+            // and would trigger duplicate detection, causing the real boss to be despawned
+            if (entity.WatchedAttributes?.GetBool("alegacyvsquest:bossclone", false) == true)
+            {
+                return;
+            }
+
             // Skip old-phase entities that are being replaced by rebirth
             if (entity.WatchedAttributes?.GetBool(EntityBehaviorBossRebirth2.RebirthOldPhaseKey, false) == true)
             {
