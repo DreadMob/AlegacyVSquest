@@ -185,7 +185,7 @@ namespace VsQuest
                 string itemName = ChatFormatUtil.Font(reward.RewardItemName, "#77ddff");
                 string text = ChatFormatUtil.PrefixAlert($"{playerName} обрёл дар судьбы: {itemName}");
 
-                // Discord message
+                // Discord message (strip any HTML tags that might leak from text)
                 string discordText = LocalizationUtils.GetSafe("alegacyvsquest:discord-reroll");
                 if (string.IsNullOrWhiteSpace(discordText) || string.Equals(discordText, "alegacyvsquest:discord-reroll", StringComparison.OrdinalIgnoreCase))
                 {
@@ -195,6 +195,8 @@ namespace VsQuest
                 {
                     discordText = discordText.Replace("{0}", player.PlayerName).Replace("{1}", reward.RewardItemName);
                 }
+                // Safety: remove any HTML tags
+                discordText = System.Text.RegularExpressions.Regex.Replace(discordText, @"<[^>]+>", string.Empty);
 
                 GlobalChatBroadcastUtil.BroadcastGeneralChatWithDiscord(
                     sapi, text, discordText, EnumChatType.Notification, DiscordBroadcastKind.Reroll);
