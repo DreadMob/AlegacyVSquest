@@ -160,17 +160,16 @@ namespace VsQuest
 
         /// <summary>
         /// Get the quest ID for the currently active boss.
+        /// Ensures rotation is initialized by delegating to <see cref="TryGetBossHuntStatus"/>,
+        /// consistent with how <see cref="QuestSelectionService.GetRotationDaysLeft"/> resolves the active boss.
         /// </summary>
         /// <returns>The quest ID, or null if no active boss or quest.</returns>
         public string GetActiveBossQuestId()
         {
-            if (!HasAnyRegisteredAnchors()) return null;
+            if (TryGetBossHuntStatus(out _, out string questId, out _))
+                return questId;
 
-            var activeBossKey = GetActiveBossKey();
-            if (!HasRegisteredAnchorsForBoss(activeBossKey)) return null;
-
-            var cfg = FindConfig(activeBossKey);
-            return cfg?.questId;
+            return null;
         }
 
         /// <summary>

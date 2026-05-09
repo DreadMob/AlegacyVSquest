@@ -79,7 +79,8 @@ namespace VsQuest
             var cooldownResult = CheckCooldown(quest, player);
             if (cooldownResult.isOnCooldown)
             {
-                return (false, true, cooldownResult.daysLeft);
+                // Quest is eligible but temporarily blocked by cooldown
+                return (true, true, cooldownResult.daysLeft);
             }
 
             return (true, false, 0);
