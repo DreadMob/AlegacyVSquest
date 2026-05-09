@@ -1,11 +1,29 @@
 {
   "_comment": "Репутация — Охотник на боссов",
   "reputation-npc-bosshunter-title": "Охотник на боссов",
+  "game:reputation-npc-bosshunter-title": "Охотник на боссов",
+  "albase:reputation-npc-bosshunter-title": "Охотник на боссов",
+
   "reputation-bosshunter-rank-0": "Чужак",
+  "game:reputation-bosshunter-rank-0": "Чужак",
+  "albase:reputation-bosshunter-rank-0": "Чужак",
+  "reputation-bosshunter-rank-300": "Тропитель",
+  "game:reputation-bosshunter-rank-300": "Тропитель",
+  "albase:reputation-bosshunter-rank-300": "Тропитель",
   "reputation-bosshunter-rank-500": "Идущий по меткам",
+  "game:reputation-bosshunter-rank-500": "Идущий по меткам",
+  "albase:reputation-bosshunter-rank-500": "Идущий по меткам",
   "reputation-bosshunter-rank-1500": "Гость Оссуария",
+  "game:reputation-bosshunter-rank-1500": "Гость Оссуария",
+  "albase:reputation-bosshunter-rank-1500": "Гость Оссуария",
+
   "reputation-bosshunt-mask-req": "Завершите все охоты",
+  "game:reputation-bosshunt-mask-req": "Завершите все охоты",
+  "albase:reputation-bosshunt-mask-req": "Завершите все охоты",
   "reputation-bosshunt-mask-title": "Маска спасения",
+  "game:reputation-bosshunt-mask-title": "Маска спасения",
+  "albase:reputation-bosshunt-mask-title": "Маска спасения",
+
   "reputation-reward-title-albase-bosshunter-300": "Зрение Крипты",
   "reputation-reward-title-albase-bosshunter-500": "Сапоги искры",
   "reputation-reward-title-albase-bosshunter-1500": "Уран"

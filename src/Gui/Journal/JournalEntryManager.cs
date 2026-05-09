@@ -185,7 +185,7 @@ namespace VsQuest.Gui.Journal
         public string GetQuestGiverTitle(string questId)
         {
             if (string.IsNullOrWhiteSpace(questId)) return "";
-            string title = Lang.Get(questId + "-title");
+            string title = LocalizationUtils.GetSafe(questId + "-title");
             if (title == questId + "-title")
             {
                 int colonIndex = questId.LastIndexOf(':');

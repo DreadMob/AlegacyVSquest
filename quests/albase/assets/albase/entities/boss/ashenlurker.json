@@ -17,7 +17,7 @@
     "spawnDamageParticles": true,
     "isMechanical": true,
     "reckless": true,
-    "vsquestSoundPitchMul": 0.45,
+    "vsquestSoundPitchMul": 0.35,
     "alegacyvsquestHideInfoText": true
   },
   "drops": [],

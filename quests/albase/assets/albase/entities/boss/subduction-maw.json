@@ -12,7 +12,7 @@
     "killedByInfoText": "deadcreature-vile",
     "deadEntityCode": "albase:item-dead-creature-subduction-maw",
     "reckless": true,
-    "vsquestSoundPitchMul": 0.6,
+    "vsquestSoundPitchMul": 0.5,
     "alegacyvsquestHideInfoText": true
   },
   "client": {

@@ -167,7 +167,7 @@ namespace VsQuest
                         if (!completed.Contains(requiredId))
                         {
                             remainingCount++;
-                            remainingTitles.Add(Lang.Get(requiredId + "-title"));
+                            remainingTitles.Add(LocalizationUtils.GetSafe(requiredId + "-title"));
                         }
                     }
                 }

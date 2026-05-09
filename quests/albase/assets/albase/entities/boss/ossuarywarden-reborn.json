@@ -11,7 +11,7 @@
     "killedByInfoText": "deadcreature-vile",
     "deadEntityCode": "albase:item-dead-creature-ossuarywarden-reborn",
     "reckless": true,
-    "vsquestSoundPitchMul": 0.6,
+    "vsquestSoundPitchMul": 0.4,
     "alegacyvsquestHideInfoText": true,
     "oddsToAlter": 999999,
     "alternativeCollisionBox": [2.4, 2.2],
