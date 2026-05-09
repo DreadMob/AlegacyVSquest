@@ -95,6 +95,7 @@
     "alegacyvsquest:discord-boss-defeated": "{0} has brought down {1}. Ash and echoes remain.",
     "alegacyvsquest:discord-boss-defeated-multi": "{0} have brought down {1}. Their names will be remembered.",
     "alegacyvsquest:discord-bosskill-default-template": "{victim} fell before {boss}. The Ashen wastes claim another soul.",
+    "alegacyvsquest:discord-reroll": "{0} received the boon of fate: {1}. Ancient powers smile upon them.",
     "alegacyvsquest:quest-completed-lore-title": "вњ“ Quest Completed",
     "alegacyvsquest:quest-completed-lore-footer": "The Keepers have inscribed this deed in the chronicles",
     "alegacyvsquest:bosshunt-rotation-reset-chat": "Boss hunt target rotated. Active hunt reset.",

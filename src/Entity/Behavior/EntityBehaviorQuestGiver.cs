@@ -242,39 +242,8 @@ namespace VsQuest
             int? minCooldownDaysLeft = null;
             int rotationDaysLeft = SelectionService.GetRotationDaysLeft(sapi);
 
-            // Optional chain cooldown: after completing any quest for this questgiver,
-            // block offering any new quests for N days (independent of per-quest cooldown).
-            if (chainCooldownDays > 0 && player?.WatchedAttributes != null)
-            {
-                var chainResult = eligibilityChecker.CheckChainCooldown(entity.EntityId, chainCooldownDays, serverPlayer);
-                if (chainResult.isOnCooldown)
-                {
-                    var msgChainCd = messageBuilder.CreateBaseMessage(
-                        entity.EntityId, availableQuestIds, activeQuests,
-                        noAvailableQuestDescLangKey, noAvailableQuestCooldownDescLangKey,
-                        chainResult.daysLeft, rotationDaysLeft);
-                    msgChainCd.silentUpdate = silentUpdate;
-                    messageBuilder.PopulateReputationInfo(msgChainCd, serverPlayer, reputationNpcId, reputationFactionId);
-                    messageBuilder.SendMessage(msgChainCd, serverPlayer);
-                    return;
-                }
-            }
-
-            // If the player already has any active quest from this questgiver's quest set,
-            // do not offer additional quests until the active one is completed.
-            // (Innkeeper design: at most one quest in progress at a time.)
-            if (singleQuestAtATime && activeQuests != null && activeQuests.Count > 0)
-            {
-                var msgActive = messageBuilder.CreateBaseMessage(
-                    entity.EntityId, availableQuestIds, activeQuests,
-                    noAvailableQuestDescLangKey, noAvailableQuestCooldownDescLangKey,
-                    minCooldownDaysLeft ?? 0, rotationDaysLeft);
-                msgActive.silentUpdate = silentUpdate;
-                messageBuilder.PopulateReputationInfo(msgActive, serverPlayer, reputationNpcId, reputationFactionId);
-                messageBuilder.SendMessage(msgActive, serverPlayer);
-                return;
-            }
-
+            // Compute quest eligibility early so cooldown/rotation info is available
+            // for chain cooldown and single-quest-at-a-time displays.
             var selection = SelectionService.GetCurrentQuestSelection(sapi);
 
             // Ensure priority quests are evaluated first (e.g. final quests).
@@ -338,7 +307,45 @@ namespace VsQuest
                 }
             }
 
+            // Optional chain cooldown: after completing any quest for this questgiver,
+            // block offering any new quests for N days (independent of per-quest cooldown).
+            if (chainCooldownDays > 0 && player?.WatchedAttributes != null)
+            {
+                var chainResult = eligibilityChecker.CheckChainCooldown(entity.EntityId, chainCooldownDays, serverPlayer);
+                if (chainResult.isOnCooldown)
+                {
+                    availableQuestIds.Clear();
+                    var msgChainCd = messageBuilder.CreateBaseMessage(
+                        entity.EntityId, availableQuestIds, activeQuests,
+                        noAvailableQuestDescLangKey, noAvailableQuestCooldownDescLangKey,
+                        chainResult.daysLeft, rotationDaysLeft);
+                    msgChainCd.silentUpdate = silentUpdate;
+                    messageBuilder.PopulateReputationInfo(msgChainCd, serverPlayer, reputationNpcId, reputationFactionId);
+                    messageBuilder.SendMessage(msgChainCd, serverPlayer);
+                    return;
+                }
+            }
+
+            // If the player already has any active quest from this questgiver's quest set,
+            // do not offer additional quests until the active one is completed.
+            // (Innkeeper design: at most one quest in progress at a time.)
+            if (singleQuestAtATime && activeQuests != null && activeQuests.Count > 0)
+            {
+                availableQuestIds.Clear();
+                int effectiveCooldown = minCooldownDaysLeft ?? 0;
+
+                var msgActive = messageBuilder.CreateBaseMessage(
+                    entity.EntityId, availableQuestIds, activeQuests,
+                    noAvailableQuestDescLangKey, noAvailableQuestCooldownDescLangKey,
+                    effectiveCooldown, rotationDaysLeft);
+                msgActive.silentUpdate = silentUpdate;
+                messageBuilder.PopulateReputationInfo(msgActive, serverPlayer, reputationNpcId, reputationFactionId);
+                messageBuilder.SendMessage(msgActive, serverPlayer);
+                return;
+            }
+
             int cooldownDaysLeft = (availableQuestIds.Count == 0 && minCooldownDaysLeft.HasValue) ? minCooldownDaysLeft.Value : 0;
+
             var message = messageBuilder.CreateBaseMessage(
                 entity.EntityId, availableQuestIds, activeQuests,
                 noAvailableQuestDescLangKey, noAvailableQuestCooldownDescLangKey,

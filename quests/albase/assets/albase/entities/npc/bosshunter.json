@@ -54,7 +54,7 @@
           "albase:bosshunt-subduction-maw"
         ],
         "singlequestatatime": true,
-        "rotationdays": 1,
+        "rotationdays": 90,
         "rotationcount": 1,
         "noAvailableQuestDescLangKey": "albase:no-quest-available-bosshunter",
         "noAvailableQuestCooldownDescLangKey": "albase:no-quest-available-bosshunter-cooldown",

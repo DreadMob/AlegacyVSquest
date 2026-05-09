@@ -184,7 +184,20 @@ namespace VsQuest
                 string playerName = ChatFormatUtil.Font(player.PlayerName, "#ffd75e");
                 string itemName = ChatFormatUtil.Font(reward.RewardItemName, "#77ddff");
                 string text = ChatFormatUtil.PrefixAlert($"{playerName} обрёл дар судьбы: {itemName}");
-                GlobalChatBroadcastUtil.BroadcastGeneralChat(sapi, text, EnumChatType.Notification);
+
+                // Discord message
+                string discordText = LocalizationUtils.GetSafe("alegacyvsquest:discord-reroll");
+                if (string.IsNullOrWhiteSpace(discordText) || string.Equals(discordText, "alegacyvsquest:discord-reroll", StringComparison.OrdinalIgnoreCase))
+                {
+                    discordText = $"{player.PlayerName} обрёл дар судьбы: {reward.RewardItemName}";
+                }
+                else
+                {
+                    discordText = discordText.Replace("{0}", player.PlayerName).Replace("{1}", reward.RewardItemName);
+                }
+
+                GlobalChatBroadcastUtil.BroadcastGeneralChatWithDiscord(
+                    sapi, text, discordText, EnumChatType.Notification, DiscordBroadcastKind.Reroll);
             }
         }
     }

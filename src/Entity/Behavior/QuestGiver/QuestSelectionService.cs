@@ -197,9 +197,12 @@ namespace VsQuest
                     if (hoursUntilRotation > 0)
                     {
                         int days = (int)Math.Ceiling(hoursUntilRotation / 24.0);
-                        return Math.Max(0, days);
+                        return Math.Max(1, days);
                     }
+                    // Rotation is due or overdue - return 1 to show "very soon" instead of "0 days"
+                    return 1;
                 }
+                // BossHuntSystem unavailable - return 0 for boss rotation
                 return 0;
             }
 

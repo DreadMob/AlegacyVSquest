@@ -7,7 +7,8 @@ namespace VsQuest
     {
         Generic = 0,
         QuestCompleted = 1,
-        BossDefeated = 2
+        BossDefeated = 2,
+        Reroll = 3
     }
 
     public static class GlobalChatBroadcastUtil
