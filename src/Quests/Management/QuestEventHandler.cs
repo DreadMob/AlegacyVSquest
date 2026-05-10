@@ -234,7 +234,8 @@ namespace VsQuest
                     foreach (var creditedPlayer in creditedPlayers)
                     {
                         if (creditedPlayer == null) continue;
-                        dbSyncService.QueueBossKill(creditedPlayer.PlayerUID, creditedPlayer.PlayerName, qt.TargetId);
+                        string bossDisplayName = entity?.GetName() ?? null;
+                        dbSyncService.QueueBossKill(creditedPlayer.PlayerUID, creditedPlayer.PlayerName, qt.TargetId, bossDisplayName);
                     }
                 }
             }

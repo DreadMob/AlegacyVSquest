@@ -23,7 +23,8 @@ namespace VsQuest.Systems.Database
 
         public void QueuePlayerQuest(string playerUid, string playerName, string questId,
             int currentStageIndex, List<int> completedStageIndices,
-            List<int> trackerProgress, string status = "active")
+            List<int> trackerProgress, string status = "active",
+            string questTitle = null)
         {
             if (!_client.IsEnabled) return;
 
@@ -38,6 +39,7 @@ namespace VsQuest.Systems.Database
                         completed_stages = completedStageIndices ?? new List<int>(),
                         tracker_values = trackerProgress ?? new List<int>(),
                         status = status,
+                        quest_title = questTitle,
                     };
 
                     var encodedPlayerUid = Uri.EscapeDataString(playerUid);
@@ -86,7 +88,7 @@ namespace VsQuest.Systems.Database
             });
         }
 
-        public void QueueBossKill(string playerUid, string playerName, string bossKey)
+        public void QueueBossKill(string playerUid, string playerName, string bossKey, string bossDisplayName = null)
         {
             if (!_client.IsEnabled) return;
 
@@ -97,6 +99,7 @@ namespace VsQuest.Systems.Database
                     var body = new
                     {
                         player_name = playerName,
+                        boss_display_name = bossDisplayName,
                     };
 
                     var encodedPlayerUid = Uri.EscapeDataString(playerUid);
@@ -114,7 +117,7 @@ namespace VsQuest.Systems.Database
             });
         }
 
-        public void QueueNpcReputationSet(string playerUid, string playerName, string npcId, int reputation)
+        public void QueueNpcReputationSet(string playerUid, string playerName, string npcId, int reputation, string npcDisplayName = null)
         {
             if (!_client.IsEnabled) return;
 
@@ -126,6 +129,7 @@ namespace VsQuest.Systems.Database
                     {
                         player_name = playerName,
                         reputation = reputation,
+                        npc_display_name = npcDisplayName,
                     };
 
                     var encodedPlayerUid = Uri.EscapeDataString(playerUid);

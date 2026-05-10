@@ -443,7 +443,15 @@ namespace VsQuest
                 var serverPlayer = player as IServerPlayer;
                 if (serverPlayer != null)
                 {
-                    dbSyncService.QueueNpcReputationSet(serverPlayer.PlayerUID, serverPlayer.PlayerName, id, value);
+                    // Resolve display name from NPC definition's titleLangKey
+                    string npcDisplayName = null;
+                    var def = GetNpcDefinition(id);
+                    if (def != null && !string.IsNullOrWhiteSpace(def.titleLangKey))
+                    {
+                        npcDisplayName = Lang.Get(def.titleLangKey);
+                    }
+
+                    dbSyncService.QueueNpcReputationSet(serverPlayer.PlayerUID, serverPlayer.PlayerName, id, value, npcDisplayName);
                 }
             }
         }
