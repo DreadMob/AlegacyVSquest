@@ -228,6 +228,14 @@ namespace VsQuest
             if (Sapi == null || entity == null || stage == null) return;
 
             TryPlayAnimation(stage.pullAnimation);
+
+            // Hook chain line from boss to target
+            if (targetPlayer != null)
+            {
+                Vec3d from = entity.Pos.XYZ.Add(0, 1.5, 0);
+                Vec3d to = targetPlayer.Pos.XYZ.Add(0, 1, 0);
+                ParticleUtils.SpawnLine(Sapi, from, to, ParticleUtils.Colors.Chain, 10, 0.3f);
+            }
         }
 
         private void StopHook()

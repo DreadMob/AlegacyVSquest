@@ -99,39 +99,9 @@ namespace VsQuest
                 );
             }
 
-            // Visual explosion
-            Sapi.World.SpawnParticles(
-                new SimpleParticleProperties(
-                    60, 80,
-                    ColorUtil.ToRgba(255, 100, 50, 50),
-                    pos.Add(-stage.radius, 0, -stage.radius),
-                    pos.Add(stage.radius, stage.radius / 2, stage.radius),
-                    new Vec3f(-0.5f, 0.2f, -0.5f),
-                    new Vec3f(0.5f, 0.8f, 0.5f),
-                    1.0f,
-                    0.3f,
-                    0.5f,
-                    0.5f,
-                    EnumParticleModel.Quad
-                )
-            );
-
-            // Green poison particles
-            Sapi.World.SpawnParticles(
-                new SimpleParticleProperties(
-                    30, 40,
-                    ColorUtil.ToRgba(200, 50, 200, 50),
-                    pos.Add(-stage.radius, 0, -stage.radius),
-                    pos.Add(stage.radius, 1, stage.radius),
-                    new Vec3f(-0.2f, 0.05f, -0.2f),
-                    new Vec3f(0.2f, 0.15f, 0.2f),
-                    2.0f,
-                    0.1f,
-                    0.5f,
-                    0.5f,
-                    EnumParticleModel.Quad
-                )
-            );
+            // Visual explosion + poison cloud via ParticleUtils
+            ParticleUtils.SpawnFireExplosion(Sapi, pos, stage.radius);
+            ParticleUtils.SpawnPoisonExplosion(Sapi, pos, stage.radius);
 
             // Sound
             Sapi.World.PlaySoundAt(
@@ -176,39 +146,9 @@ namespace VsQuest
                 );
             }
 
-            // Visual explosion
-            Sapi.World.SpawnParticles(
-                new SimpleParticleProperties(
-                    60, 80,
-                    ColorUtil.ToRgba(255, 100, 50, 50),
-                    pos.Add(-12f, 0, -12f),
-                    pos.Add(12f, 6f, 12f),
-                    new Vec3f(-0.5f, 0.2f, -0.5f),
-                    new Vec3f(0.5f, 0.8f, 0.5f),
-                    1.0f,
-                    0.3f,
-                    0.5f,
-                    0.5f,
-                    EnumParticleModel.Quad
-                )
-            );
-
-            // Green poison particles
-            Sapi.World.SpawnParticles(
-                new SimpleParticleProperties(
-                    30, 40,
-                    ColorUtil.ToRgba(200, 50, 200, 50),
-                    pos.Add(-12f, 0, -12f),
-                    pos.Add(12f, 1, 12f),
-                    new Vec3f(-0.2f, 0.05f, -0.2f),
-                    new Vec3f(0.2f, 0.15f, 0.2f),
-                    2.0f,
-                    0.1f,
-                    0.5f,
-                    0.5f,
-                    EnumParticleModel.Quad
-                )
-            );
+            // Visual explosion + poison cloud via ParticleUtils (death explosion is larger)
+            ParticleUtils.SpawnFireExplosion(Sapi, pos, 12f, 2);
+            ParticleUtils.SpawnPoisonExplosion(Sapi, pos, 12f, 2);
 
             // Sound
             Sapi.World.PlaySoundAt(

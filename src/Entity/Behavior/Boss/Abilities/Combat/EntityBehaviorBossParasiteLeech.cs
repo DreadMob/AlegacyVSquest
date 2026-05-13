@@ -167,6 +167,9 @@ namespace VsQuest
             activeStageIndex = stageIndex;
             target = targetPlayer;
 
+            // Parasite attach visual
+            ParticleUtils.SpawnEntityAura(Sapi, targetPlayer, ParticleUtils.Colors.Poison, 15, 0.4f, 0.6f);
+
             target.WatchedAttributes.SetLong(DebuffUntilKey, Sapi.World.ElapsedMilliseconds + Math.Max(250, stage.durationMs));
             target.WatchedAttributes.MarkPathDirty(DebuffUntilKey);
 

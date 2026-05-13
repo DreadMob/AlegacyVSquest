@@ -78,6 +78,9 @@ namespace VsQuest
             {
                 float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
                 Sapi.World.PlaySoundAt(new AssetLocation("sounds/creature/shiver/aggro"), entity, null, pitch, 1f);
+
+                // Despair aura particles
+                ParticleUtils.SpawnEntityAura(Sapi, entity, ParticleUtils.Colors.Shadow, 8, 0.5f, 0.7f);
             }, 1000);
 
             healListenerId = Sapi.Event.RegisterGameTickListener(_ =>

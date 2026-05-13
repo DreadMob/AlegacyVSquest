@@ -101,6 +101,9 @@ namespace VsQuest
             TryPlaySound(stage.sound, stage.soundRange, 0, 1.0f);
             TryPlayAnimation(stage.animation);
 
+            // Shockwave particles from boss center
+            ParticleUtils.SpawnShockwave(Sapi, entity.Pos.XYZ, stage.maxTargetRange, ParticleUtils.Colors.Lightning, 20, 0.4f);
+
             foreach (var player in nearbyPlayers)
             {
                 // Set player cooldown
@@ -116,23 +119,8 @@ namespace VsQuest
                 // Apply knockback
                 player.Pos.Motion.Add(dir);
 
-                // Visual effect
-                var playerPos = player.Pos.XYZ;
-                Sapi.World.SpawnParticles(
-                    new SimpleParticleProperties(
-                        5, 10,
-                        ColorUtil.ToRgba(200, 255, 200, 100),
-                        playerPos,
-                        playerPos.Add(0.5, 0.5, 0.5),
-                        new Vec3f(-0.2f, 0.1f, -0.2f),
-                        new Vec3f(0.2f, 0.3f, 0.2f),
-                        0.5f,
-                        0.3f,
-                        0.5f,
-                        0.5f,
-                        EnumParticleModel.Quad
-                    )
-                );
+                // Visual impact on pushed player
+                ParticleUtils.SpawnImpact(Sapi, player, ParticleUtils.Colors.Lightning, 8, 0.25f);
             }
         }
     }

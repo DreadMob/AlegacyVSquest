@@ -201,6 +201,13 @@ namespace VsQuest
 
             entity.StopAiAndFreeze();
             entity.ApplyRotationLock(ref yawLocked, ref lockedYaw);
+
+            // Ritual start visual - arcane spiral around boss
+            if (Sapi != null && entity != null)
+            {
+                ParticleUtils.SpawnSpiral(Sapi, entity.Pos.XYZ.Add(0, 0.5, 0), 2f, 3f, ParticleUtils.Colors.Arcane, 20, 0.3f);
+            }
+
             SpawnMinions(stage);
             TryPlaySound(stage);
             TryStartLoopSound(stage);

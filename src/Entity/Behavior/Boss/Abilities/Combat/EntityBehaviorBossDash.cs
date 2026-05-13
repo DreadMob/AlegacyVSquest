@@ -231,6 +231,12 @@ namespace VsQuest
 
             TryPlayAnimation(stage.dashAnimation);
 
+            // Dash trail particles at start
+            if (Sapi != null)
+            {
+                ParticleUtils.SpawnShockwave(Sapi, entity.Pos.XYZ, 1.5f, ParticleUtils.Colors.Smoke, 12, 0.3f);
+            }
+
             // Register game tick listener for continuous movement updates
             dashTickListenerId = Sapi.Event.RegisterGameTickListener(_ =>
             {

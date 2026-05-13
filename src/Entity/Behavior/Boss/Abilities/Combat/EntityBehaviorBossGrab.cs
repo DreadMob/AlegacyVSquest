@@ -192,6 +192,12 @@ namespace VsQuest
 
             TryPlayAnimation(stage.grabAnimation);
 
+            // Grab impact particles on victim
+            if (targetPlayer != null)
+            {
+                ParticleUtils.SpawnImpact(Sapi, targetPlayer, ParticleUtils.Colors.Blood, 12, 0.3f);
+            }
+
             ApplyVictimMoveSlow(stage);
 
             if (targetPlayer?.WatchedAttributes != null)

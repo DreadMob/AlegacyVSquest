@@ -169,35 +169,12 @@ namespace VsQuest
                 float healAmount = totalDamage * stage.healMult;
                 healthBehavior.Health = Math.Min(healthBehavior.MaxHealth, healthBehavior.Health + healAmount);
 
-                // Visual heal effect - particles flying to boss
+                // Visual heal effect - particles flying from victims to boss
                 foreach (var player in damagedPlayers)
                 {
                     Vec3d startPos = player.Pos.XYZ.Add(0, 1, 0);
-                    Vec3d endPos = entity.Pos.XYZ.Add(0, 1, 0);
-
-                    Sapi.World.SpawnParticles(
-                        new SimpleParticleProperties(
-                            5, 8,
-                            ColorUtil.ToRgba(200, 180, 180, 190),
-                            startPos,
-                            startPos,
-                            new Vec3f(
-                                (float)(endPos.X - startPos.X) * 2,
-                                (float)(endPos.Y - startPos.Y) * 2,
-                                (float)(endPos.Z - startPos.Z) * 2
-                            ),
-                            new Vec3f(
-                                (float)(endPos.X - startPos.X) * 2,
-                                (float)(endPos.Y - startPos.Y) * 2,
-                                (float)(endPos.Z - startPos.Z) * 2
-                            ),
-                            0.5f,
-                            0,
-                            0.5f,
-                            0.5f,
-                            EnumParticleModel.Quad
-                        )
-                    );
+                    Vec3d endPos = entity.Pos.XYZ.Add(0, 1.5, 0);
+                    ParticleUtils.SpawnLine(Sapi, startPos, endPos, ParticleUtils.Colors.Blood, 5, 0.3f);
                 }
             }
 
@@ -214,28 +191,8 @@ namespace VsQuest
 
         private void SpawnNovaRing(Stage stage)
         {
-            for (int i = 0; i < 36; i++)
-            {
-                double angle = i * 10 * GameMath.DEG2RAD;
-                float x = (float)Math.Cos(angle) * stage.maxTargetRange;
-                float z = (float)Math.Sin(angle) * stage.maxTargetRange;
-
-                Sapi.World.SpawnParticles(
-                    new SimpleParticleProperties(
-                        2, 3,
-                        ColorUtil.ToRgba(200, 160, 165, 175),
-                        entity.Pos.XYZ.Add(x, 0.5, z),
-                        entity.Pos.XYZ.Add(x, 1.5, z),
-                        new Vec3f(-0.1f, 0.05f, -0.1f),
-                        new Vec3f(0.1f, 0.15f, 0.1f),
-                        0.4f,
-                        0.1f,
-                        0.5f,
-                        0.5f,
-                        EnumParticleModel.Quad
-                    )
-                );
-            }
+            if (Sapi == null || entity == null) return;
+            ParticleUtils.SpawnAuraRing(Sapi, entity.Pos.XYZ.Add(0, 0.5, 0), stage.maxTargetRange, ParticleUtils.Colors.Blood, 24, 0.5f);
         }
     }
 }

@@ -154,6 +154,9 @@ namespace VsQuest
         {
             if (Sapi == null || entity == null || stage == null || target == null) return;
 
+            // Ash floor placement visual
+            ParticleUtils.SpawnFalling(Sapi, target.Pos.XYZ, stage.maxRadius, 3f, ParticleUtils.Colors.SmokeDark, 20, 0.3f);
+
             var ba = Sapi.World?.BlockAccessor;
             if (ba == null) return;
 

@@ -329,6 +329,13 @@ namespace VsQuest
 
             TryRestoreFullHealth();
 
+            // Growth ritual visual - pillar + shockwave
+            if (Sapi != null && entity != null)
+            {
+                ParticleUtils.SpawnPillar(Sapi, entity.Pos.XYZ, 4f, 1.5f, ParticleUtils.Colors.Nature, 30);
+                ParticleUtils.SpawnShockwave(Sapi, entity.Pos.XYZ, 3f, ParticleUtils.Colors.NatureBright, 18, 0.4f);
+            }
+
             TryPlayStageAnimation(stage);
             TryPlayStageSound(stage);
             TrySpawnLightningFlash(stage);

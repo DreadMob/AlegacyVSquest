@@ -70,6 +70,12 @@ namespace VsQuest
             float targetIntox = GameMath.Clamp(stage.intoxication, 0f, 1.0f);
             if (targetIntox <= 0f) return;
 
+            // Periodic poison aura visual
+            if (Sapi.World.Rand.NextDouble() < 0.3)
+            {
+                ParticleUtils.SpawnAuraRing(Sapi, entity.Pos.XYZ.Add(0, 0.5, 0), stage.range * 0.4f, ParticleUtils.Colors.Poison, 10, 0.25f);
+            }
+
             var players = Sapi.World.AllOnlinePlayers;
             if (players == null || players.Length == 0) return;
 

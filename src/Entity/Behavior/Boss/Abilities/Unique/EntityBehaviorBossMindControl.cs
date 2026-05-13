@@ -136,24 +136,11 @@ namespace VsQuest
 
         private void SpawnControlParticles(EntityPlayer player, Stage settings)
         {
-            if (player?.World == null) return;
+            if (player?.World == null || Sapi == null) return;
 
-            // Spawn dark particles around the player
-            var pos = player.Pos.XYZ;
-            int color = ColorUtil.ColorFromRgba(80, 0, 120, 200); // Purple dark magic color
-            
-            for (int i = 0; i < 5; i++)
-            {
-                float dx = (float)(player.World.Rand.NextDouble() - 0.5) * 2f;
-                float dy = (float)(player.World.Rand.NextDouble() - 0.5) * 2f;
-                float dz = (float)(player.World.Rand.NextDouble() - 0.5) * 2f;
-                
-                player.World.SpawnParticles(1, color, 
-                    pos.Add(dx, dy + 1, dz), 
-                    pos.Add(dx, dy + 2, dz),
-                    new Vec3f(0, 0.5f, 0), new Vec3f(0, 1f, 0),
-                    1f, 1f, 0.5f, EnumParticleModel.Cube);
-            }
+            // Spawn dark arcane spiral around the controlled player
+            var pos = player.Pos.XYZ.Add(0, 1, 0);
+            ParticleUtils.SpawnSpiral(Sapi, pos, 0.8f, 2f, ParticleUtils.Colors.Arcane, 12, 0.3f);
         }
 
         private float randomWalkYaw;

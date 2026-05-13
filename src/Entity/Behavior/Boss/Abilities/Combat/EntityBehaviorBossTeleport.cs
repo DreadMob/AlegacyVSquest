@@ -131,6 +131,9 @@ namespace VsQuest
         {
             if (Sapi == null || entity == null || pos == null) return;
 
+            // Vanish particles at old position
+            ParticleUtils.SpawnShadowExplosion(Sapi, entity.Pos.XYZ.Add(0, 1, 0), 1.5f);
+
             int dim = entity.Pos.Dimension;
 
             var clones = (stage != null && (stage.teleportClones || stage.swapWithClones)) ? FindClones() : null;
@@ -165,6 +168,9 @@ namespace VsQuest
         private void TeleportEntity(Entity target, Vec3d pos, int dim)
         {
             if (target == null || pos == null) return;
+
+            // Arrival particles at destination
+            ParticleUtils.SpawnPillar(Sapi, pos, 2.5f, 0.8f, ParticleUtils.Colors.Shadow, 15);
 
             target.IsTeleport = true;
 

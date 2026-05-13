@@ -140,6 +140,9 @@ namespace VsQuest
 
             int delayMs = Math.Max(0, stage.warningDelayMs);
 
+            // Warning telegraph - ring on ground before strike
+            ParticleUtils.SpawnAuraRing(Sapi, strikePos, 1.5f, ParticleUtils.Colors.LightningBlue, 8, 0.25f);
+
             // Loop warning sound until the strike happens.
             // This gives players a continuous cue without relying on stacking/overlapping sounds.
             if (!string.IsNullOrWhiteSpace(stage.warningSound))

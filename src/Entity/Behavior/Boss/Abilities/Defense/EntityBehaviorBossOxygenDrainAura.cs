@@ -66,6 +66,12 @@ namespace VsQuest
 
             if (stage.oxygenDrainPerSecond <= 0f) return;
 
+            // Periodic aura visual
+            if (Sapi.World.Rand.NextDouble() < 0.3)
+            {
+                ParticleUtils.SpawnAuraRing(Sapi, entity.Pos.XYZ.Add(0, 0.3, 0), stage.range * 0.5f, ParticleUtils.Colors.Ice, 8, 0.2f);
+            }
+
             var players = Sapi.World.AllOnlinePlayers;
             if (players == null || players.Length == 0) return;
 

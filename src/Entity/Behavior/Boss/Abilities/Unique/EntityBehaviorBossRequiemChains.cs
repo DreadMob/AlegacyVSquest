@@ -97,23 +97,8 @@ namespace VsQuest
                 long until = Sapi.World.ElapsedMilliseconds + stage.durationMs;
                 chainedPlayers[targetPlayer.EntityId] = until;
 
-                // Visual - chains on player
-                var targetPos = targetPlayer.Pos.XYZ;
-                Sapi.World.SpawnParticles(
-                    new SimpleParticleProperties(
-                        25, 35,
-                        ColorUtil.ToRgba(255, 100, 100, 150),
-                        targetPos.Add(-0.5, 0, -0.5),
-                        targetPos.Add(0.5, 2, 0.5),
-                        new Vec3f(-0.1f, -0.1f, -0.1f),
-                        new Vec3f(0.1f, 0.1f, 0.1f),
-                        1.0f,
-                        0,
-                        0.5f,
-                        0.5f,
-                        EnumParticleModel.Quad
-                    )
-                );
+                // Visual - chain binding effect on player
+                ParticleUtils.SpawnEntityAura(Sapi, targetPlayer, ParticleUtils.Colors.Chain, 25, 0.5f, 0.6f);
             }
         }
 
@@ -175,25 +160,12 @@ namespace VsQuest
                     damage
                 );
 
-                // Visual chain line
+                // Visual chain line connecting boss to player
                 if (Sapi.World.ElapsedMilliseconds % 200 < 50)
                 {
-                    Vec3d chainPos = player.Pos.XYZ.Add(0, 1, 0);
-                    Sapi.World.SpawnParticles(
-                        new SimpleParticleProperties(
-                            1, 2,
-                            ColorUtil.ToRgba(200, 150, 100, 200),
-                            chainPos,
-                            chainPos,
-                            new Vec3f(-0.05f, -0.05f, -0.05f),
-                            new Vec3f(0.05f, 0.05f, 0.05f),
-                            0.1f,
-                            0,
-                            0.5f,
-                            0.5f,
-                            EnumParticleModel.Quad
-                        )
-                    );
+                    Vec3d chainStart = entity.Pos.XYZ.Add(0, 1.5, 0);
+                    Vec3d chainEnd = player.Pos.XYZ.Add(0, 1, 0);
+                    ParticleUtils.SpawnLine(Sapi, chainStart, chainEnd, ParticleUtils.Colors.Chain, 6, 0.25f);
                 }
             }
 

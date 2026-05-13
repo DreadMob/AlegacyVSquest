@@ -316,22 +316,14 @@ namespace VsQuest
 
             var pos = entity.Pos.XYZ.Add(0, 1.5, 0); // Center of boss
 
-            Sapi.World.SpawnParticles(
-                new SimpleParticleProperties(
-                    stage.particleCountMin,
-                    stage.particleCountMax,
-                    stage.particleColorRgba,
-                    pos.AddCopy(-0.5, -0.5, -0.5),
-                    pos.AddCopy(0.5, 0.5, 0.5),
-                    new Vec3f(-0.5f, 0.5f, -0.5f),
-                    new Vec3f(0.5f, 1.5f, 0.5f),
-                    stage.particleLifeMs / 1000f,
-                    0f,
-                    stage.particleSize,
-                    stage.particleSize,
-                    EnumParticleModel.Quad
-                )
-            );
+            ParticleUtils.Create()
+                .Count(stage.particleCountMin, stage.particleCountMax)
+                .Color(stage.particleColorRgba)
+                .Position(pos, 0.5f)
+                .VelocityUp(0.5f, 1.5f)
+                .Life(stage.particleLifeMs / 1000f)
+                .Size(stage.particleSize, stage.particleSize)
+                .Spawn(Sapi);
         }
 
         // Required abstract overrides for BossAbilityBase (event-driven mode)

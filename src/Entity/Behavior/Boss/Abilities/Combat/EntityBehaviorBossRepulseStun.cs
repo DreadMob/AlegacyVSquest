@@ -84,6 +84,12 @@ namespace VsQuest
             TryApplyKnockback(stage, target);
             TryApplyStun(stage, target);
             TryPlaySound(stage.sound, stage.soundRange, stage.soundStartMs, stage.soundVolume);
+
+            // Repulse shockwave visual
+            if (Sapi != null && entity != null)
+            {
+                ParticleUtils.SpawnShockwave(Sapi, entity.Pos.XYZ, stage.maxTargetRange * 0.5f, ParticleUtils.Colors.Ice, 16, 0.35f);
+            }
         }
 
         protected override bool UsePeriodicTick() => true;

@@ -161,6 +161,10 @@ namespace VsQuest
             if (Sapi == null || entity == null || stage == null || pos == null) return;
             if (string.IsNullOrWhiteSpace(stage.fakeEntityCode)) return;
 
+            // Fake teleport vanish/appear particles
+            ParticleUtils.SpawnShadowExplosion(Sapi, entity.Pos.XYZ.Add(0, 1, 0), 1.2f);
+            ParticleUtils.SpawnPillar(Sapi, pos, 2f, 0.6f, ParticleUtils.Colors.Shadow, 12);
+
             var type = Sapi.World.GetEntityType(new AssetLocation(stage.fakeEntityCode));
             if (type == null) return;
 

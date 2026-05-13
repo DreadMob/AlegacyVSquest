@@ -157,23 +157,8 @@ namespace VsQuest
                 long until = now + stage.durationMs;
                 markedPlayers[targetPlr.EntityId] = until;
 
-                // Visual effect - red chains
-                var targetPos = targetPlr.Pos.XYZ;
-                Sapi.World.SpawnParticles(
-                    new SimpleParticleProperties(
-                        20, 30,
-                        ColorUtil.ToRgba(255, 200, 50, 50),
-                        targetPos.Add(-0.5, 0, -0.5),
-                        targetPos.Add(0.5, 2, 0.5),
-                        new Vec3f(-0.1f, -0.1f, -0.1f),
-                        new Vec3f(0.1f, 0.1f, 0.1f),
-                        1.0f,
-                        0.1f,
-                        0.5f,
-                        0.5f,
-                        EnumParticleModel.Quad
-                    )
-                );
+                // Visual effect - stillness mark binding
+                ParticleUtils.SpawnAuraRing(Sapi, targetPlr.Pos.XYZ.Add(0, 0.1, 0), 0.8f, ColorUtil.ToRgba(255, 200, 50, 50), 10, 0.4f);
             }
         }
 
@@ -232,25 +217,10 @@ namespace VsQuest
                         lastDamageTickMsByPlayer[kvp.Key] = now;
                     }
 
-                    // Visual feedback
+                    // Visual feedback - blood particles when moving while marked
                     if (Sapi.World.ElapsedMilliseconds % DamageTickIntervalMs < 50)
                     {
-                        var playerPos = player.Pos.XYZ;
-                        Sapi.World.SpawnParticles(
-                            new SimpleParticleProperties(
-                                2, 4,
-                                ColorUtil.ToRgba(255, 255, 100, 100),
-                                playerPos,
-                                playerPos.Add(0.3, 1.5, 0.3),
-                                new Vec3f(-0.1f, 0.1f, -0.1f),
-                                new Vec3f(0.1f, 0.2f, 0.1f),
-                                0.3f,
-                                0.2f,
-                                0.5f,
-                                0.5f,
-                                EnumParticleModel.Quad
-                            )
-                        );
+                        ParticleUtils.SpawnImpact(Sapi, player, ParticleUtils.Colors.Blood, 6, 0.3f);
                     }
                 }
             }
