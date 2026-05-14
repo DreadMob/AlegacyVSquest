@@ -34,6 +34,7 @@ namespace VsQuest
             objectiveRegistry.Add("randomkill", new RandomKillObjective());
             objectiveRegistry.Add("walkdistance", new WalkDistanceObjective());
             objectiveRegistry.Add("timeofday", new TimeOfDayObjective());
+            objectiveRegistry.Add("killactivetrial", new KillActiveTrialObjective());
         }
     }
 }

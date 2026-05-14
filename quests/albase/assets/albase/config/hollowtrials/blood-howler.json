@@ -1,0 +1,13 @@
+{
+  "trialKey": "albase:trial:blood-howler",
+  "questId": "albase:trial-tier2",
+  "tier": 2,
+  "respawnInGameHours": 168,
+  "activationRange": 120,
+  "softResetIdleHours": 2.0,
+  "challenges": [
+    { "type": "speedkill", "thresholdMinutes": 3 },
+    { "type": "deathless" },
+    { "type": "nopotions" }
+  ]
+}

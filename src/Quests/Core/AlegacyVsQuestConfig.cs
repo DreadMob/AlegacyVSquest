@@ -63,6 +63,8 @@ namespace VsQuest
 
 		public PerformanceCoreConfig Performance { get; set; } = new PerformanceCoreConfig();
 
+		public HollowTrialCoreConfig HollowTrials { get; set; } = new HollowTrialCoreConfig();
+
     }
 
 }

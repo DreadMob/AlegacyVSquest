@@ -78,6 +78,21 @@ namespace VsQuest
             api.RegisterEntityBehaviorClass("explodeondeath", typeof(EntityBehaviorExplodeOnDeath));
             api.RegisterEntityBehaviorClass("alegacyvsquest:questdropondeath", typeof(EntityBehaviorQuestDropOnDeath));
             api.RegisterEntityBehaviorClass("alegacyvsquestguionclick", typeof(EntityBehaviorGuiOnClick));
+            api.RegisterEntityBehaviorClass("damagedummy", typeof(EntityBehaviorDamageDummy));
+
+            // Hollow Trials behaviors
+            api.RegisterEntityBehaviorClass("bossenrage", typeof(EntityBehaviorBossEnrage));
+            api.RegisterEntityBehaviorClass("bossvulnerabilitywindow", typeof(EntityBehaviorBossVulnerabilityWindow));
+            api.RegisterEntityBehaviorClass("bosstelegraph", typeof(EntityBehaviorBossTelegraph));
+            api.RegisterEntityBehaviorClass("bossgroundslam", typeof(EntityBehaviorBossGroundSlam));
+            api.RegisterEntityBehaviorClass("bossvoidzone", typeof(EntityBehaviorBossVoidZone));
+            api.RegisterEntityBehaviorClass("bosscursestack", typeof(EntityBehaviorBossCurseStack));
+            api.RegisterEntityBehaviorClass("bossphaseshift", typeof(EntityBehaviorBossPhaseShift));
+            api.RegisterEntityBehaviorClass("bosssoulchain", typeof(EntityBehaviorBossSoulChain));
+            api.RegisterEntityBehaviorClass("bossbloodprice", typeof(EntityBehaviorBossBloodPrice));
+            api.RegisterEntityBehaviorClass("bossmirrorimage", typeof(EntityBehaviorBossMirrorImage));
+            api.RegisterEntityBehaviorClass("bosscursemark", typeof(EntityBehaviorBossCurseMark));
+            api.RegisterEntityBehaviorClass("bossretaliation", typeof(EntityBehaviorBossRetaliation));
         }
 
         private static void RegisterItems(ICoreAPI api)
@@ -99,6 +114,9 @@ namespace VsQuest
 
             api.RegisterBlockClass("BlockBossHuntAnchor", typeof(BlockBossHuntAnchor));
             api.RegisterBlockEntityClass("BossHuntAnchor", typeof(BlockEntityBossHuntAnchor));
+
+            api.RegisterBlockClass("BlockVoidRiftAnchor", typeof(BlockVoidRiftAnchor));
+            api.RegisterBlockEntityClass("VoidRiftAnchor", typeof(BlockEntityVoidRiftAnchor));
 
             api.RegisterBlockClass("BlockBossHuntArena", typeof(BlockBossHuntArena));
             api.RegisterBlockEntityClass("BossHuntArena", typeof(BlockEntityBossHuntArena));

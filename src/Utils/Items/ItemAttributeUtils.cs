@@ -39,7 +39,9 @@ namespace VsQuest
         public const string ItemQualityBonusDataKey = "alegacyvsquest:qualityBonusData";
 
         public const string AttrAttackPower = "attackpower";
+        public const string AttrMeleeAttackPower = "meleeattackpower";
         public const string AttrAttackSpeed = "attackspeed";
+        public const string AttrDamageTier = "damagetier";
         public const string AttrWarmth = "warmth";
         public const string AttrProtection = "protection";
         public const string AttrWalkSpeed = "walkspeed";
@@ -61,6 +63,33 @@ namespace VsQuest
         public const string AttrViewDistance = "viewdistance";
         public const string AttrUraniumMaskChargeHours = "uraniummaskchargehours";
         public const string AttrHealOnKill = "healonkill";
+        public const string AttrFurCoatChargeHours = "furcoatchargehours";
+
+        // Charge system metadata keys (stored on item stack attributes, not prefixed)
+        /// <summary>
+        /// Charge mode: "all" = all stats gated by charge (default), "partial" = only listed attrs gated.
+        /// </summary>
+        public const string ChargeMode = "alegacyvsquest:chargemode";
+        /// <summary>
+        /// JSON array of attribute short keys that are gated by charge (used when chargemode = "partial").
+        /// </summary>
+        public const string ChargeGatedAttrs = "alegacyvsquest:chargegatedattrs";
+        /// <summary>
+        /// JSON array of item code substrings accepted as charge materials.
+        /// </summary>
+        public const string ChargeMaterials = "alegacyvsquest:chargematerials";
+        /// <summary>
+        /// Hours of charge added per unit of material.
+        /// </summary>
+        public const string ChargePerUnit = "alegacyvsquest:chargeperunit";
+        /// <summary>
+        /// Maximum charge capacity in hours.
+        /// </summary>
+        public const string ChargeMaxHours = "alegacyvsquest:chargemax";
+        /// <summary>
+        /// Multiplier for gated attributes when charge is fully depleted (0 = no effect, 0.267 = 26.7%).
+        /// </summary>
+        public const string ChargeDepletedMult = "alegacyvsquest:chargedepletedmult";
 
         public static string GetKey(string attributeName)
         {
@@ -110,28 +139,65 @@ namespace VsQuest
             float value = GetAttributeFloat(stack, attributeName, defaultValue);
             if (value == 0f || stack == null) return value;
 
-            // Some wearables have effects that should only apply when they are charged.
-            // If the charge is depleted, suppress all other attribute bonuses from that wearable.
-            float uraniumMaskChargeHours = GetAttributeFloat(stack, AttrUraniumMaskChargeHours, float.NaN);
-            if (!float.IsNaN(uraniumMaskChargeHours))
+            // --- Unified charge system ---
+            // Find any *chargehours attribute on this item. If present, apply charge gating logic.
+            float chargeHours = float.NaN;
+            string chargeAttrName = null;
+            var treeAttrs = stack.Attributes as TreeAttribute;
+            if (treeAttrs != null)
             {
-                if (attributeName != AttrUraniumMaskChargeHours && uraniumMaskChargeHours <= 0f)
+                foreach (var val in treeAttrs)
                 {
-                    return 0f;
+                    if (val.Key.EndsWith("chargehours"))
+                    {
+                        chargeAttrName = val.Key.StartsWith(AttrPrefix)
+                            ? val.Key.Substring(AttrPrefix.Length)
+                            : val.Key;
+                        chargeHours = stack.Attributes.GetFloat(val.Key, 0f);
+                        break;
+                    }
+                }
+            }
+
+            if (!float.IsNaN(chargeHours))
+            {
+                // The charge attribute itself is always returned as-is
+                if (attributeName == chargeAttrName) return value;
+
+                // Determine charge mode: "all" (default) or "partial"
+                string mode = stack.Attributes.GetString(ChargeMode, "all");
+
+                bool isGated;
+                if (mode == "partial")
+                {
+                    // Only specific attributes are gated by charge
+                    string gatedJson = stack.Attributes.GetString(ChargeGatedAttrs, "[]");
+                    isGated = gatedJson.Contains("\"" + attributeName + "\"");
+                }
+                else
+                {
+                    // "all" mode: every attribute except the charge attr itself is gated
+                    isGated = true;
                 }
 
-                // Charged mask bonuses should not depend on item durability/condition.
-                // The only controlling factor should be the time-based charge.
-                if (attributeName == AttrUraniumMaskChargeHours) return value;
+                if (isGated)
+                {
+                    if (chargeHours <= 0f)
+                    {
+                        // When depleted, apply minimum multiplier (default 0 = no effect)
+                        float depletedMult = stack.Attributes.GetFloat(ChargeDepletedMult, 0f);
+                        return value * depletedMult;
+                    }
 
-                // Scale effects down when charge is low.
-                // >= 24h => full power (1.0)
-                // < 24h  => scales linearly down to 0.4
-                float chargeMult = uraniumMaskChargeHours >= 24f
-                    ? 1f
-                    : GameMath.Clamp(0.4f + 0.6f * (uraniumMaskChargeHours / 24f), 0.4f, 1f);
-
-                return value * chargeMult;
+                    // Scale effects down when charge is low.
+                    // >= 24h => full power (1.0)
+                    // < 24h  => scales linearly down to 0.4
+                    float chargeMult = chargeHours >= 24f
+                        ? 1f
+                        : GameMath.Clamp(0.4f + 0.6f * (chargeHours / 24f), 0.4f, 1f);
+                    return value * chargeMult;
+                }
+                // Non-gated attributes fall through to normal condition logic below.
             }
 
             if (attributeName == AttrHungerRate)
@@ -157,16 +223,103 @@ namespace VsQuest
             return value * mult;
         }
 
+
+
         public static string GetDisplayName(string shortKey)
         {
+            // 1. Try nested localization system
             string langKey = $"alegacyvsquest:attr-{shortKey}";
+            string nested = LocalizationUtils.GetFromNested(langKey);
+            if (!string.IsNullOrEmpty(nested)) return nested;
+            
+            nested = LocalizationUtils.GetFromNested($"attr-{shortKey}");
+            if (!string.IsNullOrEmpty(nested)) return nested;
+            
+            // 2. Try vanilla Lang.Get
             string result = Lang.Get(langKey);
+            if (result != langKey) return result;
+            
+            return shortKey;
+        }
 
-            if (result == langKey)
+        private const string ColorPositive = "#4ADE80"; // green
+        private const string ColorNegative = "#F87171"; // red
+        private const string ColorNeutral = "#FBBF24"; // yellow/amber for special/neutral stats
+        private const string ColorLabel = "#D1D5DB"; // gray for labels
+        public const string SeparatorLine = "<font color=\"#6B7280\">\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC</font>";
+        public const string SectionBuffs = "<font color=\"#4ADE80\">\u25AC\u25AC\u25AC\u25AC \u25B2\u25B2 \u0411\u043E\u043D\u0443\u0441\u044B \u25B2\u25B2 \u25AC\u25AC\u25AC</font>";
+        public const string SectionDebuffs = "<font color=\"#F87171\">\u25AC\u25AC\u25AC\u25AC \u25BC\u25BC \u0428\u0442\u0440\u0430\u0444\u044B \u25BC\u25BC \u25AC\u25AC\u25AC</font>";
+        public const string SectionDesc = "<font color=\"#6B7280\">\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC</font>";
+
+        // No per-line prefix symbols — only section headers have decoration
+        public const string PrefixSpecial = "";
+        public const string PrefixBuff = "";
+        public const string PrefixDebuff = "";
+
+        /// <summary>
+        /// Determines if a given attribute is "special" (charges, timers — not a buff or debuff).
+        /// </summary>
+        public static bool IsSpecialAttribute(string shortKey)
+        {
+            return shortKey == AttrSecondChanceCharges || shortKey == AttrDamageTier || shortKey.EndsWith("chargehours");
+        }
+
+        /// <summary>
+        /// Returns true if this attribute should NOT be scaled by quality bonuses.
+        /// </summary>
+        public static bool IsQualityExemptAttribute(string shortKey)
+        {
+            return shortKey == AttrDamageTier || shortKey == AttrSecondChanceCharges || shortKey.EndsWith("chargehours");
+        }
+
+        /// <summary>
+        /// Determines if a given attribute value is "positive" (beneficial) for the player.
+        /// Some attributes are inverted: e.g. hungerrate positive = debuff, negative = buff.
+        /// </summary>
+        public static bool IsValueBeneficial(string shortKey, float value)
+        {
+            if (value == 0f) return false;
+
+            // Inverted attributes: positive value = penalty, negative = bonus
+            if (shortKey == AttrHungerRate || shortKey == AttrTemporalDrainMult || shortKey == AttrFallDamageMult)
             {
-                return shortKey;
+                return value < 0;
             }
-            return result;
+            return value > 0;
+        }
+
+        /// <summary>
+        /// Returns true if the value represents a debuff for this attribute.
+        /// </summary>
+        public static bool IsValueDebuff(string shortKey, float value)
+        {
+            if (value == 0f) return false;
+            return !IsValueBeneficial(shortKey, value);
+        }
+
+        private static string ColorizeValue(string shortKey, float value, string formattedValue)
+        {
+            if (IsSpecialAttribute(shortKey))
+                return $"<font color=\"{ColorNeutral}\">{formattedValue}</font>";
+            if (value == 0f) return $"<font color=\"{ColorLabel}\">{formattedValue}</font>";
+            string color = IsValueBeneficial(shortKey, value) ? ColorPositive : ColorNegative;
+            return $"<font color=\"{color}\">{formattedValue}</font>";
+        }
+
+        private static string GetUnitSuffix(string shortKey)
+        {
+            string langKey = $"alegacyvsquest:attr-unit-{shortKey}";
+            string result = Lang.Get(langKey);
+            if (result != langKey) return result;
+
+            // Fallback units
+            if (shortKey == AttrAttackPower || shortKey == AttrMeleeAttackPower || shortKey == AttrMaxHealthFlat)
+                return Lang.Get("alegacyvsquest:attr-unit-hp");
+            if (shortKey == AttrProtection)
+                return Lang.Get("alegacyvsquest:attr-unit-dmg");
+            if (shortKey == AttrWarmth)
+                return "°C";
+            return "";
         }
 
         public static string FormatAttributeForTooltip(string attrKey, float value)
@@ -175,6 +328,21 @@ namespace VsQuest
             string displayName = GetDisplayName(shortKey);
 
             string prefix = value >= 0 ? "+" : "";
+            string formattedValue;
+
+            if (IsSpecialAttribute(shortKey))
+            {
+                string unit = shortKey.EndsWith("chargehours") ? "ч" : "";
+                if (shortKey == AttrDamageTier)
+                {
+                    formattedValue = $"{(int)value}";
+                }
+                else
+                {
+                    formattedValue = $"{value:0.#}{unit}";
+                }
+                return $"<font color=\"{ColorNeutral}\">{displayName}: {formattedValue}</font>";
+            }
 
             if (shortKey == AttrWalkSpeed ||
                 shortKey == AttrHungerRate || shortKey == AttrHealingEffectiveness ||
@@ -182,51 +350,46 @@ namespace VsQuest
                 shortKey == AttrMiningSpeedMult || shortKey == AttrFallDamageMult ||
                 shortKey == AttrTemporalDrainMult || shortKey == AttrJumpHeightMul ||
                 shortKey == AttrKnockbackMult || shortKey == AttrWeightLimit ||
-                shortKey == AttrViewDistance)
+                shortKey == AttrViewDistance || shortKey == AttrHealOnKill ||
+                shortKey == AttrStealth)
             {
-                return $"{displayName}: {prefix}{value * 100:0.#}%";
+                formattedValue = $"{prefix}{value * 100:0.#}%";
             }
             else if (shortKey == AttrWarmth)
             {
-                return $"{displayName}: {prefix}{value:0.#}°C";
+                formattedValue = $"{prefix}{value:0.#}°C";
             }
-            else if (shortKey == AttrAttackPower)
+            else if (shortKey == AttrAttackPower || shortKey == AttrMeleeAttackPower || shortKey == AttrMaxHealthFlat)
             {
-                return $"{displayName}: {prefix}{value:0.#} hp";
+                string unit = Lang.Get("alegacyvsquest:attr-unit-hp");
+                if (unit == "alegacyvsquest:attr-unit-hp") unit = "ед.";
+                formattedValue = $"{prefix}{value:0.#} {unit}";
             }
             else if (shortKey == AttrProtection)
             {
-                return $"{displayName}: {prefix}{value:0.#} dmg";
-            }
-            else if (shortKey == AttrSecondChanceCharges)
-            {
-                return $"{displayName}: {value:0.#}";
-            }
-            else if (shortKey == AttrUraniumMaskChargeHours)
-            {
-                return $"{displayName}: {value:0.#}h";
-            }
-            else if (shortKey == AttrMaxHealthFlat)
-            {
-                return $"{displayName}: {prefix}{value:0.#} hp";
+                string unit = Lang.Get("alegacyvsquest:attr-unit-dmg");
+                if (unit == "alegacyvsquest:attr-unit-dmg") unit = "ед.";
+                formattedValue = $"{prefix}{value:0.#} {unit}";
             }
             else if (shortKey == AttrMaxOxygen)
             {
                 const float OxygenUnitsPerSecond = 800f;
                 float seconds = value / OxygenUnitsPerSecond;
-                return $"{displayName}: {prefix}{seconds:0.#}";
+                string unit = Lang.Get("alegacyvsquest:attr-unit-sec");
+                if (unit == "alegacyvsquest:attr-unit-sec") unit = "сек";
+                formattedValue = $"{prefix}{seconds:0.#} {unit}";
             }
-            else if (shortKey == AttrHealOnKill)
+            else
             {
-                return $"{displayName}: {prefix}{value * 100:0.#}%";
+                formattedValue = $"{prefix}{value:0.##}";
             }
 
-            return $"{displayName}: {prefix}{value:0.##}";
+            string coloredValue = ColorizeValue(shortKey, value, formattedValue);
+            return $"<font color=\"{ColorLabel}\">{displayName}:</font>  {coloredValue}";
         }
 
         /// <summary>
         /// Formats an attribute with its quality bonus for tooltip display.
-        /// Example: "Атака: +2.5 hp (+0.5 hp)" or "Скорость: -14% (+3%)"
         /// </summary>
         public static string FormatAttributeWithBonus(string attrKey, float value, float bonus, string qualityColor)
         {
@@ -235,7 +398,17 @@ namespace VsQuest
 
             string prefix = value >= 0 ? "+" : "";
             string bonusPrefix = bonus >= 0 ? "+" : "";
-            string bonusColored = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus:0.#})</font>";
+
+            string formattedValue;
+            string bonusFormatted;
+
+            if (IsSpecialAttribute(shortKey))
+            {
+                string unit = shortKey.EndsWith("chargehours") ? "ч" : "";
+                formattedValue = $"{value:0.#}{unit}";
+                bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus:0.#}{unit})</font>";
+                return $"<font color=\"{ColorNeutral}\">{displayName}: {formattedValue}</font> {bonusFormatted}";
+            }
 
             if (shortKey == AttrWalkSpeed ||
                 shortKey == AttrHungerRate || shortKey == AttrHealingEffectiveness ||
@@ -243,45 +416,49 @@ namespace VsQuest
                 shortKey == AttrMiningSpeedMult || shortKey == AttrFallDamageMult ||
                 shortKey == AttrTemporalDrainMult || shortKey == AttrJumpHeightMul ||
                 shortKey == AttrKnockbackMult || shortKey == AttrWeightLimit ||
-                shortKey == AttrViewDistance || shortKey == AttrHealOnKill)
+                shortKey == AttrViewDistance || shortKey == AttrHealOnKill ||
+                shortKey == AttrStealth)
             {
-                // Percentage attributes
-                string bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus * 100:0.#}%)</font>";
-                return $"{displayName}: {prefix}{value * 100:0.#}% {bonusFormatted}";
+                formattedValue = $"{prefix}{value * 100:0.#}%";
+                bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus * 100:0.#}%)</font>";
             }
             else if (shortKey == AttrWarmth)
             {
-                string bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus:0.#}°C)</font>";
-                return $"{displayName}: {prefix}{value:0.#}°C {bonusFormatted}";
+                formattedValue = $"{prefix}{value:0.#}°C";
+                bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus:0.#}°C)</font>";
             }
-            else if (shortKey == AttrAttackPower || shortKey == AttrMaxHealthFlat)
+            else if (shortKey == AttrAttackPower || shortKey == AttrMeleeAttackPower || shortKey == AttrMaxHealthFlat)
             {
-                string bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus:0.#} hp)</font>";
-                return $"{displayName}: {prefix}{value:0.#} hp {bonusFormatted}";
+                string unit = Lang.Get("alegacyvsquest:attr-unit-hp");
+                if (unit == "alegacyvsquest:attr-unit-hp") unit = "ед.";
+                formattedValue = $"{prefix}{value:0.#} {unit}";
+                bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus:0.#} {unit})</font>";
             }
             else if (shortKey == AttrProtection)
             {
-                string bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus:0.#} dmg)</font>";
-                return $"{displayName}: {prefix}{value:0.#} dmg {bonusFormatted}";
+                string unit = Lang.Get("alegacyvsquest:attr-unit-dmg");
+                if (unit == "alegacyvsquest:attr-unit-dmg") unit = "ед.";
+                formattedValue = $"{prefix}{value:0.#} {unit}";
+                bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus:0.#} {unit})</font>";
             }
             else if (shortKey == AttrMaxOxygen)
             {
                 const float OxygenUnitsPerSecond = 800f;
                 float seconds = value / OxygenUnitsPerSecond;
                 float bonusSeconds = bonus / OxygenUnitsPerSecond;
-                string bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonusSeconds:0.#})</font>";
-                return $"{displayName}: {prefix}{seconds:0.#} {bonusFormatted}";
+                string unit = Lang.Get("alegacyvsquest:attr-unit-sec");
+                if (unit == "alegacyvsquest:attr-unit-sec") unit = "сек";
+                formattedValue = $"{prefix}{seconds:0.#} {unit}";
+                bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonusSeconds:0.#} {unit})</font>";
             }
-            else if (shortKey == AttrSecondChanceCharges || shortKey == AttrUraniumMaskChargeHours)
+            else
             {
-                // These don't typically get bonuses, but handle them anyway
-                string unit = shortKey == AttrUraniumMaskChargeHours ? "h" : "";
-                string bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus:0.#}{unit})</font>";
-                return $"{displayName}: {value:0.#}{unit} {bonusFormatted}";
+                formattedValue = $"{prefix}{value:0.##}";
+                bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus:0.##})</font>";
             }
 
-            // Default format
-            return $"{displayName}: {prefix}{value:0.##} {bonusColored}";
+            string coloredValue = ColorizeValue(shortKey, value, formattedValue);
+            return $"<font color=\"{ColorLabel}\">{displayName}:</font>  {coloredValue} {bonusFormatted}";
         }
 
         public static bool IsActionItem(ItemStack stack)
@@ -434,6 +611,26 @@ namespace VsQuest
                 }
             }
 
+            // Write charge mode metadata if configured
+            if (!string.IsNullOrEmpty(actionItem.chargeMode))
+            {
+                stack.Attributes.SetString(ChargeMode, actionItem.chargeMode);
+            }
+            if (actionItem.chargeGatedAttrs != null && actionItem.chargeGatedAttrs.Count > 0)
+            {
+                stack.Attributes.SetString(ChargeGatedAttrs, JsonConvert.SerializeObject(actionItem.chargeGatedAttrs));
+            }
+            if (actionItem.chargeMaterials != null && actionItem.chargeMaterials.Count > 0)
+            {
+                stack.Attributes.SetString(ChargeMaterials, JsonConvert.SerializeObject(actionItem.chargeMaterials));
+                stack.Attributes.SetFloat(ChargePerUnit, actionItem.chargePerUnit);
+                stack.Attributes.SetFloat(ChargeMaxHours, actionItem.chargeMax);
+                if (actionItem.chargeDepletedMult > 0f)
+                {
+                    stack.Attributes.SetFloat(ChargeDepletedMult, actionItem.chargeDepletedMult);
+                }
+            }
+
             if (actionItem.showAttributes != null && actionItem.showAttributes.Count > 0)
             {
                 stack.Attributes.SetString(ActionItemShowAttrsKey, JsonConvert.SerializeObject(actionItem.showAttributes));
@@ -456,11 +653,18 @@ namespace VsQuest
             int hash = 17;
 
             // Time-based charges - round to 0.5h precision to avoid jitter on every tick
-            if (stack.Attributes.HasAttribute(GetKey(AttrUraniumMaskChargeHours)))
+            var treeAttrs = stack.Attributes as TreeAttribute;
+            if (treeAttrs != null)
             {
-                float charge = stack.Attributes.GetFloat(GetKey(AttrUraniumMaskChargeHours));
-                int rounded = (int)System.Math.Round(charge * 2);
-                hash = hash * 31 + rounded;
+                foreach (var val in treeAttrs)
+                {
+                    if (val.Key.EndsWith("chargehours"))
+                    {
+                        float charge = stack.Attributes.GetFloat(val.Key);
+                        int rounded = (int)System.Math.Round(charge * 2);
+                        hash = hash * 31 + rounded;
+                    }
+                }
             }
 
             // Integer-based charges - use directly

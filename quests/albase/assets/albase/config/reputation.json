@@ -4,7 +4,8 @@
       "titleLangKey": "albase:reputation-npc-bosshunter-title",
       "ranks": [
         { "min": 0, "rankLangKey": "albase:reputation-bosshunter-rank-0" },
-        { "min": 300, "rankLangKey": "albase:reputation-bosshunter-rank-300", "rewardAction": "questitem albase:bosshunt-reward-cryptsight" },
+        { "min": 200, "rankLangKey": "albase:reputation-bosshunter-rank-200", "rewardAction": "questitem albase:bosshunt-reward-cryptsight" },
+        { "min": 350, "rankLangKey": "albase:reputation-bosshunter-rank-350", "rewardAction": "questitem albase:bosshunt-reward-ossuary-mask" },
         { "min": 500, "rankLangKey": "albase:reputation-bosshunter-rank-500", "rewardAction": "questitem albase:bosshunt-reward-fox-boots" },
         { "min": 1500, "rankLangKey": "albase:reputation-bosshunter-rank-1500", "rewardAction": "giveitem game:crystalizedore-rich-uranium-chalk 1" }
       ]

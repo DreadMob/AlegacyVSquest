@@ -125,6 +125,9 @@ namespace VsQuest.Harmony
                 try { hideVanilla = new HashSet<string>(JsonConvert.DeserializeObject<List<string>>(hideVanillaJson)); } catch (Exception) { /* Swallow - invalid JSON, use default */ }
             }
 
+            // Always hide mod source on action items
+            hideVanilla.Add("modsource");
+
             string customDesc = attrs.GetString(ItemAttributeUtils.QuestDescKey);
             bool hasCustomDesc = !string.IsNullOrEmpty(customDesc);
             bool hideDesc = hasCustomDesc || hideVanilla.Contains("description");
@@ -137,13 +140,25 @@ namespace VsQuest.Harmony
             string qualityColor = attrs.GetString(ItemAttributeUtils.ItemQualityColorKey, "#FFFFFF");
             Dictionary<string, float> qualityBonusData = ItemQualityService.GetBonusData(inSlot.Itemstack);
             bool hasQuality = !string.IsNullOrEmpty(qualityId) && !string.IsNullOrEmpty(qualityName);
+            float qualityBonusPercent = attrs.GetFloat(ItemAttributeUtils.ItemQualityBonusPercentKey, 0f);
+            // Always show quality header if quality is set
+            bool showQualityHeader = hasQuality;
 
             dsc.Clear();
 
             // Show quality header at the top
-            if (hasQuality)
+            if (showQualityHeader)
             {
-                dsc.AppendLine($"<font color=\"{qualityColor}\">=== {qualityName} ===</font>");
+                dsc.AppendLine($"<font color=\"{qualityColor}\">\u25AC\u25AC\u25AC \u2666\u2666 {qualityName} \u2666\u2666 \u25AC\u25AC\u25AC</font>");
+            }
+
+            // Show condition at the top for wearable action items
+            if (inSlot.Itemstack?.Collectible.GetCollectibleInterface<Vintagestory.API.Common.IWearable>() != null)
+            {
+                float conditionTop = attrs.GetFloat("condition", 1f);
+                string condStrTop = (((double)conditionTop > 0.5) ? Lang.Get("clothingcondition-good", (int)(conditionTop * 100f)) : (((double)conditionTop > 0.4) ? Lang.Get("clothingcondition-worn", (int)(conditionTop * 100f)) : (((double)conditionTop > 0.3) ? Lang.Get("clothingcondition-heavilyworn", (int)(conditionTop * 100f)) : (((double)conditionTop > 0.2) ? Lang.Get("clothingcondition-tattered", (int)(conditionTop * 100f)) : ((!((double)conditionTop > 0.1)) ? Lang.Get("clothingcondition-terrible", (int)(conditionTop * 100f)) : Lang.Get("clothingcondition-heavilytattered", (int)(conditionTop * 100f)))))));
+                string colorTop = ColorUtil.Int2Hex(GuiStyle.DamageColorGradient[(int)Math.Min(99f, conditionTop * 200f)]);
+                dsc.AppendLine(Lang.Get("Condition:") + " <font color=\"" + colorTop + "\">" + condStrTop + "</font>");
             }
 
             if (hasCustomDesc && currentTooltip.Contains(customDesc))
@@ -151,10 +166,7 @@ namespace VsQuest.Harmony
                 currentTooltip = currentTooltip.Replace(customDesc, "");
             }
 
-            if (hasCustomDesc)
-            {
-                dsc.AppendLine(customDesc);
-            }
+            // Description will be added at the end — don't add it here
 
             string[] lines = currentTooltip.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
             bool lastLineWasEmpty = true;
@@ -239,6 +251,10 @@ namespace VsQuest.Harmony
                     if (trimmed.StartsWith("Attack power:") || trimmed.StartsWith("Attack tier:")) shouldHide = true;
                     else if (trimmed.Contains("Attack power:") || trimmed.Contains("Attack tier:")) shouldHide = true;
                     else if (trimmed.Contains("Уровень атаки:") || trimmed.Contains("Сила атаки:")) shouldHide = true;
+                    else if (trimmed.Contains("урона")) shouldHide = true;
+                    else if (trimmed.Contains("damage") && !trimmed.Contains("<font")) shouldHide = true;
+                    else if (trimmed.Contains("точности") || trimmed.Contains("accuracy")) shouldHide = true;
+                    else if (trimmed.StartsWith("+") && trimmed.Contains("%") && trimmed.Length < 30) shouldHide = true;
                 }
 
                 if (!shouldHide && (hideVanilla.Contains("protection") || hideVanilla.Contains("armor")))
@@ -289,7 +305,7 @@ namespace VsQuest.Harmony
 
                 if (!shouldHide && hideVanilla.Contains("modsource"))
                 {
-                    if (trimmed.StartsWith("Mod:")) shouldHide = true;
+                    if (trimmed.StartsWith("Mod:") || trimmed.StartsWith("Мод:")) shouldHide = true;
                 }
 
                 if (!shouldHide && hideVanilla.Contains("walkspeed"))
@@ -312,7 +328,22 @@ namespace VsQuest.Harmony
             }
 
             string currentDsc = dsc.ToString();
-            bool startedAttrBlock = false;
+
+            // Detect if this item has a charge system (any *chargehours attribute)
+            bool hasChargeAttr = false;
+            foreach (var kvp in attrs)
+            {
+                if (kvp.Key.EndsWith("chargehours"))
+                {
+                    hasChargeAttr = true;
+                    break;
+                }
+            }
+
+            // Collect attributes into 3 groups: special, buffs, debuffs
+            var specialLines = new List<string>();
+            var buffLines = new List<string>();
+            var debuffLines = new List<string>();
 
             foreach (var kvp in attrs)
             {
@@ -330,54 +361,71 @@ namespace VsQuest.Harmony
                     {
                         value = ItemAttributeUtils.GetAttributeFloatScaled(inSlot.Itemstack, shortKey, 0f);
                     }
-                    bool showZero = shortKey == ItemAttributeUtils.AttrSecondChanceCharges
-                        || shortKey == ItemAttributeUtils.AttrUraniumMaskChargeHours;
-                    if (value != 0f || showZero)
+                    bool showZero = ItemAttributeUtils.IsSpecialAttribute(shortKey);
+                    if (!showZero && hasChargeAttr)
                     {
-                        // Check if this attribute has a quality bonus
-                        float bonusValue = 0f;
-                        bool hasBonus = hasQuality && qualityBonusData != null && qualityBonusData.TryGetValue(shortKey, out bonusValue);
+                        showZero = true;
+                    }
+                    if (value == 0f && !showZero) continue;
 
-                        string lineToAdd;
-                        if (hasBonus && bonusValue != 0f)
-                        {
-                            // Show value with bonus: "Атака: +2.5 hp (+0.5 hp)"
-                            lineToAdd = ItemAttributeUtils.FormatAttributeWithBonus(kvp.Key, value, bonusValue, qualityColor);
-                        }
-                        else
-                        {
-                            lineToAdd = ItemAttributeUtils.FormatAttributeForTooltip(kvp.Key, value);
-                        }
+                    // Check if this attribute has a quality bonus
+                    float bonusValue = 0f;
+                    bool hasBonus = hasQuality && qualityBonusData != null && qualityBonusData.TryGetValue(shortKey, out bonusValue);
 
-                        if (!currentDsc.Contains(lineToAdd))
-                        {
-                            if (!startedAttrBlock)
-                            {
-                                TrimEndNewlines(dsc);
-                                if (dsc.Length > 0) dsc.AppendLine();
-                                startedAttrBlock = true;
-                                currentDsc = dsc.ToString();
-                            }
+                    string lineToAdd;
+                    if (hasBonus && bonusValue != 0f)
+                    {
+                        lineToAdd = ItemAttributeUtils.FormatAttributeWithBonus(kvp.Key, value, bonusValue, qualityColor);
+                    }
+                    else
+                    {
+                        lineToAdd = ItemAttributeUtils.FormatAttributeForTooltip(kvp.Key, value);
+                    }
 
-                            dsc.AppendLine(lineToAdd);
-                            currentDsc += "\n" + lineToAdd;
-                        }
+                    if (currentDsc.Contains(lineToAdd)) continue;
+
+                    if (ItemAttributeUtils.IsSpecialAttribute(shortKey))
+                    {
+                        specialLines.Add(lineToAdd);
+                    }
+                    else if (ItemAttributeUtils.IsValueBeneficial(shortKey, value))
+                    {
+                        buffLines.Add(lineToAdd);
+                    }
+                    else
+                    {
+                        debuffLines.Add(lineToAdd);
                     }
                 }
             }
-            // Show condition for wearable action items (IWearable)
-            if (inSlot.Itemstack?.Collectible.GetCollectibleInterface<Vintagestory.API.Common.IWearable>() != null)
+
+            // Write sorted groups with section headers
+            bool hasAnyAttrs = specialLines.Count > 0 || buffLines.Count > 0 || debuffLines.Count > 0;
+            if (hasAnyAttrs)
             {
-                float condition = attrs.GetFloat("condition", 1f);
-                string condStr = (((double)condition > 0.5) ? Lang.Get("clothingcondition-good", (int)(condition * 100f)) : (((double)condition > 0.4) ? Lang.Get("clothingcondition-worn", (int)(condition * 100f)) : (((double)condition > 0.3) ? Lang.Get("clothingcondition-heavilyworn", (int)(condition * 100f)) : (((double)condition > 0.2) ? Lang.Get("clothingcondition-tattered", (int)(condition * 100f)) : ((!((double)condition > 0.1)) ? Lang.Get("clothingcondition-terrible", (int)(condition * 100f)) : Lang.Get("clothingcondition-heavilytattered", (int)(condition * 100f)))))));
-                string color = ColorUtil.Int2Hex(GuiStyle.DamageColorGradient[(int)Math.Min(99f, condition * 200f)]);
-                string condLine = Lang.Get("Condition:") + " <font color=\"" + color + "\">" + condStr + "</font>";
-                currentDsc = dsc.ToString();
-                if (!currentDsc.Contains(condLine) && !currentDsc.Contains("Condition:") && !currentDsc.Contains("Состояние:"))
+                TrimEndNewlines(dsc);
+
+                // Special (charges, timers) — just listed directly, no header, no extra newline
+                if (specialLines.Count > 0)
                 {
-                    TrimEndNewlines(dsc);
                     if (dsc.Length > 0) dsc.AppendLine();
-                    dsc.AppendLine(condLine);
+                    foreach (var line in specialLines) dsc.AppendLine(ItemAttributeUtils.PrefixSpecial + line);
+                }
+
+                // Buffs — green with section header
+                if (buffLines.Count > 0)
+                {
+                    if (dsc.Length > 0) dsc.AppendLine();
+                    dsc.AppendLine(ItemAttributeUtils.SectionBuffs);
+                    foreach (var line in buffLines) dsc.AppendLine(ItemAttributeUtils.PrefixBuff + line);
+                }
+
+                // Debuffs — red with section header
+                if (debuffLines.Count > 0)
+                {
+                    if (dsc.Length > 0) dsc.AppendLine();
+                    dsc.AppendLine(ItemAttributeUtils.SectionDebuffs);
+                    foreach (var line in debuffLines) dsc.AppendLine(ItemAttributeUtils.PrefixDebuff + line);
                 }
             }
 
@@ -397,6 +445,22 @@ namespace VsQuest.Harmony
                         dsc.AppendLine(durLine);
                     }
                 }
+            }
+
+            // Description block at the very end (only show separator if there were stats above)
+            if (hasCustomDesc)
+            {
+                TrimEndNewlines(dsc);
+                if (dsc.Length > 0 && hasAnyAttrs)
+                {
+                    dsc.AppendLine();
+                    dsc.AppendLine(ItemAttributeUtils.SectionDesc);
+                }
+                else if (dsc.Length > 0)
+                {
+                    dsc.AppendLine();
+                }
+                dsc.AppendLine(customDesc);
             }
 
             // Cache the final tooltip result

@@ -1,0 +1,35 @@
+{
+  "code": "voidriftanchor",
+  "class": "BlockVoidRiftAnchor",
+  "entityClass": "VoidRiftAnchor",
+  "behaviors": [
+    { "name": "UnstableFalling" }
+  ],
+  "creativeinventory": {
+    "general": ["*"],
+    "construction": ["*"]
+  },
+  "shape": { "base": "block/basic/cube" },
+  "drawtype": "Cube",
+  "textures": {
+    "all": { "base": "block/stone/rock/obsidian1" }
+  },
+  "sidesolid": {
+    "all": true
+  },
+  "sideopaque": {
+    "all": true
+  },
+  "blockmaterial": "Stone",
+  "resistance": 99,
+  "lightAbsorption": 0,
+  "sounds": {
+    "place": "block/stone",
+    "break": "block/stone",
+    "walk": "walk/stone"
+  },
+  "attributes": {
+    "trialKey": "",
+    "yOffset": 1.0
+  }
+}

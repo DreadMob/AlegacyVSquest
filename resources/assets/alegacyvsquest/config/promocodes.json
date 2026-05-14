@@ -1,0 +1,9 @@
+{
+    "codes": [],
+    "settings": {
+        "maxAttemptsPerMinute": 5,
+        "lockoutMinutes": 10,
+        "lockoutThreshold": 15,
+        "caseInsensitive": true
+    }
+}

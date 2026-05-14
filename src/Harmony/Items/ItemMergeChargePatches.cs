@@ -6,7 +6,7 @@ using Vintagestory.GameContent;
 namespace VsQuest.Harmony.Items
 {
     /// <summary>
-    /// Item merge charging patches - handles Second Chance and Uranium Mask charging mechanics.
+    /// Item merge charging patches - handles Second Chance, Crypt Sight, and Fur Coat charging mechanics.
     /// </summary>
     public class ItemMergeChargePatches
     {
@@ -35,7 +35,7 @@ namespace VsQuest.Harmony.Items
                 }
 
                 // Ensure special charge paths can also enter TryMergeStacks on newer VS merge flow.
-                if (CanChargeSecondChance(sinkStack, sourceStack) || CanChargeCryptSightMask(sinkStack, sourceStack))
+                if (CanChargeSecondChance(sinkStack, sourceStack) || CanChargeFromConfig(sinkStack, sourceStack))
                 {
                     __result = 1;
                     return false;
@@ -69,10 +69,9 @@ namespace VsQuest.Harmony.Items
                     return false;
                 }
                 
-                // Try Crypt Sight Mask charge
-                if (TryHandleCryptSightMaskCharge(op))
+                // Try config-driven charge (Crypt Sight, Fur Coat, or any item with chargeMaterials)
+                if (TryHandleConfigCharge(op))
                 {
-                    API?.Logger.Notification($"[vsquest] Crypt Sight charge handled");
                     return false;
                 }
                 
@@ -109,24 +108,106 @@ namespace VsQuest.Harmony.Items
             return true;
         }
 
-        private static bool TryHandleCryptSightMaskCharge(ItemStackMergeOperation op)
+        /// <summary>
+        /// Generic config-driven charge handler. Reads chargeMaterials, chargePerUnit, chargeMax
+        /// from the item's stack attributes (written by ApplyActionItemAttributes from itemconfig.json).
+        /// </summary>
+        private static bool TryHandleConfigCharge(ItemStackMergeOperation op)
         {
             if (op?.SinkSlot?.Itemstack == null || op.SourceSlot?.Itemstack == null) return false;
 
             var sinkStack = op.SinkSlot.Itemstack;
-            if (!CanChargeCryptSightMask(sinkStack, op.SourceSlot.Itemstack)) return false;
+            if (!CanChargeFromConfig(sinkStack, op.SourceSlot.Itemstack)) return false;
 
-            string chargeKey = ItemAttributeUtils.GetKey(ItemAttributeUtils.AttrUraniumMaskChargeHours);
+            // Find the charge key on this item
+            string chargeKey = FindChargeKey(sinkStack);
+            if (chargeKey == null) return false;
+
+            float chargePerUnit = sinkStack.Attributes.GetFloat(ItemAttributeUtils.ChargePerUnit, 8f);
+            float chargeMax = sinkStack.Attributes.GetFloat(ItemAttributeUtils.ChargeMaxHours, 100f);
+
             float hours = sinkStack.Attributes.GetFloat(chargeKey, 0f);
-            hours = System.Math.Min(100f, hours + 8f);
+            hours = System.Math.Min(chargeMax, hours + chargePerUnit);
             sinkStack.Attributes.SetFloat(chargeKey, hours);
             op.MovedQuantity = 1;
             op.SourceSlot.TakeOut(1);
             op.SinkSlot.MarkDirty();
             
-            API?.Logger.Notification($"[vsquest] Crypt Sight mask charged: {sinkStack.Collectible.Code} ({hours:F1} hours)");
+            API?.Logger.Notification($"[vsquest] Config charge: {sinkStack.Collectible.Code} ({hours:F1}/{chargeMax:F0}h)");
             
             return true;
+        }
+
+        /// <summary>
+        /// Checks if the sink item has chargeMaterials configured and the source matches one of them.
+        /// </summary>
+        private static bool CanChargeFromConfig(ItemStack sinkStack, ItemStack sourceStack)
+        {
+            if (sinkStack?.Attributes == null || sourceStack?.Collectible?.Code == null) return false;
+
+            // Ensure action item attributes are applied
+            WearableStatsCache.EnsureItemAttributes(sinkStack);
+
+            string materialsJson = sinkStack.Attributes.GetString(ItemAttributeUtils.ChargeMaterials, null);
+            if (string.IsNullOrEmpty(materialsJson)) return false;
+
+            // Find the charge key
+            string chargeKey = FindChargeKey(sinkStack);
+            if (chargeKey == null) return false;
+
+            // Initialize charge attribute if missing
+            if (!sinkStack.Attributes.HasAttribute(chargeKey))
+            {
+                sinkStack.Attributes.SetFloat(chargeKey, 0f);
+            }
+
+            // Check if already at max
+            float chargeMax = sinkStack.Attributes.GetFloat(ItemAttributeUtils.ChargeMaxHours, 100f);
+            float currentCharge = sinkStack.Attributes.GetFloat(chargeKey, 0f);
+            if (currentCharge >= chargeMax) return false;
+
+            // Check if source matches any of the configured materials
+            string sourcePath = sourceStack.Collectible.Code.Path;
+            string sourceFullCode = sourceStack.Collectible.Code.ToString();
+
+            // Parse materials list - simple Contains check against each pattern
+            // Format: ["fat", "hide-", "pelt-"]
+            try
+            {
+                var materials = Newtonsoft.Json.JsonConvert.DeserializeObject<System.Collections.Generic.List<string>>(materialsJson);
+                if (materials == null || materials.Count == 0) return false;
+
+                foreach (var pattern in materials)
+                {
+                    if (string.IsNullOrEmpty(pattern)) continue;
+                    if (sourcePath.Contains(pattern) || sourceFullCode.Contains(pattern)) return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Finds the *chargehours attribute key on the item stack (full key with prefix).
+        /// </summary>
+        private static string FindChargeKey(ItemStack stack)
+        {
+            if (stack?.Attributes == null) return null;
+            var treeAttrs = stack.Attributes as Vintagestory.API.Datastructures.TreeAttribute;
+            if (treeAttrs == null) return null;
+
+            foreach (var val in treeAttrs)
+            {
+                if (val.Key.EndsWith("chargehours"))
+                {
+                    return val.Key;
+                }
+            }
+            return null;
         }
 
         private static bool CanChargeSecondChance(ItemStack sinkStack, ItemStack sourceStack)
@@ -169,26 +250,6 @@ namespace VsQuest.Harmony.Items
             return true;
         }
 
-        private static bool CanChargeCryptSightMask(ItemStack sinkStack, ItemStack sourceStack)
-        {
-            if (sinkStack?.Attributes == null || sourceStack?.Collectible?.Code == null) return false;
-
-            // Check if this is a Crypt Sight Mask by item code
-            if (!IsCryptSightMask(sinkStack.Collectible.Code)) return false;
-
-            string chargeKey = ItemAttributeUtils.GetKey(ItemAttributeUtils.AttrUraniumMaskChargeHours);
-            // Initialize attribute if missing (for items from creative inventory)
-            if (!sinkStack.Attributes.HasAttribute(chargeKey))
-            {
-                sinkStack.Attributes.SetFloat(chargeKey, 0f);
-            }
-
-            if (!IsPhosphoriteChunk(sourceStack.Collectible.Code)) return false;
-
-            float hours = ItemAttributeUtils.GetAttributeFloat(sinkStack, ItemAttributeUtils.AttrUraniumMaskChargeHours, 0f);
-            return hours < 100f;
-        }
-
         private static bool IsDiamondRough(AssetLocation code)
         {
             return code.Path.Contains("diamond-rough") || code.Path.Contains("rough-diamond");
@@ -204,19 +265,6 @@ namespace VsQuest.Harmony.Items
             }
             // If no potential attribute, assume it's valid (for backward compatibility)
             return true;
-        }
-
-        private static bool IsPhosphoriteChunk(AssetLocation code)
-        {
-            // Accept: ore-*-phosphorite-*, chunk-phosphorite, gem-phosphorite-*
-            string path = code.Path;
-            if (!path.Contains("phosphorite")) return false;
-            return path.Contains("chunk") || path.Contains("ore") || path.Contains("nugget") || path.Contains("gem");
-        }
-
-        private static bool IsCryptSightMask(AssetLocation code)
-        {
-            return code.Path.Contains("uranium-mask");
         }
 
         private static bool IsSecondChanceMask(AssetLocation code)

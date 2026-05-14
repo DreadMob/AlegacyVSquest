@@ -1,0 +1,52 @@
+{
+  "code": "bone-watcher",
+  "class": "EntityAgent",
+  "hitboxSize": { "x": 0.9, "y": 2.4 },
+  "deadHitboxSize": { "x": 0.9, "y": 0.4 },
+  "eyeHeight": 2.0,
+  "weight": 180,
+  "canClimb": false,
+  "fallDamage": false,
+  "attributes": { "handbook": { "exclude": true } },
+  "client": {
+    "renderer": "Shape",
+    "shape": { "base": "game:entity/humanoid/drifter-corrupt" },
+    "texture": { "base": "game:entity/humanoid/drifter/drifter-deep" },
+    "glowLevel": 40,
+    "size": 1.55,
+        "animations": [
+      { "code": "hurt", "animation": "hurt", "animationSpeed": 2.0, "weight": 5, "blendMode": "AddAverage" },
+      { "code": "die", "animation": "die", "animationSpeed": 1.25, "weight": 10, "blendMode": "Average", "triggeredBy": { "onControls": ["dead"] } },
+      { "code": "idle", "animation": "idle", "blendMode": "Average", "triggeredBy": { "defaultAnim": true } },
+      { "code": "attack", "animation": "attack", "animationSpeed": 1.5, "weight": 10, "blendMode": "Average" },
+      { "code": "run", "animation": "run", "animationSpeed": 2.0, "weight": 1, "blendMode": "Average" }
+    ]
+  },
+  "server": {
+    "behaviors": [
+      { "code": "repulseagents" },
+      { "code": "controlledphysics", "stepHeight": 1.01 },
+      { "code": "health", "currenthealth": 1200, "maxhealth": 1200 },
+      { "code": "deaddecay", "hoursToDecay": 0.5 },
+      { "code": "questtarget", "targetId": "albase:trial:bone-watcher" },
+      { "code": "bossnametag" },
+      { "code": "bossrebirth2", "rebirthAtHealthPercent": 0.4, "rebirthEntityCode": "albase:bone-watcher", "rebirthHealthPercent": 1.0 },
+      { "code": "bossenrage", "enrageTimerSeconds": 300 },
+      { "code": "bossvulnerabilitywindow", "damageMultiplier": 2.0, "durationSeconds": 3.0, "triggerAbilities": ["bossretaliation"] },
+      { "code": "bossmirrorimage", "imageCount": 2, "imageLifetimeSec": 5, "teleportOnCast": true, "teleportRadius": 7, "cooldownSec": 18 },
+      { "code": "bossgroundslam", "radius": 6, "damage": 14, "windupMs": 1300, "cooldownMs": 10000, "knockbackStrength": 2.0 },
+      { "code": "bosscursemark", "markDelaySec": 3, "baseDamage": 15, "safeDistance": 12, "cooldownSec": 16 },
+      { "code": "bossretaliation", "damageThreshold": 45, "retaliationMultiplier": 0.6, "retaliationRadius": 8, "windowDurationSec": 4, "cooldownSec": 20 },
+            { "code": "taskai", "inheritedTasks": false, "aitasks": [
+          { "code": "seekentity", "entityCodes": ["player"], "priority": 2.0, "movespeed": 0.045, "seekingRange": 40, "maxFollowTime": 120, "animation": "run", "animationSpeed": 1.3 },
+          { "code": "meleeattack", "entityCodes": ["player"], "priority": 2.5, "damage": 27, "damageTier": 3, "minDist": 2.0, "minVerDist": 2.5, "mincooldown": 1200, "maxcooldown": 2000, "damagePlayerAtMs": 400, "attackDurationMs": 700, "animation": "attack", "animationSpeed": 1.2 }
+        ]
+      }
+    ]
+  },
+  "sounds": {
+    "hurt": "game:creature/drifter-hurt",
+    "death": "game:creature/drifter-death",
+    "idle": "game:creature/drifter-idle"
+  }
+}

@@ -1,0 +1,38 @@
+{
+    "codes": [
+        {
+            "code": "genimov_welcome",
+            "type": "personal",
+            "rewards": [
+                {
+                    "type": "item",
+                    "itemCode": "game:bread-spelt-perfect",
+                    "amount": 2
+                },
+                {
+                    "type": "item",
+                    "itemCode": "game:bushmeat-cooked",
+                    "amount": 2
+                },
+                {
+                    "type": "item",
+                    "itemCode": "game:fruit-blueberry",
+                    "amount": 20
+                },
+                {
+                    "type": "item",
+                    "itemCode": "game:oillamp-up-copper",
+                    "amount": 1
+                }
+            ],
+            "message": "albase:promo-genimov-welcome-success",
+            "enabled": true
+        }
+    ],
+    "settings": {
+        "maxAttemptsPerMinute": 5,
+        "lockoutMinutes": 10,
+        "lockoutThreshold": 15,
+        "caseInsensitive": true
+    }
+}

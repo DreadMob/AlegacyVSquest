@@ -48,9 +48,15 @@ namespace VsQuest
         private DialogPacketHandler dialogPacketHandler;
         private QuizPacketHandler quizPacketHandler;
 
+        // Promo code system
+        private PromoCodeSystem promoCodeSystem;
+        private PromoCodeNetworkHandler promoCodeNetworkHandler;
+
         private long lagMonitorListenerId;
 
         public QuizSystem QuizSystem => quizSystem;
+        public PromoCodeSystem PromoCodeSystem => promoCodeSystem;
+        public PromoCodeNetworkHandler PromoCodeNetworkHandler => promoCodeNetworkHandler;
 
         private static T LoadOrCreateModConfig<T>(ICoreAPI api, string filename) where T : class, new()
         {
@@ -181,6 +187,10 @@ namespace VsQuest
             questPacketHandler = new QuestPacketHandler(null, questSelectGuiManager, _ => new List<ActiveQuest>());
             dialogPacketHandler = new DialogPacketHandler(null, notificationHandler, serverInfoGuiManager, capi);
             quizPacketHandler = new QuizPacketHandler(quizSystem);
+
+            // Register promo code client network
+            promoCodeNetworkHandler = new PromoCodeNetworkHandler();
+            promoCodeNetworkHandler.RegisterClient(capi);
         }
 
         public override void StartServerSide(ICoreServerAPI sapi)
@@ -248,6 +258,14 @@ namespace VsQuest
 
             chatCommandRegistry = new QuestChatCommandRegistry(sapi, api, this);
             chatCommandRegistry.Register();
+
+            // Initialize promo code system
+            var itemSystem = api.ModLoader.GetModSystem<ItemSystem>();
+            promoCodeSystem = new PromoCodeSystem(sapi, itemSystem, this);
+            promoCodeSystem.Initialize();
+
+            promoCodeNetworkHandler = new PromoCodeNetworkHandler();
+            promoCodeNetworkHandler.RegisterServer(sapi, promoCodeSystem);
         }
 
         public override void Dispose()

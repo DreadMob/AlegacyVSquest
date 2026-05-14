@@ -1,0 +1,57 @@
+{
+  "components": [
+    {
+      "code": "intro",
+      "owner": "npc",
+      "type": "talk",
+      "text": [
+        { "value": "albase:trial-warden-greeting" }
+      ],
+      "jumpTo": "main"
+    },
+    {
+      "code": "main",
+      "owner": "player",
+      "type": "talk",
+      "text": [
+        { "value": "albase:dialogue-trial-quests", "jumpTo": "quests" },
+        { "value": "albase:dialogue-trial-whoareyou", "jumpTo": "whoareyou" },
+        { "value": "albase:dialogue-trial-aboutrifts", "jumpTo": "aboutrifts" },
+        { "value": "albase:dialogue-trial-leave", "jumpTo": "close" }
+      ]
+    },
+    {
+      "code": "whoareyou",
+      "owner": "npc",
+      "type": "talk",
+      "text": [
+        { "value": "albase:trial-warden-whoareyou-answer" }
+      ],
+      "jumpTo": "main"
+    },
+    {
+      "code": "aboutrifts",
+      "owner": "npc",
+      "type": "talk",
+      "text": [
+        { "value": "albase:trial-warden-aboutrifts-answer" }
+      ],
+      "jumpTo": "main"
+    },
+    {
+      "code": "quests",
+      "owner": "npc",
+      "type": "talk",
+      "text": [
+        { "value": "albase:trial-warden-quest-offer" }
+      ],
+      "commands": ["questoffer"],
+      "jumpTo": "main"
+    },
+    {
+      "code": "close",
+      "owner": "npc",
+      "type": "close"
+    }
+  ]
+}

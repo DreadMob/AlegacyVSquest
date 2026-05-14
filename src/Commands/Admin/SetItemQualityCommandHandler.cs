@@ -152,11 +152,11 @@ namespace VsQuest
                 return TextCommandResult.Error($"Action item '{actionItemId}' not found in registry.");
             }
 
-            // Roll random quality
-            var qualities = qualityService.GetAllQualities().ToList();
+            // Roll random quality (only from qualities applicable to this item)
+            var qualities = qualityService.GetApplicableQualitiesForItem(actionItemId);
             if (qualities.Count == 0)
             {
-                return TextCommandResult.Error("No qualities configured.");
+                return TextCommandResult.Error("No qualities configured for this item.");
             }
 
             // Weighted random selection based on chance

@@ -1,0 +1,14 @@
+{
+  "trialKey": "albase:trial:bone-watcher",
+  "questId": "albase:trial-tier3",
+  "tier": 3,
+  "respawnInGameHours": 168,
+  "activationRange": 120,
+  "softResetIdleHours": 2.0,
+  "challenges": [
+    { "type": "speedkill", "thresholdMinutes": 5 },
+    { "type": "deathless" },
+    { "type": "nopotions" },
+    { "type": "perfectdodge", "abilityCode": "bossdamageshield" }
+  ]
+}

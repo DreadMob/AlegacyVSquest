@@ -1,0 +1,54 @@
+{
+  "code": "trialwarden",
+  "class": "EntityAgent",
+  "canClimb": true,
+  "hitboxSize": { "x": 0.6, "y": 1.75 },
+  "attributes": {
+    "alternativeCollisionBox": [0.6, 1.75]
+  },
+  "client": {
+    "renderer": "Shape",
+    "shape": { "base": "game:entity/humanoid/seraph" },
+    "texture": { "base": "game:entity/humanoid/seraph1" },
+    "behaviors": [
+      { "code": "nametag", "showtagonlywhentargeted": false },
+      { "code": "repulseagents" },
+      { "code": "controlledphysics", "stepHeight": 1.01 },
+      { "code": "interpolateposition" },
+      { "code": "conversable", "dialogue": "config/dialogue/trialwarden" },
+      { "code": "questgiver" }
+    ],
+    "animations": [
+      { "code": "idle", "animation": "idle", "blendMode": "Average", "triggeredBy": { "defaultAnim": true } }
+    ]
+  },
+  "server": {
+    "behaviors": [
+      {
+        "code": "nametag",
+        "showtagonlywhentargeted": false,
+        "selectFromRandomName": ["Вестник Разломов"]
+      },
+      { "code": "controlledphysics", "stepHeight": 1.01 },
+      { "code": "health", "currenthealth": 1000000, "maxhealth": 1000000 },
+      { "code": "conversable", "dialogue": "config/dialogue/trialwarden" },
+      {
+        "code": "questgiver",
+        "trialactiveonly": true,
+        "reputationnpc": "albase:trialwarden",
+        "alwaysquests": [
+          "albase:trial-intro"
+        ],
+        "quests": [
+          "albase:trial-tier1",
+          "albase:trial-tier2",
+          "albase:trial-tier3"
+        ],
+        "singlequestatatime": true,
+        "noAvailableQuestDescLangKey": "albase:trial-warden-quest-cooldown",
+        "selectrandom": false
+      }
+    ]
+  },
+  "sounds": {}
+}

@@ -181,28 +181,25 @@ namespace VsQuest
                 }
             }
 
-            // Use WalkVector for server-side movement control (overrides client input)
             float moveSpeed = settings.victimMoveSpeed;
             
             if (target != null)
             {
-                // Move towards target
+                // Move towards target using ServerPos.Motion (works server-side)
                 var dir = target.Pos.XYZ.Sub(controlledPlayer.Pos.XYZ).Normalize();
                 
-                // Set movement direction via entity yaw
                 float yaw = (float)Math.Atan2(dir.X, dir.Z);
                 controlledPlayer.Pos.Yaw = yaw;
+                controlledPlayer.ServerPos.Yaw = yaw;
 
-                // Use WalkVector for direct movement control
-                controlledPlayer.Controls.WalkVector.Set(dir.X * moveSpeed, 0, dir.Z * moveSpeed);
+                // Apply motion directly (server-authoritative movement)
+                controlledPlayer.ServerPos.Motion.X = dir.X * moveSpeed;
+                controlledPlayer.ServerPos.Motion.Z = dir.Z * moveSpeed;
 
-                // Attack if close enough
+                // Attack if close enough — deal damage directly instead of using Controls
                 if (minDist <= 3.5)
                 {
-                    controlledPlayer.Controls.HandUse = EnumHandInteract.HeldItemAttack;
-                    
-                    // Deal damage to target
-                    if (Sapi.World.Rand.NextDouble() < 0.3) // 30% chance per tick
+                    if (Sapi.World.Rand.NextDouble() < 0.3) // 30% chance per tick (200ms interval)
                     {
                         var dmgSource = new DamageSource
                         {
@@ -214,27 +211,24 @@ namespace VsQuest
                         target.ReceiveDamage(dmgSource, settings.attackDamage * 0.1f);
                     }
                 }
-                else
-                {
-                    controlledPlayer.Controls.HandUse = EnumHandInteract.None;
-                }
             }
             else
             {
-                // No other players - wander randomly under boss control
-                if (Sapi.World.ElapsedMilliseconds - lastDirectionChangeMs > 2000) // Change direction every 2 seconds
+                // No other players - wander randomly towards boss
+                var dirToBoss = entity.Pos.XYZ.Sub(controlledPlayer.Pos.XYZ).Normalize();
+                
+                if (Sapi.World.ElapsedMilliseconds - lastDirectionChangeMs > 2000)
                 {
-                    randomWalkYaw = (float)(Sapi.World.Rand.NextDouble() * Math.PI * 2);
+                    // Wander towards boss with some randomness
+                    randomWalkYaw = (float)Math.Atan2(dirToBoss.X, dirToBoss.Z) + (float)(Sapi.World.Rand.NextDouble() - 0.5) * 1.5f;
                     lastDirectionChangeMs = Sapi.World.ElapsedMilliseconds;
                 }
                 
                 controlledPlayer.Pos.Yaw = randomWalkYaw;
+                controlledPlayer.ServerPos.Yaw = randomWalkYaw;
                 
-                // Walk in facing direction
-                double dx = Math.Sin(randomWalkYaw) * moveSpeed;
-                double dz = Math.Cos(randomWalkYaw) * moveSpeed;
-                controlledPlayer.Controls.WalkVector.Set(dx, 0, dz);
-                controlledPlayer.Controls.HandUse = EnumHandInteract.None;
+                controlledPlayer.ServerPos.Motion.X = Math.Sin(randomWalkYaw) * moveSpeed;
+                controlledPlayer.ServerPos.Motion.Z = Math.Cos(randomWalkYaw) * moveSpeed;
             }
 
             // Spawn particles periodically

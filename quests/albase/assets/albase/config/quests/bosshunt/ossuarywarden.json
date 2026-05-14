@@ -1,6 +1,6 @@
 {
   "id": "albase:bosshunt-ossuarywarden",
-  "cooldown": 90,
+  "cooldown": 75,
   "perPlayer": true,
   "predecessor": "albase:bosshunt-intro",
   "onAcceptedActions": [
@@ -81,7 +81,7 @@
         "albase:bosshunt-reward-miner-belt",
         "albase:bosshunt-reward-bloodthirsty",
         "albase:bosshunt-reward-bloodthirsty",
-        "albase:bosshunt-reward-ossuary-mask"
+        "albase:bosshunt-reward-bloodthirsty"
       ]
     },
     {

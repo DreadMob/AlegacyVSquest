@@ -70,6 +70,13 @@ namespace VsQuest
         /// If empty, applies to all action items.
         /// </summary>
         public List<string> applicableItems { get; set; } = new List<string>();
+
+        /// <summary>
+        /// If set, when this quality is rolled, the item is replaced with a different action item.
+        /// The value is the action item ID to use instead. This allows quality to change the
+        /// underlying item (e.g., different bow variant with different real damage).
+        /// </summary>
+        public string actionItemOverride { get; set; }
     }
 
     /// <summary>

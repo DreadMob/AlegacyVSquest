@@ -1,0 +1,49 @@
+{
+  "code": "dummy",
+  "class": "EntityAgent",
+  "tags": ["rust-creature", "habitat-land"],
+  "variantgroups": [],
+  "hitboxSize": { "x": 1.5, "y": 3.8 },
+  "deadHitboxSize": { "x": 2.0, "y": 1.5 },
+  "eyeHeight": 3.0,
+  "weight": 500,
+  "canClimb": false,
+  "knockbackResistance": 99,
+  "attributes": {
+    "reckless": true,
+    "alegacyvsquestHideInfoText": true
+  },
+  "drops": [],
+  "client": {
+    "renderer": "Shape",
+    "size": 1.5,
+    "pitchStep": false,
+    "shape": { "base": "game:entity/lore/bowtorn/gearfoot" },
+    "texture": { "base": "game:entity/lore/bowtorn/gearfoot" },
+    "behaviors": [
+      { "code": "controlledphysics", "stepHeight": 1.1251 },
+      { "code": "floatupwhenstuck", "onlyWhenDead": true },
+      { "code": "interpolateposition" },
+      { "code": "bossnametag", "nameLangKey": "alegacyvsquest:dummy-name", "color": "#ffcc00", "backgroundColor": "#000000", "backgroundOpacity": 0.35, "renderRange": 60 }
+    ],
+    "animations": [
+      { "code": "hurt", "animation": "hurt", "animationSpeed": 2, "weight": 10, "blendMode": "AddAverage" }
+    ]
+  },
+  "server": {
+    "behaviors": [
+      { "code": "controlledphysics", "stepHeight": 1.1251 },
+      { "code": "health", "currenthealth": 99999, "maxhealth": 99999 },
+      { "code": "damagedummy" },
+      {
+        "code": "taskai",
+        "aitasks": [
+          { "code": "lookaround", "priority": 0.5 }
+        ]
+      },
+      { "code": "floatupwhenstuck", "onlyWhenDead": true }
+    ]
+  },
+  "idleSoundRange": 0,
+  "sounds": {}
+}

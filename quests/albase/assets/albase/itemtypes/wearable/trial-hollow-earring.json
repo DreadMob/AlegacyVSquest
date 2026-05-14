@@ -1,0 +1,41 @@
+{
+  "code": "trial-hollow-earring",
+  "behaviors": [{ "name": "Wearable" }],
+  "maxstacksize": 1,
+  "storageFlags": 128,
+  "variantgroups": [
+    { "code": "quality", "states": ["dim", "shimmer", "radiant", "abyssal"] }
+  ],
+  "attributes": {
+    "handbook": { "exclude": true },
+    "clothescategory": "face",
+    "wearableAttachment": true,
+    "warmth": 0,
+    "statModifiersByType": {
+      "trial-hollow-earring-dim": { "rangedWeaponsAcc": 0.08, "meleeWeaponsDamage": -0.03 },
+      "trial-hollow-earring-shimmer": { "rangedWeaponsAcc": 0.10, "meleeWeaponsDamage": -0.025 },
+      "trial-hollow-earring-radiant": { "rangedWeaponsAcc": 0.13, "meleeWeaponsDamage": -0.02 },
+      "trial-hollow-earring-abyssal": { "rangedWeaponsAcc": 0.16, "meleeWeaponsDamage": -0.015 }
+    }
+  },
+  "shape": { "base": "game:entity/humanoid/seraph/clothing/emblem/fibula" },
+  "textures": {
+    "seraph": { "base": "game:block/transparent" },
+    "metal": { "base": "game:block/metal/ingot/tin" },
+    "glass": { "base": "game:block/stone/obsidian" }
+  },
+  "renderAlphaTest": 0.25,
+  "guiTransform": {
+    "rotate": false,
+    "translation": { "x": 0, "y": 0, "z": 0 },
+    "rotation": { "x": 174, "y": -90, "z": 5 },
+    "origin": { "x": 0.5, "y": 0.8, "z": 0.5 },
+    "scale": 6
+  },
+  "groundTransform": {
+    "translation": { "x": 0, "y": 0, "z": 0 },
+    "rotation": { "x": 0, "y": 0, "z": 0 },
+    "origin": { "x": 0.5, "y": 0, "z": 0.5 },
+    "scale": 5
+  }
+}

@@ -27,6 +27,23 @@ namespace VsQuest
         public bool blockGroundStorage { get; set; } = false;
         public Dictionary<string, float> attributes { get; set; } = new Dictionary<string, float>();
 
+        /// Charge system configuration.
+        /// "chargeMode": "all" (all stats gated by charge) or "partial" (only chargeGatedAttrs gated).
+        /// If omitted, defaults to "all" when a *chargehours attribute is present.
+        public string chargeMode { get; set; }
+        /// List of attribute short keys that are gated by charge (only used when chargeMode = "partial").
+        public List<string> chargeGatedAttrs { get; set; }
+        /// List of item code substrings that can be used to charge this item (e.g. ["phosphorite", "fat", "hide-"]).
+        /// The source item's code path is checked with Contains() against each entry.
+        public List<string> chargeMaterials { get; set; }
+        /// How many hours of charge each unit of material adds. Default: 8.
+        public float chargePerUnit { get; set; } = 8f;
+        /// Maximum charge in hours. Default: 100.
+        public float chargeMax { get; set; } = 100f;
+        /// Multiplier applied to gated attributes when charge is fully depleted. Default: 0 (no effect).
+        /// E.g. 0.267 means gated attrs give 26.7% of their value even without charge.
+        public float chargeDepletedMult { get; set; } = 0f;
+
         /// List of custom attribute keys to show in tooltip (e.g., ["attackpower", "warmth"])
         /// If empty, NO custom attributes are shown.
         public List<string> showAttributes { get; set; } = new List<string>();

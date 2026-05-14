@@ -1,0 +1,14 @@
+{
+  "trialKey": "albase:trial:deep-wanderer",
+  "questId": "albase:trial-tier3",
+  "tier": 3,
+  "respawnInGameHours": 168,
+  "activationRange": 120,
+  "softResetIdleHours": 2.0,
+  "challenges": [
+    { "type": "speedkill", "thresholdMinutes": 5 },
+    { "type": "deathless" },
+    { "type": "perfectdodge", "abilityCode": "bossgrab" },
+    { "type": "nopotions" }
+  ]
+}

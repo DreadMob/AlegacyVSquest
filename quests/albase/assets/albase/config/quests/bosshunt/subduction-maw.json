@@ -1,6 +1,6 @@
 {
   "id": "albase:bosshunt-subduction-maw",
-  "cooldown": 90,
+  "cooldown": 75,
   "perPlayer": true,
   "predecessor": "albase:bosshunt-intro",
   "onAcceptedActions": [

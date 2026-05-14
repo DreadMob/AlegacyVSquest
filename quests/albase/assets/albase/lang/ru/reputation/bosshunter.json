@@ -7,9 +7,12 @@
   "reputation-bosshunter-rank-0": "Чужак",
   "game:reputation-bosshunter-rank-0": "Чужак",
   "albase:reputation-bosshunter-rank-0": "Чужак",
-  "reputation-bosshunter-rank-300": "Тропитель",
-  "game:reputation-bosshunter-rank-300": "Тропитель",
-  "albase:reputation-bosshunter-rank-300": "Тропитель",
+  "reputation-bosshunter-rank-200": "Тропитель",
+  "game:reputation-bosshunter-rank-200": "Тропитель",
+  "albase:reputation-bosshunter-rank-200": "Тропитель",
+  "reputation-bosshunter-rank-350": "Знакомый склепа",
+  "game:reputation-bosshunter-rank-350": "Знакомый склепа",
+  "albase:reputation-bosshunter-rank-350": "Знакомый склепа",
   "reputation-bosshunter-rank-500": "Идущий по меткам",
   "game:reputation-bosshunter-rank-500": "Идущий по меткам",
   "albase:reputation-bosshunter-rank-500": "Идущий по меткам",
@@ -24,7 +27,8 @@
   "game:reputation-bosshunt-mask-title": "Маска спасения",
   "albase:reputation-bosshunt-mask-title": "Маска спасения",
 
-  "reputation-reward-title-albase-bosshunter-300": "Зрение Крипты",
+  "reputation-reward-title-albase-bosshunter-200": "Зрение Крипты",
+  "reputation-reward-title-albase-bosshunter-350": "Маска Оссуария",
   "reputation-reward-title-albase-bosshunter-500": "Сапоги искры",
   "reputation-reward-title-albase-bosshunter-1500": "Уран"
 }

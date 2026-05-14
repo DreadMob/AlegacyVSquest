@@ -1,0 +1,41 @@
+{
+  "code": "trial-rift-pendant",
+  "behaviors": [{ "name": "Wearable" }],
+  "maxstacksize": 1,
+  "storageFlags": 128,
+  "variantgroups": [
+    { "code": "quality", "states": ["dim", "shimmer", "radiant", "abyssal"] }
+  ],
+  "attributes": {
+    "handbook": { "exclude": true },
+    "clothescategory": "neck",
+    "wearableAttachment": true,
+    "warmth": 0.01,
+    "statModifiersByType": {
+      "trial-rift-pendant-dim": { "maxhealthExtraPoints": 2, "hungerrate": 0.05 },
+      "trial-rift-pendant-shimmer": { "maxhealthExtraPoints": 3, "hungerrate": 0.04 },
+      "trial-rift-pendant-radiant": { "maxhealthExtraPoints": 4, "hungerrate": 0.035 },
+      "trial-rift-pendant-abyssal": { "maxhealthExtraPoints": 6, "hungerrate": 0.025 }
+    }
+  },
+  "shape": { "base": "game:entity/humanoid/seraph/clothing/emblem/fibula" },
+  "textures": {
+    "seraph": { "base": "game:block/transparent" },
+    "metal": { "base": "game:block/metal/ingot/lead" },
+    "gem": { "base": "game:block/stone/obsidian" }
+  },
+  "renderAlphaTest": 0.25,
+  "guiTransform": {
+    "rotate": false,
+    "translation": { "x": 0, "y": 0, "z": 0 },
+    "rotation": { "x": 174, "y": -90, "z": 5 },
+    "origin": { "x": 0.5, "y": 0.8, "z": 0.5 },
+    "scale": 5
+  },
+  "groundTransform": {
+    "translation": { "x": 0, "y": 0, "z": 0 },
+    "rotation": { "x": 0, "y": 0, "z": 0 },
+    "origin": { "x": 0.5, "y": 0, "z": 0.5 },
+    "scale": 5
+  }
+}

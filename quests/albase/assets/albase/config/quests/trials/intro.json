@@ -1,0 +1,33 @@
+{
+  "id": "albase:trial-intro",
+  "cooldown": -1,
+  "perPlayer": true,
+  "onAcceptedActions": [
+    {
+      "id": "playsound",
+      "args": ["alegacyvsquest:sounds/queacc", "0.175"]
+    },
+    {
+      "id": "showquestfinaldialog",
+      "args": [
+        "albase:trial-warden-intro-title",
+        "albase:trial-warden-intro-text",
+        "albase:trial-warden-intro-option"
+      ]
+    }
+  ],
+  "actionObjectives": [],
+  "killObjectives": [],
+  "itemRewards": [
+    {
+      "itemCode": "albase:trial-tracker",
+      "quantity": 1
+    }
+  ],
+  "actionRewards": [
+    {
+      "id": "notify",
+      "args": ["albase:trial-tracker-activated"]
+    }
+  ]
+}

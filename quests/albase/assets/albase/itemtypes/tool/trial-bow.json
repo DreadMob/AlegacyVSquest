@@ -1,0 +1,104 @@
+{
+  "code": "trial-bow",
+  "tags": ["weapon", "weapon-ranged", "weapon-bow"],
+  "class": "ItemBow",
+  "maxstacksize": 1,
+  "variantgroups": [
+    { "code": "quality", "states": ["dim", "shimmer", "radiant", "abyssal"] }
+  ],
+  "durabilityByType": {
+    "trial-bow-dim": 600,
+    "trial-bow-shimmer": 700,
+    "trial-bow-radiant": 800,
+    "trial-bow-abyssal": 900
+  },
+  "shape": {
+    "base": "game:item/tool/bow/recurve",
+    "alternates": [
+      { "base": "game:item/tool/bow/recurve-charge1" },
+      { "base": "game:item/tool/bow/recurve-charge2" },
+      { "base": "game:item/tool/bow/recurve-charge3" }
+    ]
+  },
+  "tool": "bow",
+  "textures": {
+    "aged": { "base": "game:block/metal/ingot/bismuthbronze" },
+    "string": { "base": "albase:item/bowstring-dark" },
+    "leather": { "base": "game:block/leather/dark" },
+    "iron": { "base": "game:block/metal/ingot/meteoriciron" },
+    "bone": { "base": "game:block/metal/ingot/meteoriciron" },
+    "feather2": { "base": "albase:item/bowstring-dark" },
+    "beeswax": { "base": "game:block/metal/ingot/bismuthbronze" },
+    "arrow": { "base": "game:block/metal/ingot/meteoriciron" },
+    "stick": { "base": "game:block/metal/ingot/bismuthbronze" }
+  },
+  "creativeinventory": { "general": ["*"], "items": ["*"], "tools": ["*"] },
+  "attributes": {
+    "heldItemPitchFollow": 1,
+    "aimAnimation": "bowaimrecurve",
+    "handbook": { "exclude": true },
+    "damageByType": {
+      "trial-bow-dim": 3.75,
+      "trial-bow-shimmer": 4.5,
+      "trial-bow-radiant": 5.5,
+      "trial-bow-abyssal": 6.5
+    },
+    "damageTierByType": {
+      "trial-bow-dim": 2,
+      "trial-bow-shimmer": 2,
+      "trial-bow-radiant": 3,
+      "trial-bow-abyssal": 3
+    },
+    "statModifierByType": {
+      "trial-bow-dim": { "rangedWeaponsAcc": 0.23, "rangedWeaponsSpeed": 0.09 },
+      "trial-bow-shimmer": { "rangedWeaponsAcc": 0.28, "rangedWeaponsSpeed": 0.11 },
+      "trial-bow-radiant": { "rangedWeaponsAcc": 0.34, "rangedWeaponsSpeed": 0.13 },
+      "trial-bow-abyssal": { "rangedWeaponsAcc": 0.40, "rangedWeaponsSpeed": 0.15 }
+    },
+    "toolrackTransform": {
+      "translation": { "x": 0.14, "y": 0.93 },
+      "rotation": { "x": 2, "y": 5, "z": 0 },
+      "scale": 1.76
+    },
+    "groundStorageTransform": {
+      "translation": { "x": -0.4, "y": 0.1, "z": 0.28 },
+      "rotation": { "x": 20, "y": -180, "z": -90 },
+      "scale": 0.83
+    },
+    "attachableToEntity": {
+      "categoryCode": "bowlong",
+      "attachedShapeBySlotCode": {
+        "frontrightside": { "base": "game:item/wearable/hooved/elk/weaponr-bow-recurve" },
+        "frontleftside": { "base": "game:item/wearable/hooved/elk/weaponl-bow-recurve" }
+      }
+    }
+  },
+  "behaviors": [{
+    "name": "GroundStorable",
+    "properties": {
+      "layout": "WallHalves",
+      "wallOffY": 2,
+      "ctrlKey": true,
+      "selectionBox": { "x1": 0, "y1": 0, "z1": 0, "x2": 1, "y2": 0.1, "z2": 1 },
+      "collisionBox": { "x1": 0, "y1": 0, "z1": 0, "x2": 0, "y2": 0, "z2": 0 }
+    }
+  }],
+  "guiTransform": {
+    "translation": { "x": 0, "y": 0, "z": 0 },
+    "rotation": { "x": -129, "y": 25, "z": 41 },
+    "origin": { "x": 0.47, "y": 0, "z": 0.55 },
+    "scale": 1.36
+  },
+  "groundTransform": {
+    "translation": { "x": 0, "y": 0, "z": 0 },
+    "rotation": { "x": 0, "y": 0, "z": 0 },
+    "origin": { "x": 0.5, "y": 0, "z": 0.5 },
+    "scale": 4.8
+  },
+  "tpHandTransform": {
+    "translation": { "x": -0.56, "y": 0.01, "z": -0.54 },
+    "rotation": { "x": 107, "y": 11, "z": 10 },
+    "origin": { "x": 0.5, "y": 0, "z": 0.5 },
+    "scale": 0.93
+  }
+}

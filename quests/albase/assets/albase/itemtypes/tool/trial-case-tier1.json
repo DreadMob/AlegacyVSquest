@@ -1,0 +1,35 @@
+{
+  "code": "trial-case-tier1",
+  "maxstacksize": 8,
+  "storageFlags": 2,
+  "creativeinventory": { "general": ["*"] },
+  "shape": { "base": "game:item/resource/temporalgear-s" },
+  "textures": {
+    "all": { "base": "game:block/stone/obsidian" }
+  },
+  "attributes": {
+    "handbook": { "exclude": true },
+    "alegacyvsquest:actionitem": true,
+    "alegacyvsquest:actionitem:action": "opentrialcase",
+    "alegacyvsquest:actionitem:cooldownMinutes": 0,
+    "alegacyvsquest:actionitem:consumeOnUse": true,
+    "alegacyvsquest:trialcase:tier": 1,
+    "alegacyvsquest:trialcase:possibleItems": [
+      "albase:trial-void-ring",
+      "albase:trial-rift-pendant",
+      "albase:trial-hollow-earring"
+    ]
+  },
+  "guiTransform": {
+    "translation": { "x": 0, "y": 0, "z": 0 },
+    "rotation": { "x": -20, "y": 40, "z": 0 },
+    "origin": { "x": 0.5, "y": 0.3, "z": 0.5 },
+    "scale": 4.5
+  },
+  "groundTransform": {
+    "translation": { "x": 0, "y": 0, "z": 0 },
+    "rotation": { "x": 0, "y": 0, "z": 0 },
+    "origin": { "x": 0.5, "y": 0, "z": 0.5 },
+    "scale": 4
+  }
+}

@@ -83,6 +83,16 @@ namespace VsQuest
         /// </summary>
         public bool TryApplyQuality(ItemStack stack, ActionItem actionItem, Random rand)
         {
+            return TryApplyQuality(stack, actionItem, rand, out _);
+        }
+
+        /// <summary>
+        /// Tries to apply a quality to the item. If the quality has actionItemOverride,
+        /// overrideActionItemId will be set to the replacement action item ID.
+        /// </summary>
+        public bool TryApplyQuality(ItemStack stack, ActionItem actionItem, Random rand, out string overrideActionItemId)
+        {
+            overrideActionItemId = null;
             if (stack?.Attributes == null || actionItem == null || rand == null) return false;
 
             // Check if item already has a quality (exclusive)
@@ -96,29 +106,48 @@ namespace VsQuest
             if (applicableQualities.Count == 0) return false;
 
             // Roll for each quality (first one that succeeds is applied)
+            ItemQuality selectedQuality = null;
             foreach (var quality in applicableQualities)
             {
                 if (rand.NextDouble() < quality.chance)
                 {
-                    ApplyQuality(stack, actionItem, quality, rand);
-                    return true;
+                    selectedQuality = quality;
+                    break;
                 }
             }
 
-            return false;
+            // Fallback: if no quality was rolled, apply the first one (lowest tier)
+            if (selectedQuality == null)
+            {
+                selectedQuality = applicableQualities[0];
+            }
+
+            // If quality has an override, signal the caller to replace the item
+            if (!string.IsNullOrWhiteSpace(selectedQuality.actionItemOverride))
+            {
+                overrideActionItemId = selectedQuality.actionItemOverride;
+            }
+
+            ApplyQuality(stack, actionItem, selectedQuality, rand);
+            return true;
         }
 
         /// <summary>
         /// Gets all qualities applicable to a specific action item ID
         /// </summary>
+        public List<ItemQuality> GetApplicableQualitiesForItem(string actionItemId)
+        {
+            return GetApplicableQualities(actionItemId);
+        }
+
         private List<ItemQuality> GetApplicableQualities(string actionItemId)
         {
             var result = new List<ItemQuality>();
 
-            // Add global qualities (apply to all items)
+            // Add global qualities (apply to all items — those with no applicableItems)
             result.AddRange(globalQualities);
 
-            // Add item-specific qualities
+            // Add item-specific qualities (only those that explicitly list this item)
             if (!string.IsNullOrWhiteSpace(actionItemId) && qualitiesByItem.TryGetValue(actionItemId, out var specific))
             {
                 result.AddRange(specific);
@@ -181,6 +210,11 @@ namespace VsQuest
 
                     if (shouldApply && originalValue != 0)
                     {
+                        // Skip attributes that should not be scaled by quality (but may be overridden below)
+                        if (ItemAttributeUtils.IsQualityExemptAttribute(attr.Key))
+                        {
+                            continue;
+                        }
                         // Roll individual bonus if perAttribute is enabled
                         float bonusMult = quality.perAttribute
                             ? ((float)rand.NextDouble() * (quality.maxBonusPercent - quality.minBonusPercent) + quality.minBonusPercent) / 100f
@@ -222,6 +256,22 @@ namespace VsQuest
             {
                 float avgBonusPercent = totalBonusPercent / appliedCount;
                 stack.Attributes.SetFloat(ItemAttributeUtils.ItemQualityBonusPercentKey, avgBonusPercent);
+            }
+
+            // Special handling: damagetier upgrades at higher quality tiers (45%+ bonus = tier +1)
+            if (actionItem.attributes != null && actionItem.attributes.ContainsKey(ItemAttributeUtils.AttrDamageTier))
+            {
+                float baseTier = actionItem.attributes[ItemAttributeUtils.AttrDamageTier];
+                if (baseBonusPercent >= 35f)
+                {
+                    float newTier = baseTier + 1f;
+                    stack.Attributes.SetFloat(ItemAttributeUtils.GetKey(ItemAttributeUtils.AttrDamageTier), newTier);
+                    bonusData[ItemAttributeUtils.AttrDamageTier] = 1f;
+                }
+                else
+                {
+                    stack.Attributes.SetFloat(ItemAttributeUtils.GetKey(ItemAttributeUtils.AttrDamageTier), baseTier);
+                }
             }
 
             // Store bonus data as JSON for tooltip

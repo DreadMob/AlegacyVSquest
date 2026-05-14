@@ -29,7 +29,9 @@ namespace VsQuest
                 new QuestActionItemChatCommandSubRegistry(api),
                 new QuestEntityChatCommandSubRegistry(questSystem),
                 new QuestAttributeChatCommandSubRegistry(),
-                new QuestBossChatCommandSubRegistry()
+                new QuestBossChatCommandSubRegistry(),
+                new HollowTrialsChatCommandSubRegistry(),
+                new PromoCodeChatCommandSubRegistry(questSystem.PromoCodeSystem, questSystem.PromoCodeNetworkHandler)
             };
 
             foreach (var subRegistry in subRegistries)

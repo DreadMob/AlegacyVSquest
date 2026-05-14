@@ -1,0 +1,38 @@
+{
+  "id": "albase:trial-tier2",
+  "cooldown": 168,
+  "perPlayer": true,
+  "predecessor": "albase:trial-intro",
+  "trialTier": 2,
+  "onAcceptedActions": [
+    {
+      "id": "playsound",
+      "args": ["alegacyvsquest:sounds/queacc", "0.175"]
+    },
+    {
+      "id": "notify",
+      "args": ["albase:trial-quest-accepted-tier2"]
+    }
+  ],
+  "actionObjectives": [
+    {
+      "id": "killactivetrial",
+      "objectiveId": "trial-tier2-kill",
+      "args": ["2"]
+    }
+  ],
+  "actionRewards": [
+    {
+      "id": "addreputation",
+      "args": ["npc", "albase:trialwarden", "30"]
+    },
+    {
+      "id": "randomquestitem",
+      "args": ["1", "albase:trial-reward-void-shard", "albase:trial-reward-deep-amulet"]
+    },
+    {
+      "id": "trialchallengebonuses",
+      "args": []
+    }
+  ]
+}

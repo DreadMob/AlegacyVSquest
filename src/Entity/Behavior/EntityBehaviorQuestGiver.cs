@@ -194,6 +194,18 @@ namespace VsQuest
                 return 0;
             }
 
+            if (value == "openpromocode" && triggeringEntity.Api is ICoreServerAPI sapi3)
+            {
+                var behaviorConversable = entity.GetBehavior<EntityBehaviorConversable>();
+                behaviorConversable.Dialog?.TryClose();
+
+                var serverPlayer = (triggeringEntity as EntityPlayer)?.Player as IServerPlayer;
+                if (serverPlayer == null) return 0;
+
+                PromoCodeNetworkHandler.SendOpenGui(sapi3, serverPlayer);
+                return 0;
+            }
+
             return -1;
         }
 

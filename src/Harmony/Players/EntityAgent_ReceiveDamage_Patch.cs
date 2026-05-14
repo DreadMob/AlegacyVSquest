@@ -81,11 +81,22 @@ namespace VsQuest.Harmony.Players
                 var cached = WearableStatsCache.GetCachedStats(attackPlayer);
                 if (cached != null)
                 {
-                    // Flat attack power bonus
+                    // Flat attack power bonus - applies to all damage types
                     if (Math.Abs(cached.AttackPower) > 0.0001f)
                     {
                         damage += cached.AttackPower;
                         if (damage < 0.1f) damage = 0.1f; // Minimum damage
+                    }
+                    
+                    // Melee-only attack power bonus
+                    if (Math.Abs(cached.MeleeAttackPower) > 0.0001f)
+                    {
+                        bool isMelee = damageSource?.SourceEntity == null || damageSource.SourceEntity == causeEntity;
+                        if (isMelee)
+                        {
+                            damage += cached.MeleeAttackPower;
+                            if (damage < 0.1f) damage = 0.1f;
+                        }
                     }
                     
                     // Ranged damage multiplier for projectiles (arrows, spears, stones, etc.)

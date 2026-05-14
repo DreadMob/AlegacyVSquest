@@ -15,6 +15,7 @@
       "type": "talk",
       "text": [
         { "value": "albase:dialogue-herald-serverinfo", "jumpTo": "openserverinfo" },
+        { "value": "albase:dialogue-herald-promocode", "jumpTo": "openpromocode" },
         { "value": "albase:dialogue-herald-whoareyou", "jumpTo": "whoareyou" },
         { "value": "albase:dialogue-herald-closechoice", "jumpTo": "close" }
       ]
@@ -35,6 +36,15 @@
       "trigger": "openserverinfo",
       "text": [
         { "value": "albase:dialogue-herald-openserverinfo-confirm" }
+      ]
+    },
+    {
+      "code": "openpromocode",
+      "owner": "npc",
+      "type": "talk",
+      "trigger": "openpromocode",
+      "text": [
+        { "value": "albase:dialogue-herald-openpromocode-confirm" }
       ]
     },
     {

@@ -1,0 +1,104 @@
+{
+  "albase:trial-system-name": "Полые Испытания",
+  "albase:trial-rotation-reset-chat": "<font color=\"#A78BFA\">[Полые Испытания]</font> Разломы сместились. Новые порождения пробудились.",
+
+  "albase:trial-warden-name": "Вестник Разломов",
+  "albase:trial-warden-title": "Падший Исследователь",
+
+  "albase:trial-warden-greeting": "Ты чувствуешь это? Холод из разломов... Они снова открылись. Я знаю, где они. Я всегда знаю.",
+  "albase:trial-warden-greeting-rank1": "Ты вернулся. Разломы не ждут — порождения крепнут с каждым днём.",
+  "albase:trial-warden-greeting-rank2": "Закалённый... Ты видел достаточно, чтобы понимать. Глубинные разломы ждут тебя.",
+  "albase:trial-warden-greeting-rank3": "Мастер Пустоты. Немногие доходят так далеко. Бездонные разломы... они другие. Будь готов.",
+
+  "albase:trial-warden-intro-title": "Первый Разлом",
+  "albase:trial-warden-intro-text": "В определённых местах мира ткань реальности истончилась. Из разломов просачиваются существа — полые. Они не охотятся. Они просто существуют. Но если подойти — они воспринимают это как вторжение.\n\nЯ не могу закрыть разломы. Никто не может. Но я знаю, где они появляются. Возьми этот осколок — он резонирует с пустотой. Он поможет найти путь.",
+  "albase:trial-warden-intro-option": "Принять осколок",
+
+  "albase:trial-warden-quest-offer": "Разлом активен. Порождение ждёт.",
+  "albase:trial-warden-quest-complete": "Разлом затих... на время. Возьми — ты заслужил.",
+  "albase:trial-warden-quest-cooldown": "Этот разлом ещё восстанавливается. Вернись позже.",
+
+  "albase:trial-warden-shop-title": "Реликвии Пустоты",
+  "albase:trial-warden-shop-locked": "Тебе не хватает опыта. Продолжай зачищать разломы.",
+
+  "albase:dialogue-trial-quests": "Есть работа?",
+  "albase:dialogue-trial-shop": "Покажи реликвии.",
+  "albase:dialogue-trial-whoareyou": "Кто ты?",
+  "albase:dialogue-trial-aboutrifts": "Расскажи о разломах.",
+  "albase:dialogue-trial-leave": "Уходить.",
+  "albase:trial-warden-whoareyou-answer": "Я был исследователем. Изучал разломы. Слишком близко подошёл. Теперь я... между. Не живой, не мёртвый. Пустота не отпускает тех, кто заглянул слишком глубоко.",
+  "albase:trial-warden-aboutrifts-answer": "Разломы — это места, где ткань мира истончилась. Через них просачиваются порождения Бездны. Они не охотятся — просто существуют. Но если подойти... они воспринимают это как вторжение. Убить их можно. Но они вернутся. Всегда возвращаются.",
+
+  "albase:trial-tier1-name": "Полое Испытание",
+  "albase:trial-tier2-name": "Глубинное Испытание",
+  "albase:trial-tier3-name": "Бездонное Испытание",
+
+  "albase:trial-rank-novice": "Новичок",
+  "albase:trial-rank-tested": "Испытанный",
+  "albase:trial-rank-hardened": "Закалённый",
+  "albase:trial-rank-master": "Мастер Пустоты",
+  "albase:trial-rank-conqueror": "Покоритель Бездны",
+
+  "albase:trial-challenge-speedkill": "Быстрое убийство",
+  "albase:trial-challenge-deathless": "Без смертей",
+  "albase:trial-challenge-nopotions": "Без зелий",
+  "albase:trial-challenge-lowgear": "Лёгкая броня",
+  "albase:trial-challenge-perfectdodge": "Идеальное уклонение",
+
+  "albase:trial-quality-dim": "Тусклое",
+  "albase:trial-quality-shimmering": "Мерцающее",
+  "albase:trial-quality-radiant": "Сияющее",
+  "albase:trial-quality-abyssal": "Бездонное",
+
+  "albase:trial-tracker-name": "Эхо Пустоты",
+  "albase:trial-tracker-desc": "Осколок, резонирующий с порождениями Бездны. При использовании создаёт дорожку из частиц к ближайшему разлому. Каждое использование забирает частицу жизни.",
+  "albase:trial-tracker-no-target": "<font color=\"#9CA3AF\">[Эхо Пустоты] Цель не найдена. Нет активного контракта.</font>",
+  "albase:trial-tracker-no-hp": "<font color=\"#CD5C5C\">[Эхо Пустоты] Недостаточно здоровья.</font>",
+  "albase:trial-tracker-cooldown": "<font color=\"#9CA3AF\">[Эхо Пустоты] Осколок восстанавливается...</font>",
+  "albase:trial-tracker-activated": "<font color=\"#A78BFA\">[Эхо Пустоты] Пустота откликнулась... Следуй за частицами.</font>",
+
+  "albase:trial-shadow-stalker-title": "Теневой Охотник",
+  "albase:trial-shadow-stalker-desc": "Зачистить разлом: уничтожить Теневого Охотника.",
+  "albase:trial-shadow-stalker-accepted": "§5[Полые Испытания]§r Контракт принят: Теневой Охотник. Используй Эхо Пустоты для поиска.",
+
+  "albase:trial-iron-warden-title": "Железный Страж",
+  "albase:trial-plague-runner-title": "Чумной Бегун",
+  "albase:trial-ember-wraith-title": "Тлеющий Призрак",
+  "albase:trial-cursed-knight-title": "Проклятый Рыцарь",
+  "albase:trial-void-weaver-title": "Ткач Пустоты",
+  "albase:trial-frostbound-sentinel-title": "Ледяной Часовой",
+  "albase:trial-blood-howler-title": "Кровавый Воющий",
+  "albase:trial-bone-watcher-title": "Костяной Часовой",
+  "albase:trial-ashen-crawler-title": "Пепельный Ползун",
+  "albase:trial-deep-wanderer-title": "Глубинный Скиталец",
+  "albase:trial-hollow-sovereign-title": "Полый Владыка",
+
+  "albase:trial-quest-tier1-title": "Полое Испытание",
+  "albase:trial-quest-tier1-desc": "Уничтожить порождение в полом разломе.",
+  "albase:trial-quest-tier2-title": "Глубинное Испытание",
+  "albase:trial-quest-tier2-desc": "Уничтожить порождение в глубинном разломе.",
+  "albase:trial-quest-tier3-title": "Бездонное Испытание",
+  "albase:trial-quest-tier3-desc": "Уничтожить порождение в бездонном разломе.",
+
+  "albase:trial-quest-accepted-tier1": "<font color=\"#A78BFA\">[Полые Испытания]</font> Контракт принят: Полое Испытание. Используй Эхо Пустоты для поиска.",
+  "albase:trial-quest-accepted-tier2": "<font color=\"#A78BFA\">[Полые Испытания]</font> Контракт принят: Глубинное Испытание. Используй Эхо Пустоты для поиска.",
+  "albase:trial-quest-accepted-tier3": "<font color=\"#A78BFA\">[Полые Испытания]</font> Контракт принят: Бездонное Испытание. Используй Эхо Пустоты для поиска.",
+
+  "albase:trial-case-tier1": "Осколок Разлома (Полый)",
+  "albase:trial-case-tier1-desc": "Тусклый осколок, пропитанный энергией полого разлома. При использовании раскалывается, обнажая реликвию внутри.",
+  "albase:trial-case-tier2": "Осколок Разлома (Глубинный)",
+  "albase:trial-case-tier2-desc": "Плотный осколок из глубинного разлома. Содержит более ценную реликвию.",
+  "albase:trial-case-tier3": "Осколок Разлома (Бездонный)",
+  "albase:trial-case-tier3-desc": "Пульсирующий осколок из бездонного разлома. Внутри — реликвия невероятной силы.",
+
+  "albase:trial-currency-name": "Осколки Пустоты",
+  "albase:trial-reputation-label": "Репутация",
+
+  "albase:trial-boss-killed-chat": "<font color=\"#A78BFA\">[Полые Испытания]</font> {0} уничтожил порождение «{1}».",
+  "albase:trial-first-kill-bonus": "<font color=\"#FFD700\">Первое убийство! +30 репутации/осколков.</font>",
+  "albase:trial-challenges-completed": "<font color=\"#A78BFA\">[Полые Испытания]</font> Испытания выполнены: {0} (+{1} репутации/осколков)",
+  "albase:trial-shard-opened": "<font color=\"#A78BFA\">[Осколок Разлома]</font> Осколок раскололся... Внутри: {0} реликвия.",
+  "albase:trial-cursemark-warning": "<font color=\"#CD5C5C\">[Проклятие]</font> Метка проклятия! Отойди от босса!",
+  "albase:trial-shop-not-enough-shards": "<font color=\"#CD5C5C\">[Магазин]</font> Недостаточно Осколков Пустоты.",
+  "albase:trial-shop-purchased": "<font color=\"#A78BFA\">[Магазин]</font> Приобретено: {0} (−{1} осколков)"
+}

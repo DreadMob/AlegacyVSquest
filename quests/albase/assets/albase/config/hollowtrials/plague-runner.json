@@ -1,0 +1,12 @@
+{
+  "trialKey": "albase:trial:plague-runner",
+  "questId": "albase:trial-tier1",
+  "tier": 1,
+  "respawnInGameHours": 168,
+  "activationRange": 120,
+  "softResetIdleHours": 2.0,
+  "challenges": [
+    { "type": "speedkill", "thresholdMinutes": 2.5 },
+    { "type": "nopotions" }
+  ]
+}

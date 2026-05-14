@@ -50,26 +50,8 @@ namespace VsQuest.Systems.Items
 
         private void OnPlayerDisconnect(IServerPlayer player)
         {
-            // Clean up stored times when player leaves - just clear the prefix
-            var attrs = player.Entity?.WatchedAttributes;
-            if (attrs == null) return;
-            
-            // Remove all charge drain tracking keys
-            var tree = attrs as TreeAttribute;
-            if (tree == null) return;
-            
-            var keysToRemove = new List<string>();
-            foreach (var val in tree)
-            {
-                if (val.Key.StartsWith(LastCheckKeyPrefix))
-                {
-                    keysToRemove.Add(val.Key);
-                }
-            }
-            foreach (var key in keysToRemove)
-            {
-                attrs.RemoveAttribute(key);
-            }
+            // Tracking keys are kept on player entity WatchedAttributes.
+            // They persist across sessions so charge drain continues correctly after relog.
         }
 
         private void OnTimerTick(float dt)
@@ -91,7 +73,7 @@ namespace VsQuest.Systems.Items
 
         private void ProcessAllPlayers()
         {
-            var players = sapi.World.AllPlayers;
+            var players = sapi.World.AllOnlinePlayers;
             if (players == null || players.Length == 0) return;
             
             double currentTotalHours = sapi.World.Calendar.TotalHours;
@@ -110,7 +92,7 @@ namespace VsQuest.Systems.Items
             var inv = player.Player.InventoryManager.GetOwnInventory("character");
             if (inv == null) return;
             
-            // Check all equipment slots
+            // Check all equipment slots (only equipped items drain charge)
             foreach (ItemSlot slot in inv)
             {
                 if (slot?.Empty != false || slot.Itemstack?.Attributes == null) continue;
@@ -153,6 +135,8 @@ namespace VsQuest.Systems.Items
                 }
             }
             
+            if (chargeKeys.Count == 0) return;
+            
             bool anyChanged = false;
             
             foreach (var key in chargeKeys)
@@ -162,7 +146,15 @@ namespace VsQuest.Systems.Items
                 
                 // Get last check time for this specific attribute
                 string lastCheckKey = LastCheckKeyPrefix + key;
-                double lastCheckHours = player.WatchedAttributes.GetDouble(lastCheckKey, currentTotalHours);
+                double lastCheckHours = player.WatchedAttributes.GetDouble(lastCheckKey, 0);
+                
+                // First time seeing this item — initialize and skip drain this tick
+                if (lastCheckHours == 0)
+                {
+                    player.WatchedAttributes.SetDouble(lastCheckKey, currentTotalHours);
+                    sapi.Logger.Debug($"[vsquest] ChargeDrain: initialized {key} on {stack.Collectible?.Code} for {player.Player?.PlayerName} at {currentTotalHours:F1}h");
+                    continue;
+                }
                 
                 // Calculate elapsed game hours
                 double elapsedHours = currentTotalHours - lastCheckHours;
@@ -176,6 +168,8 @@ namespace VsQuest.Systems.Items
                 float newCharge = Math.Max(0f, currentCharge - (float)elapsedHours);
                 attrs.SetFloat(key, newCharge);
                 anyChanged = true;
+                
+                sapi.Logger.Debug($"[vsquest] ChargeDrain: {stack.Collectible?.Code} {key}: {currentCharge:F1} -> {newCharge:F1} (elapsed {elapsedHours:F2}h)");
             }
             
             // Only mark dirty once per slot, and only if something changed

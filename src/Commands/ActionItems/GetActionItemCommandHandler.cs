@@ -36,6 +36,44 @@ namespace VsQuest
             var stack = new ItemStack(collectible, amount);
             ItemAttributeUtils.ApplyActionItemAttributes(stack, actionItem);
 
+            // Apply quality roll (may override the action item)
+            var qualityService = itemSystem?.QualityService;
+            if (qualityService != null)
+            {
+                string overrideId = null;
+                qualityService.TryApplyQuality(stack, actionItem, api.World.Rand, out overrideId);
+
+                // If quality overrides the action item, recreate the stack with the new item
+                if (!string.IsNullOrWhiteSpace(overrideId) && overrideId != actionItem.id)
+                {
+                    if (itemSystem.ActionItemRegistry.TryGetValue(overrideId, out var overrideActionItem))
+                    {
+                        if (ItemAttributeUtils.TryResolveCollectible(api, overrideActionItem.itemCode, out var overrideCollectible))
+                        {
+                            // Save quality info from the original roll
+                            string qId = stack.Attributes.GetString(ItemAttributeUtils.ItemQualityIdKey);
+                            string qName = stack.Attributes.GetString(ItemAttributeUtils.ItemQualityNameKey);
+                            string qColor = stack.Attributes.GetString(ItemAttributeUtils.ItemQualityColorKey);
+
+                            // Create new stack with override item
+                            stack = new ItemStack(overrideCollectible, amount);
+                            ItemAttributeUtils.ApplyActionItemAttributes(stack, overrideActionItem);
+
+                            // Re-apply quality header info (no bonus scaling needed - attributes are already correct)
+                            if (!string.IsNullOrEmpty(qId))
+                            {
+                                stack.Attributes.SetString(ItemAttributeUtils.ItemQualityIdKey, qId);
+                                stack.Attributes.SetString(ItemAttributeUtils.ItemQualityNameKey, qName);
+                                stack.Attributes.SetString(ItemAttributeUtils.ItemQualityColorKey, qColor);
+                                stack.Attributes.SetFloat(ItemAttributeUtils.ItemQualityBonusPercentKey, 0f);
+                            }
+
+                            actionItem = overrideActionItem;
+                        }
+                    }
+                }
+            }
+
             if (!player.InventoryManager.TryGiveItemstack(stack))
             {
                 api.World.SpawnItemEntity(stack, player.Entity.Pos.XYZ);

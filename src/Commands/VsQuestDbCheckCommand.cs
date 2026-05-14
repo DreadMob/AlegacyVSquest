@@ -19,12 +19,26 @@ namespace VsQuest.Commands
         {
             sapi = api;
             
-            // Register command with privilege controlserver (admin only)
-            api.ChatCommands
-                .Create("avq")
-                .WithDescription("VsQuest database management")
-                .RequiresPrivilege(Privilege.controlserver)
-                .HandleWith(OnAvqCommand);
+            // Register as subcommand - the main "avq" command is already registered by QuestSystem
+            // We register a separate command to avoid conflicts
+            try
+            {
+                api.ChatCommands
+                    .GetOrCreate("avq")
+                    .BeginSubCommand("db")
+                        .WithDescription("VsQuest database management")
+                        .RequiresPrivilege(Privilege.controlserver)
+                        .BeginSubCommand("check")
+                            .WithDescription("Check database connection")
+                            .RequiresPrivilege(Privilege.controlserver)
+                            .HandleWith(_ => CheckDatabase(_.Caller.Player as IServerPlayer))
+                        .EndSubCommand()
+                    .EndSubCommand();
+            }
+            catch (Exception ex)
+            {
+                api.Logger.Warning("[VsQuestDbCheck] Could not register db command: {0}", ex.Message);
+            }
         }
 
         private TextCommandResult OnAvqCommand(TextCommandCallingArgs args)

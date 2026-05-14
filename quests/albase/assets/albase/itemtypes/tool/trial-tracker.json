@@ -1,0 +1,42 @@
+{
+  "code": "trial-tracker",
+  "maxstacksize": 1,
+  "durability": 0,
+  "storageFlags": 2,
+  "creativeinventory": {
+    "general": ["*"]
+  },
+  "shape": { "base": "game:item/resource/temporalgear-s" },
+  "textures": {
+    "metal": { "base": "game:block/metal/ingot/lead" },
+    "crystal": { "base": "game:block/stone/obsidian" },
+    "all": { "base": "game:block/stone/obsidian" }
+  },
+  "attributes": {
+    "handbook": { "exclude": true },
+    "alegacyvsquest:actionitem": true,
+    "alegacyvsquest:actionitem:action": "tracktrialboss",
+    "alegacyvsquest:actionitem:cooldownMinutes": 3,
+    "alegacyvsquest:actionitem:displayName": "albase:trial-tracker-name",
+    "alegacyvsquest:actionitem:description": "albase:trial-tracker-desc"
+  },
+  "heldTpIdleAnimation": "holdbothhands",
+  "guiTransform": {
+    "translation": { "x": 0, "y": 0, "z": 0 },
+    "rotation": { "x": -20, "y": 40, "z": 0 },
+    "origin": { "x": 0.5, "y": 0.3, "z": 0.5 },
+    "scale": 4.5
+  },
+  "groundTransform": {
+    "translation": { "x": 0, "y": 0, "z": 0 },
+    "rotation": { "x": 0, "y": 0, "z": 0 },
+    "origin": { "x": 0.5, "y": 0, "z": 0.5 },
+    "scale": 4
+  },
+  "tpHandTransform": {
+    "translation": { "x": -0.5, "y": -0.3, "z": -0.5 },
+    "rotation": { "x": 0, "y": 0, "z": 0 },
+    "origin": { "x": 0.5, "y": 0.3, "z": 0.5 },
+    "scale": 0.7
+  }
+}
