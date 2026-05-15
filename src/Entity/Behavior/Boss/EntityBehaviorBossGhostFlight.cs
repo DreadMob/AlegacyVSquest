@@ -1,4 +1,5 @@
 using System;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
@@ -13,6 +14,8 @@ namespace VsQuest
     /// - Periodically fades to invisible (reduced render opacity via WatchedAttributes)
     /// - While invisible: moves faster, doesn't attack
     /// - Reappears behind the player for a surprise attack
+    /// 
+    /// Works on both client (rendering invisibility) and server (logic).
     /// </summary>
     public class EntityBehaviorBossGhostFlight : EntityBehavior
     {
@@ -29,6 +32,11 @@ namespace VsQuest
         private double invisStartMs;
         private double lastInvisMs;
         private long tickListenerId;
+        private long hoverTickListenerId;
+
+        // Client-side fade
+        private float currentOpacity = 1f;
+        private float targetOpacity = 1f;
 
         public bool IsInvisible => isInvisible;
 
@@ -45,14 +53,62 @@ namespace VsQuest
             invisMoveSpeed = typeAttributes["invisMoveSpeed"].AsFloat(0.08f);
             reappearBehindDistance = typeAttributes["reappearBehindDistance"].AsFloat(3f);
 
-            // Set float height attribute for client rendering
-            entity.WatchedAttributes.SetFloat(AttrFloatHeight, hoverHeight);
-            entity.WatchedAttributes.MarkPathDirty(AttrFloatHeight);
-
             if (entity.Api?.Side == EnumAppSide.Server)
             {
+                // Set float height attribute for client rendering
+                entity.WatchedAttributes.SetFloat(AttrFloatHeight, hoverHeight);
+                entity.WatchedAttributes.MarkPathDirty(AttrFloatHeight);
+
+                // Fast tick for hover (gravity fights us every frame)
+                hoverTickListenerId = entity.World.RegisterGameTickListener(OnHoverTick, 50);
+                // Slower tick for ghost logic (invisibility, particles)
                 tickListenerId = entity.World.RegisterGameTickListener(OnGhostTick, 200);
             }
+        }
+
+        // ========================================
+        // CLIENT-SIDE: Render invisibility
+        // ========================================
+
+        public override void OnGameTick(float dt)
+        {
+            base.OnGameTick(dt);
+
+            if (entity.Api?.Side != EnumAppSide.Client) return;
+
+            // Read invisibility state from WatchedAttributes (synced from server)
+            bool shouldBeInvisible = entity.WatchedAttributes.GetBool(AttrInvisible, false);
+            targetOpacity = shouldBeInvisible ? 0.05f : 1f;
+
+            // Smooth fade
+            if (currentOpacity != targetOpacity)
+            {
+                float fadeSpeed = 4f * dt; // Fade over ~0.25 seconds
+                if (currentOpacity < targetOpacity)
+                {
+                    currentOpacity = Math.Min(targetOpacity, currentOpacity + fadeSpeed);
+                }
+                else
+                {
+                    currentOpacity = Math.Max(targetOpacity, currentOpacity - fadeSpeed);
+                }
+
+                // Apply opacity via RenderColor alpha channel
+                int alpha = (int)(currentOpacity * 255);
+                alpha = GameMath.Clamp(alpha, 0, 255);
+                entity.RenderColor = ColorUtil.ToRgba(alpha, 255, 255, 255);
+            }
+        }
+
+        // ========================================
+        // SERVER-SIDE: Hover + Ghost logic
+        // ========================================
+
+        private void OnHoverTick(float dt)
+        {
+            if (entity.Api?.Side != EnumAppSide.Server) return;
+            if (!entity.Alive) return;
+            ApplyHover();
         }
 
         private void OnGhostTick(float dt)
@@ -62,9 +118,6 @@ namespace VsQuest
 
             var sapi = entity.Api as ICoreServerAPI;
             double nowMs = entity.World.ElapsedMilliseconds;
-
-            // Apply hover (push entity up if below hover height)
-            ApplyHover();
 
             // Ghost particles while visible
             if (!isInvisible)
@@ -100,16 +153,8 @@ namespace VsQuest
             }
         }
 
-        // Apply hover — maintain entity at hoverHeight above ground
         private void ApplyHover()
         {
-            // Cancel gravity — push up to maintain hover height
-            if (entity.Pos.Motion.Y < 0)
-            {
-                entity.Pos.Motion.Y = 0;
-            }
-
-            // Find ground level below entity
             var sapi = entity.Api as ICoreServerAPI;
             if (sapi == null) return;
 
@@ -134,20 +179,29 @@ namespace VsQuest
             double currentY = entity.Pos.Y;
             double diff = targetY - currentY;
 
+            // Always cancel gravity — this entity flies
+            entity.Pos.Motion.Y = 0;
+            entity.ServerPos.Motion.Y = 0;
+
+            // Strong correction to maintain hover height
             if (diff > 0.1)
             {
-                // Too low — push up
-                entity.Pos.Motion.Y = Math.Min(0.08, diff * 0.15);
+                double lift = Math.Min(0.15, diff * 0.2);
+                entity.Pos.Motion.Y = lift;
+                entity.ServerPos.Motion.Y = lift;
             }
-            else if (diff < -0.5)
+            else if (diff < -0.1)
             {
-                // Too high — drift down gently
-                entity.Pos.Motion.Y = Math.Max(-0.03, diff * 0.05);
+                double sink = Math.Max(-0.08, diff * 0.15);
+                entity.Pos.Motion.Y = sink;
+                entity.ServerPos.Motion.Y = sink;
             }
-            else
+
+            // If entity is way too low, teleport up
+            if (diff > 1.0)
             {
-                // At target — hover in place
-                entity.Pos.Motion.Y = 0;
+                entity.ServerPos.Y = targetY;
+                entity.Pos.Y = targetY;
             }
         }
 
@@ -158,6 +212,9 @@ namespace VsQuest
 
             entity.WatchedAttributes.SetBool(AttrInvisible, true);
             entity.WatchedAttributes.MarkPathDirty(AttrInvisible);
+
+            // Stop AI tasks while invisible
+            entity.StopAiAndFreeze();
 
             // Vanish particles
             var sapi = entity.Api as ICoreServerAPI;
@@ -183,7 +240,7 @@ namespace VsQuest
                 double playerYaw = target.Pos.Yaw;
                 double behindX = target.Pos.X + Math.Sin(playerYaw) * reappearBehindDistance;
                 double behindZ = target.Pos.Z + Math.Cos(playerYaw) * reappearBehindDistance;
-                entity.TeleportTo(new Vec3d(behindX, target.Pos.Y, behindZ));
+                entity.TeleportTo(new Vec3d(behindX, target.Pos.Y + hoverHeight, behindZ));
             }
 
             entity.WatchedAttributes.SetBool(AttrInvisible, false);
@@ -245,10 +302,18 @@ namespace VsQuest
         public override void OnEntityDespawn(EntityDespawnData despawn)
         {
             base.OnEntityDespawn(despawn);
-            if (tickListenerId != 0 && entity.World != null)
+            if (entity.World != null)
             {
-                entity.World.UnregisterGameTickListener(tickListenerId);
-                tickListenerId = 0;
+                if (hoverTickListenerId != 0)
+                {
+                    entity.World.UnregisterGameTickListener(hoverTickListenerId);
+                    hoverTickListenerId = 0;
+                }
+                if (tickListenerId != 0)
+                {
+                    entity.World.UnregisterGameTickListener(tickListenerId);
+                    tickListenerId = 0;
+                }
             }
         }
     }

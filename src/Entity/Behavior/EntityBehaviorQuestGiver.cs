@@ -389,6 +389,7 @@ namespace VsQuest
                     effectiveCooldown, rotationDaysLeft);
                 msgActive.silentUpdate = silentUpdate;
                 messageBuilder.PopulateReputationInfo(msgActive, serverPlayer, reputationNpcId, reputationFactionId);
+                messageBuilder.PopulateTrialShopInfo(msgActive, serverPlayer, trialActiveOnly);
                 messageBuilder.SendMessage(msgActive, serverPlayer);
                 return;
             }

@@ -228,28 +228,52 @@ namespace VsQuest
         {
             if (telegraphCenter == null) return;
 
-            // Purple particles on the ground in the telegraph zone
-            int count = shape == "circle" ? (int)(radius * 3) : (int)(length * 2);
+            // Calculate progress (0 to 1) for intensity ramping
+            double elapsed = entity.World.ElapsedMilliseconds - telegraphStartMs;
+            float progress = (float)Math.Min(1.0, elapsed / windupMs);
+
+            // More particles as telegraph progresses (builds urgency)
+            int baseCount = shape == "circle" ? (int)(radius * 4) : (int)(length * 3);
+            int count = (int)(baseCount * (0.5f + progress * 0.5f));
             var rand = entity.World.Rand;
+
+            // Color shifts from yellow (warning) to bright red (danger!) as progress increases
+            int r = (int)(255 * Math.Min(1f, 0.6f + progress * 0.4f));
+            int g = (int)(200 * (1f - progress * 0.8f));
+            int b = 30;
+            int alpha = (int)(180 + progress * 75);
+            int color = ColorUtil.ToRgba(alpha, r, g, b);
+
+            // Particle size grows with progress
+            float minSize = 0.3f + progress * 0.3f;
+            float maxSize = 0.5f + progress * 0.5f;
 
             for (int i = 0; i < count; i++)
             {
                 Vec3d particlePos = GetRandomPointInZone(rand);
                 if (particlePos == null) continue;
 
-                SimpleParticleProperties particles = new SimpleParticleProperties(
-                    minQuantity: 1, maxQuantity: 1,
-                    color: ColorUtil.ToRgba(160, 180, 80, 255),
-                    minPos: particlePos,
-                    maxPos: particlePos,
-                    minVelocity: new Vec3f(0, 0.05f, 0),
-                    maxVelocity: new Vec3f(0, 0.15f, 0),
-                    lifeLength: 0.4f,
-                    gravityEffect: 0f,
-                    minSize: 0.15f, maxSize: 0.25f
-                );
+                entity.World.SpawnParticles(new SimpleParticleProperties(
+                    minQuantity: 1, maxQuantity: 2,
+                    color: color,
+                    minPos: particlePos.AddCopy(0, 0.05, 0),
+                    maxPos: particlePos.AddCopy(0, 0.2, 0),
+                    minVelocity: new Vec3f(0, 0.1f + progress * 0.3f, 0),
+                    maxVelocity: new Vec3f(0, 0.3f + progress * 0.4f, 0),
+                    lifeLength: 0.5f + progress * 0.3f,
+                    gravityEffect: -0.02f,
+                    minSize: minSize, maxSize: maxSize,
+                    model: EnumParticleModel.Quad
+                ));
+            }
 
-                entity.World.SpawnParticles(particles);
+            // Play warning sound at start and halfway through
+            if (elapsed < 200 || (elapsed > windupMs * 0.5 && elapsed < windupMs * 0.5 + 200))
+            {
+                entity.World.PlaySoundAt(
+                    new AssetLocation("game:sounds/effect/translocate-active"),
+                    telegraphCenter.X, telegraphCenter.Y, telegraphCenter.Z,
+                    null, true, 20f, 0.4f + progress * 0.3f);
             }
         }
 

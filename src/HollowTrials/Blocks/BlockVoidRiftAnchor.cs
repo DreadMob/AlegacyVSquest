@@ -33,5 +33,16 @@ namespace VsQuest
 
             base.OnBlockRemoved(world, pos);
         }
+
+        public override void OnBlockBroken(IWorldAccessor world, BlockPos pos, IPlayer byPlayer, float dropQuantityMultiplier = 1)
+        {
+            if (world?.Side == EnumAppSide.Server)
+            {
+                var be = world.BlockAccessor.GetBlockEntity(pos) as BlockEntityVoidRiftAnchor;
+                be?.OnRemovedServerSide();
+            }
+
+            base.OnBlockBroken(world, pos, byPlayer, dropQuantityMultiplier);
+        }
     }
 }

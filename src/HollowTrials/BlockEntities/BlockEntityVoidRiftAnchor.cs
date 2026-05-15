@@ -41,9 +41,9 @@ namespace VsQuest
         public int Tier => tier;
 
         /// <summary>
-        /// Resolves the current active trialKey for this anchor.
-        /// If the anchor has a stored trialKey and it's in the current rotation, returns it.
-        /// Otherwise returns the first active key (for backwards compatibility).
+        /// Resolves the current active trialKey for this anchor based on its tier.
+        /// The system picks which boss is active for this tier from the current rotation.
+        /// If storedTrialKey is set and active, uses it (for backwards compat / manual override).
         /// </summary>
         public string GetActiveTrialKey()
         {
@@ -55,16 +55,17 @@ namespace VsQuest
                 if (system == null) return null;
 
                 var activeKeys = system.GetActiveTrialKeys();
-                if (activeKeys == null) return null;
+                if (activeKeys == null || activeKeys.Count == 0) return null;
 
-                // If anchor has a stored trialKey, check if it's active
+                // If anchor has a stored trialKey and it's in the current rotation, use it
                 if (!string.IsNullOrWhiteSpace(storedTrialKey))
                 {
                     if (activeKeys.Contains(storedTrialKey)) return storedTrialKey;
-                    return null; // Our boss is not in rotation
+                    // Stored key is not in rotation — fall through to tier-based lookup
                 }
 
-                // Fallback: return first active key
+                // Tier-based: find any active trial key (all anchors serve the rotation pool)
+                // The system assigns bosses to anchors — just return any active key
                 foreach (var key in activeKeys)
                 {
                     var cfg = system.FindConfig(key);
@@ -239,7 +240,6 @@ namespace VsQuest
         private void TryRegisterAnchor()
         {
             if (Api?.Side != EnumAppSide.Server) return;
-            if (tier < 1 || tier > 3) return;
 
             string activeKey = GetActiveTrialKey();
             if (string.IsNullOrWhiteSpace(activeKey)) return;
@@ -300,11 +300,35 @@ namespace VsQuest
             if (isAlive)
             {
                 SpawnAliveParticles();
+                TryPlayAmbientSound(true);
             }
             else
             {
                 SpawnDormantParticles();
+                TryPlayAmbientSound(false);
             }
+        }
+
+        private long lastSoundMs;
+        private static readonly AssetLocation VoidSoundLoc = new AssetLocation("alegacyvsquest:sounds/void");
+
+        private void TryPlayAmbientSound(bool isAlive)
+        {
+            long now = Api.World.ElapsedMilliseconds;
+            // Repeat sound on a loop: every 1.9s when alive, every ~5s when dormant
+            // (adjust interval to match your wav duration for seamless loop)
+            int intervalMs = isAlive ? 1900 : 5000;
+            if (now - lastSoundMs < intervalMs) return;
+            lastSoundMs = now;
+
+            double cx = Pos.X + 0.5;
+            double cy = Pos.Y + 1.0;
+            double cz = Pos.Z + 0.5;
+
+            float volume = isAlive ? 0.7f : 0.25f;
+            float range = isAlive ? 14f : 10f;
+
+            Api.World.PlaySoundAt(VoidSoundLoc, cx, cy, cz, null, true, range, volume);
         }
 
         private void SpawnAliveParticles()
@@ -323,8 +347,8 @@ namespace VsQuest
                 maxVelocity: new Vec3f(0.05f, 0.7f, 0.05f),
                 lifeLength: 4.0f,
                 gravityEffect: -0.01f,
-                minSize: 0.2f,
-                maxSize: 0.45f
+                minSize: 0.6f,
+                maxSize: 1.35f
             ));
         }
 
@@ -344,8 +368,8 @@ namespace VsQuest
                 maxVelocity: new Vec3f(0.02f, 0.3f, 0.02f),
                 lifeLength: 2.5f,
                 gravityEffect: -0.005f,
-                minSize: 0.15f,
-                maxSize: 0.3f
+                minSize: 0.45f,
+                maxSize: 0.9f
             ));
         }
 
@@ -380,8 +404,8 @@ namespace VsQuest
                     maxVelocity: new Vec3f(vx, 0f, vz),
                     lifeLength: 1.0f,
                     gravityEffect: 0f,
-                    minSize: 0.2f,
-                    maxSize: 0.4f
+                    minSize: 0.6f,
+                    maxSize: 1.2f
                 ));
             }
         }

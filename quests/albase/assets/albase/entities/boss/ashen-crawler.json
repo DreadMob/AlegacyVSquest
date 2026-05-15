@@ -3,9 +3,9 @@
   "class": "EntityAgent",
   "tags": ["alegacy-boss"],
   "canClimb": true,
-  "hitboxSize": { "x": 0.8, "y": 1.5 },
-  "deadHitboxSize": { "x": 0.8, "y": 0.3 },
-  "eyeHeight": 1.2,
+  "hitboxSize": { "x": 0.8, "y": 3.0 },
+  "deadHitboxSize": { "x": 0.8, "y": 0.6 },
+  "eyeHeight": 2.4,
   "attributes": {
     "knockbackResistance": 0.9,
     "killedByInfoText": "deadcreature-vile",

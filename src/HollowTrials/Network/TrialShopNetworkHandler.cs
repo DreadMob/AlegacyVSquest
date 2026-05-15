@@ -29,6 +29,18 @@ namespace VsQuest
                 .SetMessageHandler<BuyTrialShopItemMessage>(OnBuyRequest);
 
             LoadNpcConfig();
+
+            // Retry loading after save game is loaded (assets from content mods may not be available yet)
+            if (npcConfig == null)
+            {
+                sapi.Event.SaveGameLoaded += () =>
+                {
+                    if (npcConfig == null)
+                    {
+                        LoadNpcConfig();
+                    }
+                };
+            }
         }
 
         public void RegisterClient(ICoreClientAPI capi)
@@ -45,51 +57,102 @@ namespace VsQuest
 
             try
             {
-                // Try direct asset load with manual JSON deserialization
-                var asset = sapi.Assets.TryGet(new Vintagestory.API.Common.AssetLocation("albase", "config/npcs/trialwarden.json"));
+                // Approach 1: Direct asset load via TryGet
+                IAsset asset = null;
+                string[] pathsToTry = new[]
+                {
+                    "config/npcs/trialwarden.json",
+                    "config/npcs/trialwarden"
+                };
+
+                foreach (var path in pathsToTry)
+                {
+                    try
+                    {
+                        asset = sapi.Assets.TryGet(new AssetLocation("albase", path));
+                        if (asset != null) break;
+                    }
+                    catch { }
+                }
+
                 if (asset != null)
                 {
                     string json = asset.ToText();
                     if (!string.IsNullOrWhiteSpace(json))
                     {
                         var cfg = Newtonsoft.Json.JsonConvert.DeserializeObject<TrialNpcConfig>(json);
-                        if (cfg != null && !string.IsNullOrWhiteSpace(cfg.npcId) && cfg.shop?.items?.Count > 0)
+                        if (cfg?.shop?.items?.Count > 0)
                         {
                             npcConfig = cfg;
-                            sapi.Logger.Notification("[TrialShop] Loaded shop config (direct): {0} items", cfg.shop.items.Count);
+                            sapi.Logger.Notification("[TrialShop] Loaded shop config from asset: {0} items", cfg.shop.items.Count);
                             return;
                         }
                     }
                 }
 
-                // Fallback: try GetMany
-                foreach (var mod in sapi.ModLoader.Mods)
+                // Approach 2: Scan all loaded assets for config/npcs files
+                try
                 {
-                    var assets = sapi.Assets.GetMany<TrialNpcConfig>(sapi.Logger, "config/npcs", mod.Info.ModID);
-                    if (assets == null) continue;
-
-                    foreach (var a in assets)
+                    var allAssets = sapi.Assets.GetMany<TrialNpcConfig>(sapi.Logger, "config/npcs");
+                    if (allAssets != null)
                     {
-                        var cfg = a.Value;
-                        if (cfg == null) continue;
-                        if (string.IsNullOrWhiteSpace(cfg.npcId)) continue;
-                        if (cfg.shop == null || cfg.shop.items == null || cfg.shop.items.Count == 0) continue;
-
-                        if (string.Equals(cfg.npcId, "albase:trialwarden", StringComparison.OrdinalIgnoreCase))
+                        foreach (var kvp in allAssets)
                         {
-                            npcConfig = cfg;
-                            sapi.Logger.Notification("[TrialShop] Loaded shop config (GetMany): {0} items from mod {1}", cfg.shop.items.Count, mod.Info.ModID);
-                            return;
+                            var cfg = kvp.Value;
+                            if (cfg?.shop?.items?.Count > 0)
+                            {
+                                npcConfig = cfg;
+                                sapi.Logger.Notification("[TrialShop] Loaded shop config via GetMany: {0} items from {1}", cfg.shop.items.Count, kvp.Key);
+                                return;
+                            }
                         }
                     }
                 }
+                catch (Exception ex)
+                {
+                    sapi.Logger.Debug("[TrialShop] GetMany scan failed: {0}", ex.Message);
+                }
 
-                sapi.Logger.Warning("[TrialShop] No shop config found for 'albase:trialwarden' in any mod.");
+                // Approach 3: Hardcoded fallback — ensures shop always works
+                sapi.Logger.Warning("[TrialShop] Asset load failed. Using hardcoded fallback config.");
+                npcConfig = CreateFallbackConfig();
+                sapi.Logger.Notification("[TrialShop] Fallback config loaded: {0} items", npcConfig.shop.items.Count);
             }
             catch (Exception ex)
             {
-                sapi.Logger.Warning("[TrialShop] Failed to load NPC config: {0}", ex.Message);
+                sapi.Logger.Warning("[TrialShop] LoadNpcConfig exception: {0}. Using fallback.", ex.Message);
+                npcConfig = CreateFallbackConfig();
             }
+        }
+
+        /// <summary>
+        /// Hardcoded fallback config matching quests/albase/assets/albase/config/npcs/trialwarden.json.
+        /// This ensures the shop always works even if asset loading fails.
+        /// </summary>
+        private static TrialNpcConfig CreateFallbackConfig()
+        {
+            return new TrialNpcConfig
+            {
+                npcId = "albase:trialwarden",
+                nameKey = "albase:trial-warden-name",
+                titleKey = "albase:trial-warden-title",
+                questGiver = true,
+                trialActiveOnly = true,
+                trialMaxTier = 3,
+                shop = new TrialShopConfigBlock
+                {
+                    currencyKey = "albase:trial-currency-name",
+                    items = new List<TrialShopConfigItem>
+                    {
+                        new TrialShopConfigItem { itemCode = "albase:trial-tracker", nameKey = "albase:trial-tracker-name", cost = 30, requiredReputation = 0, maxPurchases = 1 },
+                        new TrialShopConfigItem { itemCode = "case:tier1", nameKey = "albase:trial-case-tier1", cost = 20, requiredReputation = 0, maxPurchases = -1, caseTier = 1, casePool = new[] { "albase:trial-shadow-earring", "albase:trial-rift-bracelet", "albase:trial-void-pendant" } },
+                        new TrialShopConfigItem { itemCode = "case:tier2", nameKey = "albase:trial-case-tier2", cost = 50, requiredReputation = 100, maxPurchases = -1, caseTier = 2, casePool = new[] { "albase:trial-void-cloak", "albase:trial-abyss-belt", "albase:trial-deep-sigil" } },
+                        new TrialShopConfigItem { itemCode = "case:tier3", nameKey = "albase:trial-case-tier3", cost = 120, requiredReputation = 300, maxPurchases = -1, caseTier = 3, casePool = new[] { "albase:trial-void-cloak", "albase:trial-abyss-belt", "albase:trial-deep-sigil", "albase:trial-bow", "albase:trial-abyss-pendant", "albase:trial-void-ring" } },
+                        new TrialShopConfigItem { itemCode = "albase:trial-bow", nameKey = "item-albase:trial-bow", cost = 150, requiredReputation = 400, maxPurchases = 1 },
+                        new TrialShopConfigItem { itemCode = "albase:trial-abyss-mask", nameKey = "albase:trial-abyss-mask-name", cost = 200, requiredReputation = 600, maxPurchases = 1 }
+                    }
+                }
+            };
         }
 
         /// <summary>
@@ -126,11 +189,15 @@ namespace VsQuest
             // Lazy-load if config wasn't available at startup
             if (npcConfig == null)
             {
+                sapi?.Logger?.Debug("[TrialShop] BuildShopItems: npcConfig is null, attempting lazy-load...");
                 LoadNpcConfig();
             }
 
             if (npcConfig?.shop?.items == null || npcConfig.shop.items.Count == 0)
+            {
+                sapi?.Logger?.Debug("[TrialShop] BuildShopItems: no items available. npcConfig={0}", npcConfig == null ? "null" : "loaded");
                 return Array.Empty<TrialShopItemData>();
+            }
 
             var repManager = sapi.ModLoader.GetModSystem<HollowTrialSystem>()?.GetReputationManager();
 

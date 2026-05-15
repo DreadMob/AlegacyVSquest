@@ -58,7 +58,7 @@
       },
       { "code": "bossenrage", "enrageTimerSeconds": 300 },
       { "code": "bossvulnerabilitywindow", "damageMultiplier": 2.0, "durationSeconds": 3.0, "triggerAbilities": ["bossretaliation"] },
-      { "code": "bossmirrorimage", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 18, "maxTargetRange": 25, "imageCount": 2, "imageLifetimeSec": 5, "teleportOnCast": true, "teleportRadius": 7, "sound": "effect/translocate-active", "soundRange": 32 }] },
+      { "code": "bossmirrorimage", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 18, "maxTargetRange": 25, "imageCount": 2, "imageLifetimeSec": 12, "teleportOnCast": true, "teleportRadius": 7, "sound": "effect/translocate-active", "soundRange": 32 }] },
       { "code": "bossgroundslam", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 10, "maxTargetRange": 20, "radius": 6, "damage": 14, "windupMs": 1300, "knockbackStrength": 2.0, "sound": "environment/largerock1", "soundRange": 32 }] },
       { "code": "bosscursemark", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 16, "maxTargetRange": 20, "markDelaySec": 3, "baseDamage": 15, "safeDistance": 12, "sound": "environment/thunder1", "soundRange": 32 }] },
       { "code": "bossretaliation", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 20, "maxTargetRange": 30, "damageThreshold": 45, "retaliationMultiplier": 0.6, "retaliationRadius": 8, "windowDurationSec": 4, "sound": "effect/reverbhit", "soundRange": 32 }] },

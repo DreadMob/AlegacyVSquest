@@ -114,7 +114,7 @@ namespace VsQuest
                 return TextCommandResult.Error("HollowTrialSystem not available.");
 
             int count = system.ReloadConfigs();
-            return TextCommandResult.Success($"Reloaded {count} trial configs.");
+            return TextCommandResult.Success($"Reloaded {count} trial configs. Anchor points cleared (will re-register).");
         }
     }
 }

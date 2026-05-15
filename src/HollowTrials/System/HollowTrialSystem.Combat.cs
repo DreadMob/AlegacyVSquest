@@ -77,17 +77,7 @@ namespace VsQuest
             // SOLO ENFORCEMENT: if multiple players participated, void the kill
             if (tracker.DamageByPlayer.Count > 1)
             {
-                string voidMsg = LocalizationUtils.GetSafe("albase:trial-solo-violated");
-                foreach (var uid in tracker.DamageByPlayer.Keys)
-                {
-                    var p = sapi.World.PlayerByUid(uid) as IServerPlayer;
-                    if (p != null && p.ConnectionState == EnumClientState.Playing)
-                    {
-                        sapi.SendMessage(p, GlobalConstants.GeneralChatGroup, voidMsg, EnumChatType.Notification);
-                    }
-                }
-
-                // Broadcast boss death without rewards
+                // Broadcast boss death without rewards (red text)
                 string bossNameVoid = LocalizationUtils.GetSafe("albase:trial-" + ExtractBossName(cfg.trialKey) + "-title");
                 string killMsgVoid = LocalizationUtils.GetSafe("albase:trial-boss-killed-chat-voided", bossNameVoid);
                 GlobalChatBroadcastUtil.BroadcastGeneralChat(sapi, killMsgVoid, EnumChatType.Notification);

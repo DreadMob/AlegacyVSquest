@@ -174,7 +174,7 @@
   "albase:trial-reputation-label": "Репутация",
 
   "albase:trial-boss-killed-chat": "<font color=\"#A78BFA\">[Полые Испытания]</font> {0} уничтожил порождение «{1}».",
-  "albase:trial-boss-killed-chat-voided": "<font color=\"#A78BFA\">[Полые Испытания]</font> Порождение «{0}» уничтожено, но испытание осквернено — в бою участвовало несколько воинов.",
+  "albase:trial-boss-killed-chat-voided": "<font color=\"#EF4444\">[Полые Испытания]</font> <font color=\"#FCA5A5\">Порождение «{0}» уничтожено, но испытание осквернено — в бою участвовало несколько воинов.</font>",
   "albase:trial-solo-violated": "<font color=\"#EF4444\">:warning: Испытание осквернено.</font> <font color=\"#FCA5A5\">В бою участвовало несколько воинов — прогресс не засчитан.</font>",
   "albase:trial-first-kill-bonus": "<font color=\"#FFD700\">:star: Первое убийство! +30 репутации/осколков.</font>",
   "albase:trial-challenges-completed": "<font color=\"#A78BFA\">:sparkles: Испытания выполнены:</font> <font color=\"#C4B5FD\">{0}</font> <font color=\"#A78BFA\">(+{1} репутации/осколков)</font>",

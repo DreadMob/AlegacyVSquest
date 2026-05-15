@@ -17,8 +17,8 @@
     "renderer": "Shape",
     "pitchStep": false,
     "size": 1.8,
-    "shape": { "base": "game:entity/animal/mammal/hyena/striped-male" },
-    "texture": { "base": "game:entity/animal/mammal/hyena/striped-male" },
+    "shape": { "base": "game:entity/lore/drifter/surface" },
+    "texture": { "base": "game:entity/lore/drifter/deep1" },
     "glowLevel": 60,
     "behaviors": [
       { "code": "repulseagents" },
@@ -31,12 +31,12 @@
       { "code": "bossnametag", "nameLangKey": "albase:trial-blood-howler-title", "color": "#A78BFA", "backgroundColor": "#000000", "backgroundOpacity": 0.35, "renderRange": 60 }
     ],
     "animations": [
-      { "code": "hurt", "animation": "hurt", "animationSpeed": 2.2, "weight": 10, "blendMode": "AddAverage" },
-      { "code": "death", "animation": "death", "animationSpeed": 1.25, "weight": 10, "blendMode": "Average", "triggeredBy": { "onControls": ["dead"] } },
-      { "code": "idle", "animation": "idle", "blendMode": "Average", "triggeredBy": { "defaultAnim": true } },
-      { "code": "walk", "animation": "walk", "blendMode": "Average" },
-      { "code": "Run", "animation": "Run", "blendMode": "Average" },
-      { "code": "Attack", "animation": "Attack", "animationSpeed": 2.5, "blendMode": "Average", "weight": 100 }
+      { "code": "standhurt", "animation": "standhurt", "animationSpeed": 2.2, "weight": 10, "blendMode": "AddAverage" },
+      { "code": "standdie", "animation": "standdie", "animationSpeed": 1.25, "weight": 10, "blendMode": "Average", "triggeredBy": { "onControls": ["dead"] } },
+      { "code": "idle", "animation": "standidle", "blendMode": "Average", "triggeredBy": { "defaultAnim": true } },
+      { "code": "standwalk", "animation": "standwalk", "blendMode": "Average" },
+      { "code": "standrun", "animation": "standrun", "blendMode": "Average" },
+      { "code": "standattack", "animation": "standattack", "animationSpeed": 2.5, "blendMode": "Average", "weight": 100 }
     ]
   },
   "server": {
@@ -71,7 +71,7 @@
             "movespeed": 0.06,
             "seekingRange": 35,
             "maxFollowTime": 120,
-            "animation": "Run",
+            "animation": "standrun",
             "animationSpeed": 1.4
           },
           {
@@ -86,7 +86,7 @@
             "maxcooldown": 1300,
             "damagePlayerAtMs": 300,
             "attackDurationMs": 600,
-            "animation": "Attack",
+            "animation": "standattack",
             "animationSpeed": 1.5,
             "sound": "game:sounds/creature/drifter-hit",
             "soundStartMs": 300
@@ -103,7 +103,7 @@
             "maxcooldown": 700,
             "damagePlayerAtMs": 250,
             "attackDurationMs": 500,
-            "animation": "Attack",
+            "animation": "standattack",
             "animationSpeed": 1.8,
             "sound": "game:sounds/creature/drifter-hit",
             "soundStartMs": 250,
@@ -113,7 +113,7 @@
             "code": "wander",
             "priority": 1.0,
             "movespeed": 0.025,
-            "animation": "walk",
+            "animation": "standwalk",
             "animationSpeed": 1.0
           },
           { "code": "lookaround", "priority": 0.5 }

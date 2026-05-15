@@ -83,24 +83,6 @@
     "heldItemPitchFollow": 1,
     "aimAnimation": "bowaimrecurve",
     "handbook": { "exclude": true },
-    "damageByType": {
-      "trial-bow-dim": 3.75,
-      "trial-bow-shimmer": 4.5,
-      "trial-bow-radiant": 5.5,
-      "trial-bow-abyssal": 6.5
-    },
-    "damageTierByType": {
-      "trial-bow-dim": 2,
-      "trial-bow-shimmer": 2,
-      "trial-bow-radiant": 3,
-      "trial-bow-abyssal": 3
-    },
-    "statModifierByType": {
-      "trial-bow-dim": { "rangedWeaponsAcc": 0.23, "rangedWeaponsSpeed": 0.09 },
-      "trial-bow-shimmer": { "rangedWeaponsAcc": 0.28, "rangedWeaponsSpeed": 0.11 },
-      "trial-bow-radiant": { "rangedWeaponsAcc": 0.34, "rangedWeaponsSpeed": 0.13 },
-      "trial-bow-abyssal": { "rangedWeaponsAcc": 0.40, "rangedWeaponsSpeed": 0.15 }
-    },
     "toolrackTransform": {
       "translation": { "x": 0.14, "y": 0.93 },
       "rotation": { "x": 2, "y": 5, "z": 0 },
@@ -117,6 +99,28 @@
         "frontrightside": { "base": "game:item/wearable/hooved/elk/weaponr-bow-recurve" },
         "frontleftside": { "base": "game:item/wearable/hooved/elk/weaponl-bow-recurve" }
       }
+    }
+  },
+  "attributesByType": {
+    "trial-bow-dim": {
+      "damage": 3.75,
+      "damageTier": 2,
+      "statModifier": { "rangedWeaponsAcc": 0.23, "rangedWeaponsSpeed": 0.09 }
+    },
+    "trial-bow-shimmer": {
+      "damage": 4.5,
+      "damageTier": 2,
+      "statModifier": { "rangedWeaponsAcc": 0.28, "rangedWeaponsSpeed": 0.11 }
+    },
+    "trial-bow-radiant": {
+      "damage": 5.5,
+      "damageTier": 3,
+      "statModifier": { "rangedWeaponsAcc": 0.34, "rangedWeaponsSpeed": 0.13 }
+    },
+    "trial-bow-abyssal": {
+      "damage": 6.5,
+      "damageTier": 3,
+      "statModifier": { "rangedWeaponsAcc": 0.40, "rangedWeaponsSpeed": 0.15 }
     }
   },
   "behaviors": [{

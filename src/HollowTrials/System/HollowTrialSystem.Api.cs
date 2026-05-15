@@ -21,11 +21,33 @@ namespace VsQuest
 
         /// <summary>
         /// Reload trial configs from disk (hot-reload). Returns number of configs loaded.
+        /// Also clears all registered anchor points so they re-register on next block tick.
         /// </summary>
         public int ReloadConfigs()
         {
             LoadConfigs();
+            ClearAllAnchors();
             return allConfigs.Count;
+        }
+
+        /// <summary>
+        /// Clears all registered anchor points from state.
+        /// Anchors will re-register themselves on their next tick cycle.
+        /// </summary>
+        public void ClearAllAnchors()
+        {
+            if (state?.entries == null) return;
+
+            foreach (var kvp in state.entries)
+            {
+                if (kvp.Value?.anchorPoints != null)
+                {
+                    kvp.Value.anchorPoints.Clear();
+                }
+            }
+
+            stateDirty = true;
+            sapi?.Logger?.Notification("[HollowTrials] All anchor points cleared. They will re-register on next tick.");
         }
 
         /// <summary>

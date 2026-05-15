@@ -34,6 +34,7 @@
       "owner": "npc",
       "type": "talk",
       "trigger": "openserverinfo",
+      "jumpTo": "end",
       "text": [
         { "value": "albase:dialogue-herald-openserverinfo-confirm" }
       ]
@@ -43,6 +44,7 @@
       "owner": "npc",
       "type": "talk",
       "trigger": "openpromocode",
+      "jumpTo": "end",
       "text": [
         { "value": "albase:dialogue-herald-openpromocode-confirm" }
       ]
