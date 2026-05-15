@@ -1,0 +1,31 @@
+{
+  "code": "trial-abyss-pendant",
+  "behaviors": [{ "name": "Wearable" }],
+  "maxstacksize": 1,
+  "storageFlags": 128,
+  "attributes": {
+    "handbook": { "exclude": true },
+    "clothescategory": "neck",
+    "wearableAttachment": true,
+    "warmth": 0
+  },
+  "shape": { "base": "game:entity/humanoid/seraph/clothing/emblem/fibula" },
+  "textures": {
+    "seraph": { "base": "game:block/transparent" },
+    "brass": { "base": "albase:trials/abyss-pendant" }
+  },
+  "renderAlphaTest": 0.25,
+  "guiTransform": {
+    "rotate": false,
+    "translation": { "x": 0, "y": 0, "z": 0 },
+    "rotation": { "x": 174, "y": -90, "z": 5 },
+    "origin": { "x": 0.71, "y": 1.37, "z": 0.41 },
+    "scale": 6
+  },
+  "groundTransform": {
+    "translation": { "x": 0.05, "y": -0.13, "z": 0 },
+    "rotation": { "x": 0, "y": 0, "z": -90 },
+    "origin": { "x": 0.5, "y": 0.5, "z": 0.5299 },
+    "scale": 5
+  }
+}

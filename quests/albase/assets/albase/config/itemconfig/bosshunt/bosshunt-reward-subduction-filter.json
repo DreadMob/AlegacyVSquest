@@ -1,0 +1,39 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:bosshunt-reward-subduction-filter",
+      "itemCode": "albase:bosshunt-subduction-filter",
+      "name": "<font color=\"#22C55E\">Фильтр субдукции</font>",
+      "description": "<font color=\"#86EFAC\">Глубина дышит за тебя.</font>",
+      "actions": [],
+      "chargeMode": "partial",
+      "chargeGatedAttrs": ["walkspeed"],
+      "chargeMaterials": ["nugget-rhodochrosite"],
+      "chargePerUnit": 30,
+      "chargeMax": 720,
+      "attributes": {
+        "filterchargehours": 10,
+        "maxoxygen": 84000,
+        "hungerrate": 0.18,
+        "maxhealthflat": -1.5,
+        "walkspeed": 0.15,
+        "viewdistance": -0.25
+      },
+      "showAttributes": [
+        "filterchargehours",
+        "maxoxygen",
+        "hungerrate",
+        "maxhealthflat",
+        "walkspeed",
+        "viewdistance"
+      ],
+      "hideVanillaTooltips": [
+        "armor",
+        "protection",
+        "warmth",
+        "walkspeed",
+        "modsource"
+      ]
+    }
+  ]
+}

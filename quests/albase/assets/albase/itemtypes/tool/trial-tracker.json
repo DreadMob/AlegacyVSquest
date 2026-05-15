@@ -1,16 +1,11 @@
 {
   "code": "trial-tracker",
+  "class": "ItemTemporalGear",
   "maxstacksize": 1,
-  "durability": 0,
-  "storageFlags": 2,
+  "storageFlags": 257,
+  "materialDensity": 4000,
   "creativeinventory": {
     "general": ["*"]
-  },
-  "shape": { "base": "game:item/resource/temporalgear-s" },
-  "textures": {
-    "metal": { "base": "game:block/metal/ingot/lead" },
-    "crystal": { "base": "game:block/stone/obsidian" },
-    "all": { "base": "game:block/stone/obsidian" }
   },
   "attributes": {
     "handbook": { "exclude": true },
@@ -20,23 +15,36 @@
     "alegacyvsquest:actionitem:displayName": "albase:trial-tracker-name",
     "alegacyvsquest:actionitem:description": "albase:trial-tracker-desc"
   },
-  "heldTpIdleAnimation": "holdbothhands",
+  "shape": {
+    "base": "game:item/gear-temporal"
+  },
+  "textures": {
+    "temporal": {
+      "base": "game:block/stone/obsidian"
+    }
+  },
   "guiTransform": {
-    "translation": { "x": 0, "y": 0, "z": 0 },
-    "rotation": { "x": -20, "y": 40, "z": 0 },
-    "origin": { "x": 0.5, "y": 0.3, "z": 0.5 },
-    "scale": 4.5
+    "translation": { "x": 3, "y": 1, "z": 0 },
+    "rotation": { "x": 145, "y": -12, "z": 0 },
+    "origin": { "x": 0.5, "y": 0.0625, "z": 0.5 },
+    "scale": 2.5
+  },
+  "fpHandTransform": {
+    "translation": { "x": 0, "y": 0.2, "z": 0 },
+    "rotation": { "x": 15, "y": 0, "z": 0 },
+    "origin": { "x": 0.5, "y": 0, "z": 0.5 },
+    "scale": 1.8
+  },
+  "tpHandTransform": {
+    "translation": { "x": -0.95, "y": -0.11, "z": -0.85 },
+    "rotation": { "x": 0, "y": -89, "z": 5 },
+    "origin": { "x": 0.5, "y": 0.0625, "z": 0.5 },
+    "scale": 0.61
   },
   "groundTransform": {
     "translation": { "x": 0, "y": 0, "z": 0 },
     "rotation": { "x": 0, "y": 0, "z": 0 },
-    "origin": { "x": 0.5, "y": 0, "z": 0.5 },
-    "scale": 4
-  },
-  "tpHandTransform": {
-    "translation": { "x": -0.5, "y": -0.3, "z": -0.5 },
-    "rotation": { "x": 0, "y": 0, "z": 0 },
-    "origin": { "x": 0.5, "y": 0.3, "z": 0.5 },
-    "scale": 0.7
+    "origin": { "x": 0.39, "y": 0, "z": 0.47 },
+    "scale": 3.76
   }
 }

@@ -1,0 +1,30 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:bosshunt-reward-subduction-quiver",
+      "itemCode": "albase:bosshunt-subduction-quiver",
+      "name": "<font color=\"#C0C0C0\">Колчан Крипты</font>",
+      "description": "<font color=\"#D1D5DB\">Кости помнят, куда целиться.</font>",
+      "actions": [],
+      "attributes": {
+        "rangedaccuracy": 0.18,
+        "rangeddamagemult": 0.12,
+        "rangedchargspeed": 0.07,
+        "hungerrate": 0.075
+      },
+      "showAttributes": [
+        "rangedaccuracy",
+        "rangeddamagemult",
+        "rangedchargspeed",
+        "hungerrate"
+      ],
+      "hideVanillaTooltips": [
+        "armor",
+        "protection",
+        "warmth",
+        "walkspeed",
+        "modsource"
+      ]
+    }
+  ]
+}

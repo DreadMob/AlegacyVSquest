@@ -33,9 +33,14 @@ namespace VsQuest
         public Dictionary<string, int> DeathsByPlayer { get; } = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
-        /// Per-player potion/food usage count during this fight.
+        /// Per-player: whether saturation increased during the fight (for "nofood" challenge).
         /// </summary>
-        public Dictionary<string, int> PotionUsageByPlayer { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, bool> SaturationGainedByPlayer { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Per-player: saturation value recorded at fight start (first damage by that player).
+        /// </summary>
+        public Dictionary<string, float> InitialSaturationByPlayer { get; } = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Per-player max armor tier worn during fight.
@@ -93,17 +98,28 @@ namespace VsQuest
         }
 
         /// <summary>
-        /// Record potion/food usage by a player.
+        /// Record the initial saturation for a player when they first engage the boss.
         /// </summary>
-        public void RecordPotionUsage(string playerUid)
+        public void RecordInitialSaturation(string playerUid, float saturation)
         {
             if (string.IsNullOrWhiteSpace(playerUid)) return;
             if (!started) return;
 
-            if (!PotionUsageByPlayer.ContainsKey(playerUid))
-                PotionUsageByPlayer[playerUid] = 0;
+            if (!InitialSaturationByPlayer.ContainsKey(playerUid))
+            {
+                InitialSaturationByPlayer[playerUid] = saturation;
+            }
+        }
 
-            PotionUsageByPlayer[playerUid]++;
+        /// <summary>
+        /// Record that a player's saturation increased during the fight (ate food).
+        /// </summary>
+        public void RecordSaturationGain(string playerUid)
+        {
+            if (string.IsNullOrWhiteSpace(playerUid)) return;
+            if (!started) return;
+
+            SaturationGainedByPlayer[playerUid] = true;
         }
 
         /// <summary>
@@ -212,7 +228,8 @@ namespace VsQuest
             FirstAttackerUid = null;
             DamageByPlayer.Clear();
             DeathsByPlayer.Clear();
-            PotionUsageByPlayer.Clear();
+            SaturationGainedByPlayer.Clear();
+            InitialSaturationByPlayer.Clear();
             MaxArmorTierByPlayer.Clear();
             AbilityDamageByPlayer.Clear();
         }

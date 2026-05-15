@@ -1,0 +1,30 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:bosshunt-reward-life-amulet",
+      "itemCode": "albase:bosshunt-life-amulet",
+      "name": "<font color=\"#34D399\">Талисман стаи</font>",
+      "description": "<font color=\"#6EE7B7\">Вожак мёртв. Стая — нет.</font>",
+      "actions": [],
+      "attributes": {
+        "healonkill": 0.05,
+        "hungerrate": 0.12,
+        "walkspeed": -0.03,
+        "maxhealthflat": 2.0
+      },
+      "showAttributes": [
+        "healonkill",
+        "hungerrate",
+        "walkspeed",
+        "maxhealthflat"
+      ],
+      "hideVanillaTooltips": [
+        "armor",
+        "protection",
+        "warmth",
+        "walkspeed",
+        "modsource"
+      ]
+    }
+  ]
+}

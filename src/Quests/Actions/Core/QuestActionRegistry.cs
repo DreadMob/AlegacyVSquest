@@ -112,7 +112,7 @@ namespace VsQuest
             // Hollow Trials actions
             actionRegistry.Add("trialchallengebonuses", new TrialChallengeBonusesAction());
             actionRegistry.Add("tracktrialboss", new TrackTrialBossAction());
-            actionRegistry.Add("opentrialcase", new OpenTrialCaseAction());
+            actionRegistry.Add("openshop", new OpenTrialShopAction());
         }
     }
 }

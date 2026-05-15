@@ -1,0 +1,30 @@
+﻿{
+  "code": "trial-rift-bracelet",
+  "behaviors": [{ "name": "Wearable" }],
+  "maxstacksize": 1,
+  "storageFlags": 128,
+  "attributes": {
+    "handbook": { "exclude": true },
+    "clothescategory": "arm",
+    "wearableAttachment": true,
+    "warmth": 0
+  },
+  "shape": { "base": "game:entity/humanoid/seraph/clothing/arm/rusty-wrist-manacles" },
+  "textures": {
+    "seraph": { "base": "game:block/transparent" },
+    "rusty-iron3": { "base": "albase:trials/rift-bracelet" }
+  },
+  "renderAlphaTest": 0.25,
+  "guiTransform": {
+    "rotate": false,
+    "translation": { "x": 0, "y": 0, "z": 0 },
+    "rotation": { "x": 174, "y": -49, "z": 23 },
+    "origin": { "x": 0.42, "y": 0.9, "z": 0.7 },
+    "scale": 4.71
+  },
+  "groundTransform": {
+    "translation": { "x": 0.05, "y": -0.18, "z": 0 },
+    "rotation": { "x": 0, "y": 0, "z": 0 },
+    "scale": 4
+  }
+}

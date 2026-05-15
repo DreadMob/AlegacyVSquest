@@ -29,6 +29,17 @@ namespace VsQuest
         public List<QuestCompletionRewardStatus> completionRewards { get; set; }
         public List<ReputationRankRewardStatus> reputationNpcRankRewards { get; set; }
         public List<ReputationRankRewardStatus> reputationFactionRankRewards { get; set; }
+
+        // Trial shop data (populated only for trial warden NPC)
+        public bool hasTrialShop { get; set; }
+        public int trialShopShards { get; set; }
+        public int trialShopReputation { get; set; }
+        public string trialShopRankName { get; set; }
+        public string trialModifierName { get; set; }
+        public List<TrialShopItemData> trialShopItems { get; set; }
+
+        // Trial challenges for active quest (shown in quest description)
+        public List<string> trialChallengeNames { get; set; }
     }
 
     [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]

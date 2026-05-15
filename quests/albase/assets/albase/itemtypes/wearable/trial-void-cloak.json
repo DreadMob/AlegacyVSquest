@@ -1,0 +1,31 @@
+﻿{
+  "code": "trial-void-cloak",
+  "behaviors": [{ "name": "Wearable" }],
+  "maxstacksize": 1,
+  "storageFlags": 128,
+  "attributes": {
+    "handbook": { "exclude": true },
+    "clothescategory": "shoulder",
+    "wearableAttachment": true,
+    "warmth": 0
+  },
+  "shape": { "base": "game:entity/humanoid/seraph/clothing/shoulder/cloak" },
+  "textures": {
+    "seraph": { "base": "game:block/transparent" },
+    "cloak": { "base": "albase:trials/void-cloak" }
+  },
+  "renderAlphaTest": 0.25,
+  "guiTransform": {
+    "rotate": false,
+    "translation": { "x": 2, "y": 0, "z": 17 },
+    "rotation": { "x": -178, "y": -65, "z": 10 },
+    "origin": { "x": 0.4, "y": 1.45, "z": 0.5 },
+    "scale": 1.51
+  },
+  "groundTransform": {
+    "translation": { "x": 0.05, "y": 0.1, "z": 0 },
+    "rotation": { "x": 0, "y": 0, "z": -87 },
+    "origin": { "x": 0.5, "y": 0.5, "z": 0.5299 },
+    "scale": 2.19
+  }
+}

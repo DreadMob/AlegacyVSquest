@@ -1,0 +1,34 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:bosshunt-reward-fox-boots",
+      "itemCode": "albase:flashboots",
+      "name": "<font color=\"#F97316\">Сапоги искры</font>",
+      "description": "<font color=\"#FDBA74\">Земля не успевает запомнить след.</font>",
+      "actions": [],
+      "triggerOnInventoryAdd": true,
+      "attributes": {
+        "walkspeed": 0.15,
+        "hungerrate": 0.1,
+        "maxhealthflat": -2.0,
+        "jumpheightmul": 0.35,
+        "falldamagemult": 0.2
+      },
+      "showAttributes": [
+        "walkspeed",
+        "hungerrate",
+        "maxhealthflat",
+        "stealth",
+        "jumpheightmul",
+        "falldamagemult"
+      ],
+      "hideVanillaTooltips": [
+        "armor",
+        "protection",
+        "warmth",
+        "walkspeed",
+        "modsource"
+      ]
+    }
+  ]
+}

@@ -399,6 +399,22 @@ namespace VsQuest
                             }
                         }
 
+                        // Hollow Trials: show active trial boss name for killactivetrial objective
+                        if (actionObjective.id == "killactivetrial" && actionObjective.args != null && actionObjective.args.Length >= 1 && prog.Count >= 2)
+                        {
+                            string tierStr = actionObjective.args[0];
+                            if (int.TryParse(tierStr, out int tier))
+                            {
+                                string trialBossName = ResolveActiveTrialBossName(tier);
+                                if (!string.IsNullOrWhiteSpace(trialBossName))
+                                {
+                                    string killLine = Lang.Get("alegacyvsquest:progress-pair", trialBossName, prog[0], prog[1]);
+                                    lines.Add($"- {ApplyPrefixes(killLine, effectiveObjectiveId, actionObjectivesToProcess)}");
+                                    continue;
+                                }
+                            }
+                        }
+
                         string line;
                         if (actionObjective.id == "walkdistance" && prog.Count >= 2)
                         {
@@ -426,6 +442,34 @@ namespace VsQuest
                 api.Logger.Error($"[alegacyvsquest] Error building progress text for quest '{activeQuest.questId}': {e}");
                 return LocalizationUtils.GetSafe("alegacyvsquest:progress-load-error");
             }
+        }
+
+        private static string ResolveActiveTrialBossName(int tier)
+        {
+            // Try to get the active trial boss name for the given tier
+            // This is called on the client side, so we use lang keys
+            string tierSuffix = tier switch
+            {
+                1 => "tier1",
+                2 => "tier2",
+                3 => "tier3",
+                _ => "tier1"
+            };
+            
+            // Return the tier name as fallback — the actual boss name would require server data
+            string tierName = LocalizationUtils.GetSafe($"albase:trial-{tierSuffix}-name");
+            if (!string.IsNullOrWhiteSpace(tierName) && !tierName.Contains("trial-"))
+            {
+                return tierName;
+            }
+            
+            return tier switch
+            {
+                1 => "Полое Испытание",
+                2 => "Глубинное Испытание",
+                3 => "Бездонное Испытание",
+                _ => "Испытание"
+            };
         }
 
         private static void AppendLandClaimInfo(List<string> lines, Quest questDef, ITreeAttribute wa)

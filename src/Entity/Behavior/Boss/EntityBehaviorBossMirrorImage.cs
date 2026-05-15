@@ -9,53 +9,58 @@ using Vintagestory.API.Server;
 namespace VsQuest
 {
     /// <summary>
-    /// Mirror Image: boss creates 1-2 illusions (same model, 1 HP, don't attack).
-    /// Real boss teleports. Illusions disappear after timeout or 1 hit.
+    /// Mirror Image: boss creates illusion entities and teleports.
+    /// Illusions have 1 HP and auto-despawn after lifetime.
     /// </summary>
-    public class EntityBehaviorBossMirrorImage : EntityBehavior
+    public class EntityBehaviorBossMirrorImage : BossAbilityBase
     {
-        private int imageCount = 2;
-        private float imageLifetimeSec = 6f;
-        private bool teleportOnCast = true;
-        private float teleportRadius = 6f;
-        private float cooldownSec = 20f;
+        private const string LastMirrorKey = "alegacyvsquest:bossmirrorimage:lastMs";
+        protected override string CooldownKey => LastMirrorKey;
 
+        private class Stage : BossAbilityStage
+        {
+            public int imageCount;
+            public float imageLifetimeSec;
+            public bool teleportOnCast;
+            public float teleportRadius;
+            public string sound;
+            public float soundRange;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                imageCount = json["imageCount"].AsInt(2);
+                imageLifetimeSec = json["imageLifetimeSec"].AsFloat(6f);
+                teleportOnCast = json["teleportOnCast"].AsBool(true);
+                teleportRadius = json["teleportRadius"].AsFloat(6f);
+                sound = json["sound"].AsString("effect/translocate-active");
+                soundRange = json["soundRange"].AsFloat(32f);
+            }
+        }
+
+        private List<Stage> stages = new();
         private readonly List<long> activeImageIds = new();
-        private double lastCastMs;
 
         public EntityBehaviorBossMirrorImage(Entity entity) : base(entity) { }
         public override string PropertyName() => "bossmirrorimage";
 
-        public override void Initialize(EntityProperties properties, JsonObject typeAttributes)
+        protected override void InitializeStages(JsonObject attributes) { stages = ParseStages<Stage>(attributes); }
+        protected override int GetStageCount() => stages.Count;
+        protected override object GetStage(int index) => stages[index];
+        protected override float GetStageHealthThreshold(object stage) => ((Stage)stage).whenHealthRelBelow;
+        protected override float GetStageCooldown(object stage) => ((Stage)stage).cooldownSeconds;
+        protected override float GetMaxTargetRange(object stage) => ((Stage)stage).maxTargetRange;
+
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
-            base.Initialize(properties, typeAttributes);
-            imageCount = typeAttributes["imageCount"].AsInt(2);
-            imageLifetimeSec = typeAttributes["imageLifetimeSec"].AsFloat(6f);
-            teleportOnCast = typeAttributes["teleportOnCast"].AsBool(true);
-            teleportRadius = typeAttributes["teleportRadius"].AsFloat(6f);
-            cooldownSec = typeAttributes["cooldownSec"].AsFloat(20f);
-        }
+            if (stageObj is not Stage stage) return;
+            MarkCooldownStart();
 
-        /// <summary>
-        /// Create mirror images and optionally teleport.
-        /// </summary>
-        public bool TryCast()
-        {
-            if (entity.Api?.Side != EnumAppSide.Server) return false;
-            if (!entity.Alive) return false;
-
-            double nowMs = entity.World.ElapsedMilliseconds;
-            if (nowMs - lastCastMs < cooldownSec * 1000) return false;
-
-            lastCastMs = nowMs;
-            var sapi = entity.Api as ICoreServerAPI;
-            if (sapi == null) return false;
-
-            var bossPos = entity.Pos.XYZ;
-            var rand = entity.World.Rand;
+            var bossPos = entity.Pos.XYZ.Clone();
+            var rand = Sapi.World.Rand;
 
             // Spawn illusions at random positions around boss
-            for (int i = 0; i < imageCount; i++)
+            for (int i = 0; i < stage.imageCount; i++)
             {
                 double angle = rand.NextDouble() * Math.PI * 2;
                 double dist = 2 + rand.NextDouble() * 3;
@@ -65,14 +70,17 @@ namespace VsQuest
                     bossPos.Z + Math.Sin(angle) * dist
                 );
 
-                SpawnIllusion(sapi, imagePos);
+                SpawnIllusion(imagePos, stage.imageLifetimeSec);
+
+                // Shadow explosion at each illusion position
+                ParticleUtils.SpawnShadowExplosion(Sapi, imagePos, 1.5f, 1);
             }
 
             // Teleport real boss
-            if (teleportOnCast)
+            if (stage.teleportOnCast)
             {
                 double tpAngle = rand.NextDouble() * Math.PI * 2;
-                double tpDist = 3 + rand.NextDouble() * (teleportRadius - 3);
+                double tpDist = 3 + rand.NextDouble() * (stage.teleportRadius - 3);
                 Vec3d tpPos = new Vec3d(
                     bossPos.X + Math.Cos(tpAngle) * tpDist,
                     bossPos.Y,
@@ -80,20 +88,24 @@ namespace VsQuest
                 );
 
                 entity.TeleportTo(tpPos);
-                SpawnTeleportParticles(bossPos);
-                SpawnTeleportParticles(tpPos);
+
+                // Shadow explosion at boss old and new positions
+                ParticleUtils.SpawnShadowExplosion(Sapi, bossPos, 1.5f, 1);
+                ParticleUtils.SpawnShadowExplosion(Sapi, tpPos, 1.5f, 1);
             }
 
-            return true;
+            // Sound
+            TryPlaySound(stage.sound, stage.soundRange);
+
+            SetAbilityActive(false);
         }
 
-        private void SpawnIllusion(ICoreServerAPI sapi, Vec3d pos)
+        private void SpawnIllusion(Vec3d pos, float lifetimeSec)
         {
             try
             {
-                // Create same entity type but with 1 HP and marked as illusion
                 var type = entity.Properties;
-                var illusion = sapi.World.ClassRegistry.CreateEntity(type);
+                var illusion = Sapi.World.ClassRegistry.CreateEntity(type);
                 if (illusion == null) return;
 
                 illusion.Pos.SetPosWithDimension(new Vec3d(pos.X, pos.Y + entity.Pos.Dimension * 32768.0, pos.Z));
@@ -101,51 +113,39 @@ namespace VsQuest
 
                 // Mark as illusion (1 HP, no AI attack, auto-despawn)
                 illusion.WatchedAttributes.SetBool("alegacyvsquest:mirrorillusion", true);
+                illusion.WatchedAttributes.SetBool("alegacyvsquest:bossclone", true);
                 illusion.WatchedAttributes.MarkPathDirty("alegacyvsquest:mirrorillusion");
 
-                sapi.World.SpawnEntity(illusion);
+                Sapi.World.SpawnEntity(illusion);
                 activeImageIds.Add(illusion.EntityId);
 
                 // Schedule despawn after lifetime
-                sapi.Event.RegisterCallback(_ =>
+                RegisterCallbackTracked(_ =>
                 {
                     if (illusion.Alive)
                     {
-                        sapi.World.DespawnEntity(illusion, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
+                        Sapi.World.DespawnEntity(illusion, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
                     }
                     activeImageIds.Remove(illusion.EntityId);
-                }, (int)(imageLifetimeSec * 1000));
+                }, (int)(lifetimeSec * 1000));
             }
             catch (Exception ex)
             {
-                entity.Api?.Logger?.Warning("[BossMirrorImage] Failed to spawn illusion: {0}", ex.Message);
+                Sapi?.Logger?.Warning("[BossMirrorImage] Failed to spawn illusion: {0}", ex.Message);
             }
         }
 
-        private void SpawnTeleportParticles(Vec3d pos)
+        protected override void StopAbility()
         {
-            entity.World.SpawnParticles(new SimpleParticleProperties(
-                10, 15, ColorUtil.ToRgba(160, 140, 80, 200),
-                new Vec3d(pos.X - 0.5, pos.Y, pos.Z - 0.5),
-                new Vec3d(pos.X + 0.5, pos.Y + 2, pos.Z + 0.5),
-                new Vec3f(-0.2f, 0.1f, -0.2f), new Vec3f(0.2f, 0.4f, 0.2f),
-                0.8f, 0f, 0.15f, 0.35f));
-        }
-
-        public override void OnEntityDespawn(EntityDespawnData despawn)
-        {
-            base.OnEntityDespawn(despawn);
-
-            // Clean up illusions
-            var sapi = entity.Api as ICoreServerAPI;
-            if (sapi != null)
+            // Clean up illusions on death/despawn
+            if (Sapi != null)
             {
                 foreach (var id in activeImageIds)
                 {
-                    var e = sapi.World.GetEntityById(id);
+                    var e = Sapi.World.GetEntityById(id);
                     if (e != null && e.Alive)
                     {
-                        sapi.World.DespawnEntity(e, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
+                        Sapi.World.DespawnEntity(e, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
                     }
                 }
             }

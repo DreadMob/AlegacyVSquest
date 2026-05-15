@@ -15,7 +15,7 @@ namespace VsQuest
     /// </summary>
     public class PromoCodeSystem
     {
-        private const string RuntimeConfigFile = "promocodes-runtime.json";
+        private const string RuntimeConfigFile = "alegacyvsquest/promocodes-runtime.json";
 
         private readonly ICoreServerAPI sapi;
         private readonly ItemSystem itemSystem;

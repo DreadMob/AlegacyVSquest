@@ -8,7 +8,9 @@ namespace VsQuest
         Generic = 0,
         QuestCompleted = 1,
         BossDefeated = 2,
-        Reroll = 3
+        Reroll = 3,
+        TrialRotation = 4,
+        BossHuntEvent = 5
     }
 
     public static class GlobalChatBroadcastUtil

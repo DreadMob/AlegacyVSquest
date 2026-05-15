@@ -1,0 +1,31 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:bosshunt-reward-duelist",
+      "itemCode": "albase:malefactor-cloak",
+      "name": "<font color=\"#EF4444\">Плащ субдукции</font>",
+      "description": "<font color=\"#FCA5A5\">В складках ткани — чужие голоса. Тихие, но настойчивые.</font>",
+      "actions": [],
+      "attributes": {
+        "hungerrate": -0.5,
+        "maxhealthflat": -2.0,
+        "temporaldrainmult": -0.6,
+        "viewdistance": -0.25
+      },
+      "showAttributes": [
+        "hungerrate",
+        "maxhealthflat",
+        "temporaldrainmult",
+        "viewdistance"
+      ],
+      "hideVanillaTooltips": [
+        "armor",
+        "attackpower",
+        "protection",
+        "warmth",
+        "walkspeed",
+        "modsource"
+      ]
+    }
+  ]
+}

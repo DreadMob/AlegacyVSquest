@@ -1,84 +1,23 @@
-{
-  "albase:trial-system-name": "Hollow Trials",
-  "albase:trial-rotation-reset-chat": "§5[Hollow Trials]§r The rifts have shifted. New hollows have awakened.",
+﻿{
+    "actionItems":  [
+                        {
+                            "id":  "albase:trial-void-pendant",
+                            "itemCode":  "albase:trial-void-pendant",
+                            "name":  "\u003cfont color=\"#A78BFA\"\u003eРџРѕРґРІРµСЃРєР° РџСѓСЃС‚РѕС‚С‹\u003c/font\u003e",
+                            "description":  "\u003cfont color=\"#9CA3AF\"\u003eРљР°РјРµРЅСЊ РёР· СЃРµСЂРґС†Р° СЂР°Р·Р»РѕРјР°. РџРѕРєР° С‚С‹ С†РµР» вЂ” РџСѓСЃС‚РѕС‚Р° СѓСЃРёР»РёРІР°РµС‚ СѓРґР°СЂС‹.\u003c/font\u003e",
+                            "actions":  [
 
-  "albase:trial-warden-name": "Rift Herald",
-  "albase:trial-warden-title": "Fallen Researcher",
-
-  "albase:trial-warden-greeting": "You feel it? The cold from the rifts... They've opened again. I know where they are. I always know.",
-  "albase:trial-warden-greeting-rank1": "You're back. The rifts don't wait — the hollows grow stronger each day.",
-  "albase:trial-warden-greeting-rank2": "Hardened... You've seen enough to understand. The deep rifts await you.",
-  "albase:trial-warden-greeting-rank3": "Void Master. Few make it this far. The abyssal rifts... they're different. Be ready.",
-
-  "albase:trial-warden-intro-title": "The First Rift",
-  "albase:trial-warden-intro-text": "In certain places, the fabric of reality has worn thin. Through the rifts, creatures seep in — hollows. They don't hunt. They simply exist. But approach them, and they perceive it as intrusion.\n\nI cannot close the rifts. No one can. But I know where they appear. Take this shard — it resonates with the void. It will help you find the way.",
-  "albase:trial-warden-intro-option": "Accept the shard",
-
-  "albase:trial-warden-quest-offer": "A rift is active. The hollow awaits.",
-  "albase:trial-warden-quest-complete": "The rift has quieted... for now. Take this — you've earned it.",
-  "albase:trial-warden-quest-cooldown": "That rift is still recovering. Come back later.",
-
-  "albase:trial-warden-shop-title": "Void Relics",
-  "albase:trial-warden-shop-locked": "You lack the experience. Keep clearing rifts.",
-
-  "albase:trial-tier1-name": "Hollow Trial",
-  "albase:trial-tier2-name": "Deep Trial",
-  "albase:trial-tier3-name": "Abyssal Trial",
-
-  "albase:trial-rank-novice": "Novice",
-  "albase:trial-rank-tested": "Tested",
-  "albase:trial-rank-hardened": "Hardened",
-  "albase:trial-rank-master": "Void Master",
-  "albase:trial-rank-conqueror": "Abyss Conqueror",
-
-  "albase:trial-challenge-speedkill": "Speed Kill",
-  "albase:trial-challenge-deathless": "Deathless",
-  "albase:trial-challenge-nopotions": "No Potions",
-  "albase:trial-challenge-lowgear": "Light Armor",
-  "albase:trial-challenge-perfectdodge": "Perfect Dodge",
-
-  "albase:trial-quality-dim": "Dim",
-  "albase:trial-quality-shimmering": "Shimmering",
-  "albase:trial-quality-radiant": "Radiant",
-  "albase:trial-quality-abyssal": "Abyssal",
-
-  "albase:trial-tracker-name": "Echo of the Void",
-  "albase:trial-tracker-desc": "A shard resonating with Abyss spawn. When used, creates a particle trail toward the nearest rift. Each use takes a sliver of life.",
-  "albase:trial-tracker-no-target": "§7[Echo of the Void]§r No target found. No active contract.",
-  "albase:trial-tracker-no-hp": "§c[Echo of the Void]§r Not enough health.",
-  "albase:trial-tracker-cooldown": "§7[Echo of the Void]§r The shard is recovering...",
-  "albase:trial-tracker-activated": "§5[Echo of the Void]§r The void responds... Follow the particles.",
-
-  "albase:trial-shadow-stalker-title": "Shadow Stalker",
-  "albase:trial-shadow-stalker-desc": "Clear the rift: destroy the Shadow Stalker.",
-  "albase:trial-shadow-stalker-accepted": "§5[Hollow Trials]§r Contract accepted: Shadow Stalker. Use Echo of the Void to track it.",
-
-  "albase:trial-iron-warden-title": "Iron Warden",
-  "albase:trial-plague-runner-title": "Plague Runner",
-  "albase:trial-ember-wraith-title": "Ember Wraith",
-  "albase:trial-cursed-knight-title": "Cursed Knight",
-  "albase:trial-void-weaver-title": "Void Weaver",
-  "albase:trial-frostbound-sentinel-title": "Frostbound Sentinel",
-  "albase:trial-blood-howler-title": "Blood Howler",
-  "albase:trial-bone-watcher-title": "Bone Watcher",
-  "albase:trial-ashen-crawler-title": "Ashen Crawler",
-  "albase:trial-deep-wanderer-title": "Deep Wanderer",
-  "albase:trial-hollow-sovereign-title": "Hollow Sovereign",
-
-  "albase:trial-quest-tier1-title": "Hollow Trial",
-  "albase:trial-quest-tier1-desc": "Destroy the hollow in the rift.",
-  "albase:trial-quest-tier2-title": "Deep Trial",
-  "albase:trial-quest-tier2-desc": "Destroy the hollow in the deep rift.",
-  "albase:trial-quest-tier3-title": "Abyssal Trial",
-  "albase:trial-quest-tier3-desc": "Destroy the hollow in the abyssal rift.",
-
-  "albase:trial-quest-accepted-tier1": "§5[Hollow Trials]§r Contract accepted: Hollow Trial. Use Echo of the Void to track it.",
-  "albase:trial-quest-accepted-tier2": "§5[Hollow Trials]§r Contract accepted: Deep Trial. Use Echo of the Void to track it.",
-  "albase:trial-quest-accepted-tier3": "§5[Hollow Trials]§r Contract accepted: Abyssal Trial. Use Echo of the Void to track it.",
-
-  "albase:trial-currency-name": "Void Shards",
-  "albase:trial-reputation-label": "Reputation",
-
-  "albase:trial-boss-killed-chat": "§5[Hollow Trials]§r {0} destroyed the hollow «{1}».",
-  "albase:trial-first-kill-bonus": "§6First kill! +30 reputation/shards.§r"
+                                        ],
+                            "attributes":  {
+                                               "fullhpdamage":  0.08
+                                           },
+                            "showAttributes":  [
+                                                   "fullhpdamage"
+                                               ],
+                            "hideVanillaTooltips":  [
+                                                        "warmth",
+                                                        "modsource"
+                                                    ]
+                        }
+                    ]
 }

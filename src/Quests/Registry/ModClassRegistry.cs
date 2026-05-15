@@ -93,6 +93,8 @@ namespace VsQuest
             api.RegisterEntityBehaviorClass("bossmirrorimage", typeof(EntityBehaviorBossMirrorImage));
             api.RegisterEntityBehaviorClass("bosscursemark", typeof(EntityBehaviorBossCurseMark));
             api.RegisterEntityBehaviorClass("bossretaliation", typeof(EntityBehaviorBossRetaliation));
+            api.RegisterEntityBehaviorClass("bossmovementstyle", typeof(EntityBehaviorBossMovementStyle));
+            api.RegisterEntityBehaviorClass("bossghostflight", typeof(EntityBehaviorBossGhostFlight));
         }
 
         private static void RegisterItems(ICoreAPI api)

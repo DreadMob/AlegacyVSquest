@@ -1,0 +1,29 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:bosshunt-reward-secondchance-mask",
+      "itemCode": "albase:2cnah-mask",
+      "name": "<font color=\"#A7F3D0\">Маска спасения</font>",
+      "description": "<font color=\"#D1FAE5\">Алмаз треснет — и ты встанешь. Один раз.</font>",
+      "actions": [],
+      "triggerOnInventoryAdd": true,
+      "attributes": {
+        "secondchancecharges": 0,
+        "maxhealthflat": -5.0,
+        "hungerrate": 0.1
+      },
+      "showAttributes": [
+        "secondchancecharges",
+        "maxhealthflat",
+        "hungerrate"
+      ],
+      "hideVanillaTooltips": [
+        "armor",
+        "protection",
+        "warmth",
+        "walkspeed",
+        "modsource"
+      ]
+    }
+  ]
+}

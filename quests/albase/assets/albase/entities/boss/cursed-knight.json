@@ -1,0 +1,151 @@
+﻿{
+  "code": "cursed-knight",
+  "class": "EntityDrifter",
+  "tags": ["alegacy-boss"],
+  "canClimb": true,
+  "hitboxSize": { "x": 0.8, "y": 2.1 },
+  "deadHitboxSize": { "x": 0.8, "y": 0.4 },
+  "eyeHeight": 1.7,
+  "attributes": {
+    "knockbackResistance": 0.7,
+    "killedByInfoText": "deadcreature-vile",
+    "reckless": true,"vsquestSoundPitchMul": 1.4,
+    "alegacyvsquestHideInfoText": true
+  },
+  "drops": [],
+  "client": {
+    "renderer": "Shape",
+    "pitchStep": false,
+    "size": 1.4,
+    "shape": { "base": "game:entity/lore/drifter/knife" },
+    "texture": { "base": "game:entity/lore/drifter/deep1" },
+    "glowLevel": 60,
+    "behaviors": [
+      { "code": "repulseagents" },
+      { "code": "controlledphysics", "stepHeight": 1.01 },
+      { "code": "floatupwhenstuck", "onlyWhenDead": true },
+      { "code": "interpolateposition" },
+      { "code": "harvestable", "duration": 999999 },
+      { "code": "boss", "bossHpBarRange": 60 },
+      { "code": "bossmusicurl", "musicKey": "theme_trial_5", "range": 60, "startRange": 25, "combatTimeoutMs": 20000, "fadeOutSeconds": 4 },
+      { "code": "bossnametag", "nameLangKey": "albase:trial-cursed-knight-title", "color": "#A78BFA", "backgroundColor": "#000000", "backgroundOpacity": 0.35, "renderRange": 60 }
+    ],
+    "animations": [
+      { "code": "standhurt", "animation": "standhurt", "animationSpeed": 2.0, "weight": 10, "blendMode": "AddAverage" },
+      { "code": "standdie", "animation": "standdie", "animationSpeed": 0.7, "weight": 10, "blendMode": "Average", "triggeredBy": { "onControls": ["dead"] } },
+      { "code": "idle", "animation": "standidle", "blendMode": "Average", "triggeredBy": { "defaultAnim": true } },
+      { "code": "standwalk", "animation": "standwalk", "blendMode": "Average" },
+      { "code": "standrun", "animation": "standrun", "blendMode": "Average" },
+      { "code": "standattack", "animation": "standattack", "animationSpeed": 1.5, "blendMode": "Average", "weight": 100 }
+    ]
+  },
+  "server": {
+    "behaviors": [
+      { "code": "repulseagents" },
+      { "code": "controlledphysics", "stepHeight": 1.01 },
+      { "code": "health", "currenthealth": 700, "maxhealth": 700 },
+      { "code": "bosspassiveregen", "regenPerSecond": 0.5, "outOfCombatRegenMult": 0.8 },
+      { "code": "bosscombatmarker", "trackCombatTime": true },
+      { "code": "bosshastargetsync" },
+      { "code": "questtarget", "targetId": "albase:trial:cursed-knight", "leashRange": 60, "returnMoveSpeed": 0.05, "leashCheckMs": 1000 },
+      {
+        "code": "emotionstates",
+        "states": [
+          { "code": "aggressiveondamage", "duration": 30, "chance": 1, "slot": 0, "priority": 0.5, "accumType": "noaccum" },
+          { "code": "cursed-rage", "duration": 999999, "chance": 1, "slot": 1, "priority": 1, "accumType": "noaccum", "whenHealthRelBelow": 0.6 },
+          { "code": "cursed-despair", "duration": 999999, "chance": 1, "slot": 1, "priority": 2, "accumType": "noaccum", "whenHealthRelBelow": 0.3 }
+        ]
+      },
+      { "code": "bossenrage", "enrageTimerSeconds": 240 },
+      { "code": "bossvulnerabilitywindow", "damageMultiplier": 2.0, "durationSeconds": 2.5, "triggerAbilities": ["bosssoulchain"] },
+      { "code": "bosssoulchain", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 14, "maxTargetRange": 20, "chainDurationSec": 4, "slowFactor": 0.5, "breakDistance": 12, "breakDamage": 25, "sound": "block/meteoriciron", "soundRange": 24 }] },
+      { "code": "bossretaliation", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 16, "maxTargetRange": 30, "damageThreshold": 35, "retaliationMultiplier": 0.6, "retaliationRadius": 7, "windowDurationSec": 3.5, "sound": "effect/reverbhit", "soundRange": 32 }] },
+      { "code": "bossphaseshift", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 12, "maxTargetRange": 25, "shiftRadius": 6, "durationMs": 1200, "sound": "block/meteoriciron", "soundRange": 32 }] },
+      {
+        "code": "taskai",
+        "inheritedTasks": false,
+        "aitasks": [
+          {
+            "code": "seekentity",
+            "entityCodes": ["player"],
+            "priority": 2.0,
+            "movespeed": 0.055,
+            "seekingRange": 30,
+            "maxFollowTime": 120,
+            "animation": "standrun",
+            "animationSpeed": 1.3
+          },
+          {
+            "code": "meleeattack",
+            "entityCodes": ["player"],
+            "priority": 2.5,
+            "damage": 14,
+            "damageTier": 3,
+            "minDist": 2.0,
+            "minVerDist": 2.5,
+            "mincooldown": 1000,
+            "maxcooldown": 1500,
+            "damagePlayerAtMs": 350,
+            "attackDurationMs": 600,
+            "animation": "standattack",
+            "animationSpeed": 1.4,
+            "sound": "game:sounds/creature/drifter-hit",
+            "soundStartMs": 350
+          },
+          {
+            "code": "meleeattack",
+            "entityCodes": ["player"],
+            "priority": 2.35,
+            "damage": 20,
+            "damageTier": 3,
+            "minDist": 2.5,
+            "minVerDist": 2.5,
+            "mincooldown": 800,
+            "maxcooldown": 1200,
+            "damagePlayerAtMs": 300,
+            "attackDurationMs": 600,
+            "animation": "standattack",
+            "animationSpeed": 1.6,
+            "sound": "game:sounds/creature/drifter-hit",
+            "soundStartMs": 300,
+            "whenInEmotionState": "cursed-rage"
+          },
+          {
+            "code": "meleeattack",
+            "entityCodes": ["player"],
+            "priority": 2.4,
+            "damage": 28,
+            "damageTier": 4,
+            "minDist": 3.0,
+            "minVerDist": 2.5,
+            "mincooldown": 3000,
+            "maxcooldown": 4000,
+            "damagePlayerAtMs": 600,
+            "attackDurationMs": 1000,
+            "animation": "standattack",
+            "animationSpeed": 1.0,
+            "sound": "game:sounds/creature/drifter-hit",
+            "soundStartMs": 600,
+            "whenInEmotionState": "cursed-despair"
+          },
+          {
+            "code": "wander",
+            "priority": 1.0,
+            "movespeed": 0.02,
+            "animation": "standwalk",
+            "animationSpeed": 1.0
+          },
+          { "code": "lookaround", "priority": 0.5 }
+        ]
+      },
+      { "code": "deaddecay", "hoursToDecay": 999999 },{ "code": "bossrespawn", "respawnInGameHours": 168, "spawnNewBoss": false },
+      { "code": "floatupwhenstuck", "onlyWhenDead": true }
+    ]
+  },
+  "sounds": {
+    "hurt": "game:sounds/creature/drifter-hurt",
+    "death": "game:sounds/creature/drifter-death",
+    "idle": "game:sounds/creature/drifter-idle"
+  }
+}
+

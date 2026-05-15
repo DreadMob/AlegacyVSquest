@@ -35,6 +35,13 @@ namespace VsQuest
 
             enrageTimerSeconds = typeAttributes["enrageTimerSeconds"].AsDouble(240);
 
+            // Override from trial tier data (set by HollowTrialSystem.ApplyTierStats)
+            double tierOverride = entity.WatchedAttributes.GetDouble("alegacyvsquest:trial:enrageTimerSeconds", 0);
+            if (tierOverride > 0)
+            {
+                enrageTimerSeconds = tierOverride;
+            }
+
             // Restore state from WatchedAttributes
             firstDamageTimeHours = entity.WatchedAttributes.GetDouble(AttrFirstDamageHours, 0);
             enraged = entity.WatchedAttributes.GetBool(AttrEnraged, false);
@@ -68,7 +75,14 @@ namespace VsQuest
         {
             if (entity.Api?.Side != EnumAppSide.Server) return;
             if (!entity.Alive) return;
-            if (enraged) return;
+
+            // Spawn enrage aura particles while enraged
+            if (enraged)
+            {
+                SpawnEnrageAura();
+                return;
+            }
+
             if (firstDamageTimeHours <= 0) return;
 
             double nowHours = entity.World.Calendar.TotalHours;
@@ -105,6 +119,18 @@ namespace VsQuest
             if (stats != null)
             {
                 stats.Set("walkspeed", "enrage", 0.5f, false);
+            }
+
+            // Enrage activation sound
+            entity.World.PlaySoundAt(new AssetLocation("game:sounds/environment/thunder1"), entity, null, true, 48);
+            entity.World.PlaySoundAt(new AssetLocation("game:sounds/creature/drifter-death"), entity, null, true, 32);
+
+            // Enrage activation particles
+            var sapi = entity.Api as ICoreServerAPI;
+            if (sapi != null)
+            {
+                ParticleUtils.SpawnShockwave(sapi, entity.Pos.XYZ, 4f, ParticleUtils.Colors.Fire, 30, 0.5f);
+                ParticleUtils.SpawnEntityAura(sapi, entity, ParticleUtils.Colors.Fire, 12, 0.5f, 0.8f);
             }
         }
 

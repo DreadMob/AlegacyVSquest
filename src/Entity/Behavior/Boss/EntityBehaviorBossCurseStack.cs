@@ -9,33 +9,58 @@ using Vintagestory.API.Server;
 namespace VsQuest
 {
     /// <summary>
-    /// Curse Stacks: each boss hit applies a curse stack to the player.
-    /// At maxStacks — triggers an effect (stun, teleport to boss, or slow).
+    /// Curse Stacks: reactive ability that triggers when boss deals damage to a player.
+    /// Each hit applies a curse stack. At maxStacks — triggers an effect (stun, teleport, or slow).
     /// Stacks decay after stackDecaySeconds without being hit.
+    /// Uses periodic tick to check for boss melee hits via lastDamageMs tracking.
     /// </summary>
-    public class EntityBehaviorBossCurseStack : EntityBehavior
+    public class EntityBehaviorBossCurseStack : BossAbilityBase
     {
-        private int maxStacks = 5;
-        private string effectType = "stun"; // "stun", "teleport", "slow"
-        private float stackDecaySeconds = 4f;
-        private float stunDurationMs = 2000f;
-        private float slowFactor = 0.5f;
-        private float slowDurationMs = 3000f;
+        private const string LastCurseKey = "alegacyvsquest:bosscursestack:lastMs";
+        protected override string CooldownKey => LastCurseKey;
 
+        private class Stage : BossAbilityStage
+        {
+            public int maxStacks;
+            public string effectType;
+            public float stackDecaySeconds;
+            public float stunDurationMs;
+            public float slowFactor;
+            public float slowDurationMs;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                maxStacks = json["maxStacks"].AsInt(5);
+                effectType = json["effectType"].AsString("stun");
+                stackDecaySeconds = json["stackDecaySeconds"].AsFloat(4f);
+                stunDurationMs = json["stunDurationMs"].AsFloat(2000f);
+                slowFactor = json["slowFactor"].AsFloat(0.5f);
+                slowDurationMs = json["slowDurationMs"].AsFloat(3000f);
+            }
+        }
+
+        private List<Stage> stages = new();
         private readonly Dictionary<string, CurseData> playerCurses = new(StringComparer.OrdinalIgnoreCase);
+        private long lastKnownDamageMs;
 
         public EntityBehaviorBossCurseStack(Entity entity) : base(entity) { }
         public override string PropertyName() => "bosscursestack";
 
-        public override void Initialize(EntityProperties properties, JsonObject typeAttributes)
+        protected override bool UsePeriodicTick() => true;
+        protected override bool RequiresTarget() => false;
+        protected override bool ShouldCheckAbility() => false;
+
+        protected override void InitializeStages(JsonObject attributes) { stages = ParseStages<Stage>(attributes); }
+        protected override int GetStageCount() => stages.Count;
+        protected override object GetStage(int index) => stages[index];
+        protected override float GetStageHealthThreshold(object stage) => ((Stage)stage).whenHealthRelBelow;
+        protected override float GetStageCooldown(object stage) => ((Stage)stage).cooldownSeconds;
+        protected override float GetMaxTargetRange(object stage) => ((Stage)stage).maxTargetRange;
+
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
-            base.Initialize(properties, typeAttributes);
-            maxStacks = typeAttributes["maxStacks"].AsInt(5);
-            effectType = typeAttributes["effectType"].AsString("stun");
-            stackDecaySeconds = typeAttributes["stackDecaySeconds"].AsFloat(4f);
-            stunDurationMs = typeAttributes["stunDurationMs"].AsFloat(2000f);
-            slowFactor = typeAttributes["slowFactor"].AsFloat(0.5f);
-            slowDurationMs = typeAttributes["slowDurationMs"].AsFloat(3000f);
+            // Not used — this is a reactive ability
         }
 
         /// <summary>
@@ -44,10 +69,17 @@ namespace VsQuest
         public void OnBossDealtDamage(IServerPlayer target)
         {
             if (target?.Entity == null || !target.Entity.Alive) return;
-            if (entity.Api?.Side != EnumAppSide.Server) return;
+            if (Sapi == null || !entity.Alive) return;
+            if (stages.Count == 0) return;
+            if (IsBossClone) return;
+
+            // Find appropriate stage for current health
+            if (!entity.TryGetHealthFraction(out float frac)) return;
+            var (stageObj, _) = FindStageForHealth(frac);
+            if (stageObj is not Stage stage) return;
 
             string uid = target.PlayerUID;
-            double nowMs = entity.World.ElapsedMilliseconds;
+            long nowMs = Sapi.World.ElapsedMilliseconds;
 
             if (!playerCurses.TryGetValue(uid, out var data))
             {
@@ -56,7 +88,7 @@ namespace VsQuest
             }
 
             // Decay check
-            if (data.stacks > 0 && nowMs - data.lastStackMs > stackDecaySeconds * 1000)
+            if (data.stacks > 0 && nowMs - data.lastStackMs > stage.stackDecaySeconds * 1000)
             {
                 data.stacks = 0;
             }
@@ -64,79 +96,93 @@ namespace VsQuest
             data.stacks++;
             data.lastStackMs = nowMs;
 
-            // Notify player of stacks
-            SpawnCurseParticles(target.Entity);
+            // Particles per stack
+            ParticleUtils.SpawnEntityAura(Sapi, target.Entity, ParticleUtils.Colors.Shadow, 4, 0.3f, 0.4f);
 
             // Trigger effect at max stacks
-            if (data.stacks >= maxStacks)
+            if (data.stacks >= stage.maxStacks)
             {
-                TriggerCurseEffect(target);
+                TriggerCurseEffect(stage, target);
                 data.stacks = 0;
             }
         }
 
-        private void TriggerCurseEffect(IServerPlayer target)
+        protected override void OnPeriodicTick(float dt)
+        {
+            // Check if boss recently dealt damage by monitoring WatchedAttributes
+            // The melee attack system sets lastDamageByEntityMs when boss hits
+            if (Sapi == null || !entity.Alive || stages.Count == 0) return;
+
+            long nowMs = Sapi.World.ElapsedMilliseconds;
+
+            // Find nearby players within melee range and apply curse if boss is attacking
+            foreach (var p in Sapi.World.AllOnlinePlayers)
+            {
+                if (p is not IServerPlayer sp) continue;
+                if (sp.Entity == null || !sp.Entity.Alive) continue;
+                if (sp.Entity.Pos.Dimension != entity.Pos.Dimension) continue;
+
+                // Check if player was recently damaged by this entity (within last tick interval)
+                long lastHurt = sp.Entity.WatchedAttributes.GetLong("lastDamageByEntityMs", 0);
+                long lastHurtBy = sp.Entity.WatchedAttributes.GetLong("lastDamageByEntityId", 0);
+
+                if (lastHurtBy == entity.EntityId && nowMs - lastHurt < CheckIntervalMs + 50)
+                {
+                    if (lastHurt > lastKnownDamageMs)
+                    {
+                        lastKnownDamageMs = lastHurt;
+                        OnBossDealtDamage(sp);
+                    }
+                }
+            }
+        }
+
+        private void TriggerCurseEffect(Stage stage, IServerPlayer target)
         {
             var pe = target.Entity;
             if (pe == null || !pe.Alive) return;
 
-            switch (effectType.ToLowerInvariant())
+            switch (stage.effectType.ToLowerInvariant())
             {
                 case "stun":
-                    // Apply stun via stat (remove walkspeed temporarily)
                     pe.Stats.Set("walkspeed", "cursestun", -0.95f, false);
-                    entity.World.RegisterCallback(_ =>
+                    RegisterCallbackTracked(_ =>
                     {
                         pe.Stats.Remove("walkspeed", "cursestun");
-                    }, (int)stunDurationMs);
+                    }, (int)stage.stunDurationMs);
                     break;
 
                 case "teleport":
-                    // Teleport player to boss position
                     var bossPos = entity.Pos.XYZ;
                     pe.TeleportTo(new Vec3d(bossPos.X, bossPos.Y, bossPos.Z));
                     break;
 
                 case "slow":
-                    // Apply slow
-                    pe.Stats.Set("walkspeed", "curseslow", -slowFactor, false);
-                    entity.World.RegisterCallback(_ =>
+                    pe.Stats.Set("walkspeed", "curseslow", -stage.slowFactor, false);
+                    RegisterCallbackTracked(_ =>
                     {
                         pe.Stats.Remove("walkspeed", "curseslow");
-                    }, (int)slowDurationMs);
+                    }, (int)stage.slowDurationMs);
                     break;
             }
 
             // Visual burst on trigger
-            SpawnCurseTriggerParticles(pe);
+            ParticleUtils.SpawnShadowExplosion(Sapi, pe.Pos.XYZ, 1.5f, 1);
+            ParticleUtils.SpawnImpact(Sapi, pe, ParticleUtils.Colors.Shadow, 15, 0.4f);
+
+            // Sound on trigger
+            TryPlaySound("effect/reverbhit", 24f);
         }
 
-        private void SpawnCurseParticles(Entity target)
+        protected override void StopAbility()
         {
-            var pos = target.Pos;
-            entity.World.SpawnParticles(new SimpleParticleProperties(
-                2, 4, ColorUtil.ToRgba(180, 100, 0, 150),
-                new Vec3d(pos.X - 0.3, pos.Y + 1, pos.Z - 0.3),
-                new Vec3d(pos.X + 0.3, pos.Y + 1.5, pos.Z + 0.3),
-                new Vec3f(0, 0.1f, 0), new Vec3f(0, 0.2f, 0),
-                0.5f, 0f, 0.1f, 0.2f));
-        }
-
-        private void SpawnCurseTriggerParticles(Entity target)
-        {
-            var pos = target.Pos;
-            entity.World.SpawnParticles(new SimpleParticleProperties(
-                15, 25, ColorUtil.ToRgba(220, 150, 0, 200),
-                new Vec3d(pos.X - 1, pos.Y, pos.Z - 1),
-                new Vec3d(pos.X + 1, pos.Y + 2, pos.Z + 1),
-                new Vec3f(-0.2f, 0.3f, -0.2f), new Vec3f(0.2f, 0.6f, 0.2f),
-                1.0f, -0.02f, 0.2f, 0.5f));
+            playerCurses.Clear();
         }
 
         private class CurseData
         {
             public int stacks;
-            public double lastStackMs;
+            public long lastStackMs;
         }
     }
 }

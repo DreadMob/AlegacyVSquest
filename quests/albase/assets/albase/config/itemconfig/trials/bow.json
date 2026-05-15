@@ -1,0 +1,19 @@
+﻿{
+  "actionItems": [
+    {
+      "id": "albase:trial-bow",
+      "itemCode": "albase:trial-bow",
+      "name": "<font color=\"#F59E0B\">Лук Пустоты</font>",
+      "description": "<font color=\"#FBBF24\">Выкован в разломе. Стрелы летят быстрее и точнее. Пустота направляет каждый выстрел.</font>",
+      "actions": [],
+      "attributes": {
+        "critchance": 0.05,
+        "bossdamage": 0.05,
+        "fullhpdamage": 0.08,
+        "rangeddamagemult": 0.15
+      },
+      "showAttributes": ["critchance", "bossdamage", "fullhpdamage", "rangeddamagemult"],
+      "hideVanillaTooltips": ["modsource"]
+    }
+  ]
+}

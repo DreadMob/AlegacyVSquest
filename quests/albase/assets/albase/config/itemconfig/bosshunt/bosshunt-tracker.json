@@ -1,0 +1,26 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:bosshunt-tracker",
+      "itemCode": "albase:gear-bosshunt",
+      "name": "<font color=\"#D97706\">Кровемер</font>",
+      "description": "<font color=\"#F59E0B\">Кровемер — тусклый осколок, что откликается на след древнего стража. Он не укажет дорогу — лишь назовёт расстояние. За каждый ответ он берёт плату кровью.</font>",
+      "actions": [
+        {
+          "id": "trackboss",
+          "args": []
+        }
+      ],
+      "blockMove": false,
+      "blockEquip": true,
+      "blockDrop": true,
+      "blockDeath": false,
+      "blockGroundStorage": false,
+      "showAttributes": [],
+      "hideVanillaTooltips": [
+        "durability",
+        "modsource"
+      ]
+    }
+  ]
+}

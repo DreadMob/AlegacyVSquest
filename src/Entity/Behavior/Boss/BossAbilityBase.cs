@@ -143,7 +143,18 @@ namespace VsQuest
         public override void OnGameTick(float dt)
         {
             base.OnGameTick(dt);
-            if (Sapi == null || entity == null) return;
+            if (entity == null) return;
+
+            // Lazy-init Sapi (may be null during Initialize if entity wasn't spawned yet)
+            if (Sapi == null)
+            {
+                Sapi = entity.Api as ICoreServerAPI;
+                if (Sapi == null) return;
+
+                CooldownSystem = new BossCooldownSystem(Sapi, entity);
+                TargetingSystem = new BossTargetingSystem(Sapi, entity);
+                MarkingSystem = new BossMarkingSystem(Sapi, entity);
+            }
 
             if (!entity.Alive)
             {
@@ -519,13 +530,23 @@ namespace VsQuest
 
         /// <summary>
         /// Override to return damage multiplier based on current conditions.
+        /// Base implementation reads trial tier ability damage multiplier from WatchedAttributes.
         /// </summary>
-        protected virtual float GetDamageMultiplier() => 1f;
+        protected virtual float GetDamageMultiplier()
+        {
+            float trialMult = entity?.WatchedAttributes?.GetFloat("alegacyvsquest:trial:abilityDamageMult", 1f) ?? 1f;
+            float enrageMult = entity?.WatchedAttributes?.GetFloat("alegacyvsquest:enrage:damageMultiplier", 1f) ?? 1f;
+            return trialMult * enrageMult;
+        }
 
         /// <summary>
         /// Override to return cooldown multiplier based on current conditions.
+        /// Base implementation reads trial tier ability cooldown multiplier from WatchedAttributes.
         /// </summary>
-        protected virtual float GetCooldownMultiplier() => 1f;
+        protected virtual float GetCooldownMultiplier()
+        {
+            return entity?.WatchedAttributes?.GetFloat("alegacyvsquest:trial:abilityCooldownMult", 1f) ?? 1f;
+        }
 
         /// <summary>
         /// Override to return range multiplier based on current conditions.

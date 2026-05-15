@@ -2,9 +2,9 @@
   "qualities": [
     {
       "id": "prestigious",
-      "name": "ПРЕСТИЖНОЕ",
+      "name": "ПРЕСТИЖ",
       "color": "#FFD700",
-      "chance": 0.05,
+      "chance": 0.125,
       "minBonusPercent": 5,
       "maxBonusPercent": 30,
       "bonusMode": "all",

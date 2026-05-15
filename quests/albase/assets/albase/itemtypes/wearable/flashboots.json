@@ -1,90 +1,97 @@
-{
-  "code": "flashboots",
-  "behaviors": [
-    { "name": "Wearable" }
-  ],
-  "maxstacksize": 1,
-  "storageFlags": 128,
-  "attributes": {
-    "handbook": { "exclude": true },
-    "clothescategory": "foot",
-    "wearableAttachment": true,
-    "warmth": 0.01,
-    "repairItemCode": { "code": "gear-temporal", "strength": 0.4 }
-  },
-  "shape": {
-    "base": "game:entity/humanoid/seraph/clothing/foot/clockmaker-shoes"
-  },
-  "textures": {
-    "seraph": {
-      "base": "game:block/transparent"
-    },
-    "shoes-clockmaker": {
-      "base": "albase:flashboots"
-    }
-  },
-  "renderAlphaTest": 0.25,
-  "fpHandTransform": {
-    "translation": {
-      "x": 0.7,
-      "y": 0.1,
-      "z": -0.4
-    },
-    "rotation": {
-      "x": -33,
-      "y": 10,
-      "z": -24
-    },
-    "scale": 2.5
-  },
-  "tpHandTransform": {
-    "translation": {
-      "x": -0.61,
-      "y": -0.67,
-      "z": -1.06
-    },
-    "rotation": {
-      "x": 48,
-      "y": 88,
-      "z": 133
-    },
-    "scale": 0.83
-  },
-  "guiTransform": {
-    "rotate": false,
-    "translation": {
-      "x": 2,
-      "y": 0,
-      "z": 18
-    },
-    "rotation": {
-      "x": 152,
-      "y": -136,
-      "z": -4
-    },
-    "origin": {
-      "x": 0.49,
-      "y": 0.16,
-      "z": 0.54
-    },
-    "scale": 2.84
-  },
-  "groundTransform": {
-    "translation": {
-      "x": 0.05,
-      "y": 0.02,
-      "z": 0
-    },
-    "rotation": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-    },
-    "origin": {
-      "x": 0.5,
-      "y": 0,
-      "z": 0.5
-    },
-    "scale": 3.11
-  }
+﻿{
+    "code":  "flashboots",
+    "behaviors":  [
+                      {
+                          "name":  "Wearable"
+                      }
+                  ],
+    "maxstacksize":  1,
+    "storageFlags":  128,
+    "attributes":  {
+                       "handbook":  {
+                                        "exclude":  true
+                                    },
+                       "clothescategory":  "foot",
+                       "wearableAttachment":  true,
+                       "warmth":  0.01,
+                       "repairItemCode":  {
+                                              "code":  "gear-temporal",
+                                              "strength":  0.4
+                                          }
+                   },
+    "shape":  {
+                  "base":  "game:entity/humanoid/seraph/clothing/foot/clockmaker-shoes"
+              },
+    "textures":  {
+                     "seraph":  {
+                                    "base":  "game:block/transparent"
+                                },
+                     "shoes-clockmaker":  {
+                                              "base":  "albase:flashboots"
+                                          }
+                 },
+    "renderAlphaTest":  0.25,
+    "fpHandTransform":  {
+                            "translation":  {
+                                                "x":  0.7,
+                                                "y":  0.1,
+                                                "z":  -0.4
+                                            },
+                            "rotation":  {
+                                             "x":  -33,
+                                             "y":  10,
+                                             "z":  -24
+                                         },
+                            "scale":  2.5
+                        },
+    "tpHandTransform":  {
+                            "translation":  {
+                                                "x":  -0.61,
+                                                "y":  -0.67,
+                                                "z":  -1.06
+                                            },
+                            "rotation":  {
+                                             "x":  48,
+                                             "y":  88,
+                                             "z":  133
+                                         },
+                            "scale":  0.83
+                        },
+    "guiTransform":  {
+                         "rotate":  false,
+                         "translation":  {
+                                             "x":  2,
+                                             "y":  0,
+                                             "z":  18
+                                         },
+                         "rotation":  {
+                                          "x":  152,
+                                          "y":  -136,
+                                          "z":  -4
+                                      },
+                         "origin":  {
+                                        "x":  0.49,
+                                        "y":  0.16,
+                                        "z":  0.54
+                                    },
+                         "scale":  2.84
+                     },
+    "groundTransform":  {
+                            "translation":  {
+                                                "x":  0.05,
+                                                "y":  0.02,
+                                                "z":  0
+                                            },
+                            "rotation":  {
+                                             "x":  0,
+                                             "y":  0,
+                                             "z":  0
+                                         },
+                            "origin":  {
+                                           "x":  0.5,
+                                           "y":  0,
+                                           "z":  0.5
+                                       },
+                            "scale":  3.11
+                        }
 }

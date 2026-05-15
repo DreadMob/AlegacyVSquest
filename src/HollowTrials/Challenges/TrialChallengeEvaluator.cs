@@ -12,15 +12,15 @@ namespace VsQuest
         /// Evaluate all challenges for a boss kill and return the list of completed challenge types.
         /// </summary>
         public static List<string> Evaluate(
-            HollowTrialConfig config,
+            List<HollowTrialChallenge> challenges,
             TrialCombatTracker tracker,
             string playerUid)
         {
             var completed = new List<string>();
-            if (config?.challenges == null || tracker == null || string.IsNullOrWhiteSpace(playerUid))
+            if (challenges == null || challenges.Count == 0 || tracker == null || string.IsNullOrWhiteSpace(playerUid))
                 return completed;
 
-            foreach (var challenge in config.challenges)
+            foreach (var challenge in challenges)
             {
                 if (challenge == null || string.IsNullOrWhiteSpace(challenge.type)) continue;
 
@@ -28,7 +28,7 @@ namespace VsQuest
                 {
                     "speedkill" => EvaluateSpeedkill(tracker, challenge),
                     "deathless" => EvaluateDeathless(tracker, playerUid),
-                    "nopotions" => EvaluateNoPotions(tracker, playerUid),
+                    "nofood" => EvaluateNoFood(tracker, playerUid),
                     "lowgear" => EvaluateLowGear(tracker, playerUid, challenge),
                     "perfectdodge" => EvaluatePerfectDodge(tracker, playerUid, challenge),
                     _ => false
@@ -58,12 +58,12 @@ namespace VsQuest
             return deaths == 0;
         }
 
-        private static bool EvaluateNoPotions(TrialCombatTracker tracker, string playerUid)
+        private static bool EvaluateNoFood(TrialCombatTracker tracker, string playerUid)
         {
-            if (!tracker.PotionUsageByPlayer.TryGetValue(playerUid, out int usage))
-                return true; // No usage recorded = no potions
+            if (!tracker.SaturationGainedByPlayer.TryGetValue(playerUid, out bool gained))
+                return true; // No saturation gain recorded = no food eaten
 
-            return usage == 0;
+            return !gained;
         }
 
         private static bool EvaluateLowGear(TrialCombatTracker tracker, string playerUid, HollowTrialChallenge challenge)

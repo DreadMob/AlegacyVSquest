@@ -21,10 +21,15 @@ namespace VsQuest
                     .HandleWith(args => HandleSkip(args, sapi))
                 .EndSubCommand()
                 .BeginSubCommand("respawn")
-                    .WithDescription("Force-respawns a specific trial boss by trialKey.")
+                    .WithDescription("Force-respawns a trial boss at a specific anchor by its friendly ID (e.g. anchor1).")
                     .RequiresPrivilege(Privilege.give)
-                    .WithArgs(sapi.ChatCommands.Parsers.Word("trialKey"))
+                    .WithArgs(sapi.ChatCommands.Parsers.Word("anchorId"))
                     .HandleWith(args => HandleRespawn(args, sapi))
+                .EndSubCommand()
+                .BeginSubCommand("reload")
+                    .WithDescription("Reloads trial configs from disk (hot-reload without restart).")
+                    .RequiresPrivilege(Privilege.controlserver)
+                    .HandleWith(args => HandleReload(args, sapi))
                 .EndSubCommand()
             .EndSubCommand();
         }
@@ -45,12 +50,27 @@ namespace VsQuest
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"=== Hollow Trials Status ===");
             sb.AppendLine($"Rotation in: {hoursLeft:0.0}h (~{daysLeft:0.0} days)");
+
+            // Show active modifier
+            var modType = (TrialModifierType)system.GetActiveModifier();
+            if (modType != TrialModifierType.None)
+            {
+                string modName = LocalizationUtils.GetSafe(TrialWeeklyModifierUtils.GetNameKey(modType));
+                sb.AppendLine($"Modifier: {modName}");
+            }
+            else
+            {
+                sb.AppendLine($"Modifier: None");
+            }
+
             sb.AppendLine($"Active bosses:");
 
             foreach (var key in activeKeys)
             {
                 string status = system.GetTrialStatus(key);
-                sb.AppendLine($"  - {key}: {status}");
+                var anchors = system.GetAnchorFriendlyIds(key);
+                string anchorStr = anchors.Count > 0 ? $" [{string.Join(", ", anchors)}]" : "";
+                sb.AppendLine($"  - {key}: {status}{anchorStr}");
             }
 
             return TextCommandResult.Success(sb.ToString());
@@ -65,7 +85,10 @@ namespace VsQuest
             if (!system.ForceRotation(out var newKeys))
                 return TextCommandResult.Error("Rotation failed (no configs?).");
 
-            return TextCommandResult.Success($"Rotation complete. New active: [{string.Join(", ", newKeys)}]");
+            // Force spawn all new bosses at their anchors
+            int spawned = system.ForceSpawnAllActive();
+
+            return TextCommandResult.Success($"Rotation complete. New active: [{string.Join(", ", newKeys)}]. Spawned: {spawned}");
         }
 
         private TextCommandResult HandleRespawn(TextCommandCallingArgs args, ICoreServerAPI sapi)
@@ -74,14 +97,24 @@ namespace VsQuest
             if (system == null)
                 return TextCommandResult.Error("HollowTrialSystem not available.");
 
-            string trialKey = (string)args.Parsers[0].GetValue();
-            if (string.IsNullOrWhiteSpace(trialKey))
-                return TextCommandResult.Error("Usage: /avq trials respawn <trialKey>");
+            string anchorId = (string)args.Parsers[0].GetValue();
+            if (string.IsNullOrWhiteSpace(anchorId))
+                return TextCommandResult.Error("Usage: /avq trials respawn <anchorId>");
 
-            if (!system.ForceRespawn(trialKey, out string error))
+            if (!system.ForceRespawnByAnchor(anchorId, out string error, out string spawnedInfo))
                 return TextCommandResult.Error(error);
 
-            return TextCommandResult.Success($"Force-respawned trial boss '{trialKey}'.");
+            return TextCommandResult.Success($"Force-respawned: {spawnedInfo}");
+        }
+
+        private TextCommandResult HandleReload(TextCommandCallingArgs args, ICoreServerAPI sapi)
+        {
+            var system = sapi?.ModLoader?.GetModSystem<HollowTrialSystem>();
+            if (system == null)
+                return TextCommandResult.Error("HollowTrialSystem not available.");
+
+            int count = system.ReloadConfigs();
+            return TextCommandResult.Success($"Reloaded {count} trial configs.");
         }
     }
 }

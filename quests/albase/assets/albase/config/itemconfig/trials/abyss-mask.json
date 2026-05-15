@@ -1,0 +1,22 @@
+﻿{
+  "actionItems": [
+    {
+      "id": "albase:trial-abyss-mask",
+      "itemCode": "albase:trial-abyss-mask",
+      "name": "<font color=\"#F59E0B\">Маска Бездны</font>",
+      "description": "<font color=\"#FBBF24\">Лик павшего Владыки. Сила Бездны — но Пустота забирает часть жизни.</font>",
+      "actions": [],
+      "attributes": {
+        "bossdamage": 0.10,
+        "critchance": 0.08,
+        "critdamage": 0.5,
+        "pvpdamage": 0.05,
+        "meleeattackpower": 3.0,
+        "attackspeed": 0.06,
+        "maxhealthflat": -3.0
+      },
+      "showAttributes": ["bossdamage", "critchance", "critdamage", "pvpdamage", "meleeattackpower", "attackspeed", "maxhealthflat"],
+      "hideVanillaTooltips": ["warmth", "modsource", "armor", "protection"]
+    }
+  ]
+}

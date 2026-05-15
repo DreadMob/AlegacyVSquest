@@ -1,0 +1,35 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:bosshunt-reward-cryptsight",
+      "itemCode": "albase:uranium-mask",
+      "name": "<font color=\"#A7F3D0\">Зрение Крипты</font>",
+      "description": "<font color=\"#D1FAE5\">Фосфорит тлеет — горизонт яснеет. Темнота замечает.</font>",
+      "actions": [],
+      "chargeMaterials": ["phosphorite"],
+      "chargePerUnit": 8,
+      "chargeMax": 100,
+      "attributes": {
+        "uraniummaskchargehours": 10,
+        "viewdistance": 1.0,
+        "temporaldrainmult": -0.45,
+        "hungerrate": 0.3,
+        "walkspeed": -0.1
+      },
+      "showAttributes": [
+        "uraniummaskchargehours",
+        "viewdistance",
+        "temporaldrainmult",
+        "hungerrate",
+        "walkspeed"
+      ],
+      "hideVanillaTooltips": [
+        "armor",
+        "protection",
+        "warmth",
+        "walkspeed",
+        "modsource"
+      ]
+    }
+  ]
+}

@@ -6,6 +6,7 @@ namespace VsQuest
 {
     /// <summary>
     /// Configuration for a single Hollow Trial boss.
+    /// Each boss supports all 3 tiers with different stats/challenges.
     /// Loaded from config/hollowtrials/*.json per mod.
     /// </summary>
     [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
@@ -17,14 +18,15 @@ namespace VsQuest
         public string trialKey;
 
         /// <summary>
-        /// Quest ID associated with this trial (e.g. "albase:trial-shadow-stalker").
+        /// Entity code for this boss (e.g. "albase:shadow-stalker").
+        /// If null, derived from trialKey.
         /// </summary>
-        public string questId;
+        public string entityCode;
 
         /// <summary>
-        /// Difficulty tier: 1 = Hollow, 2 = Deep, 3 = Abyssal.
+        /// Per-tier configuration. Key = tier (1, 2, 3).
         /// </summary>
-        public int tier = 1;
+        public Dictionary<int, HollowTrialTierData> tiers = new();
 
         /// <summary>
         /// Hours after death before the boss can respawn. 0 = use global default.
@@ -42,12 +44,11 @@ namespace VsQuest
         public double softResetIdleHours;
 
         /// <summary>
-        /// Challenge definitions for this boss.
+        /// Get entity code, deriving from trialKey if not explicitly set.
         /// </summary>
-        public List<HollowTrialChallenge> challenges = new();
-
         public string GetEntityCode()
         {
+            if (!string.IsNullOrWhiteSpace(entityCode)) return entityCode;
             return DeriveEntityCodeFromTrialKey(trialKey);
         }
 
@@ -65,11 +66,54 @@ namespace VsQuest
             return domain + ":" + bossName;
         }
 
+        /// <summary>
+        /// Get tier data for a specific tier. Returns null if tier not configured.
+        /// </summary>
+        public HollowTrialTierData GetTierData(int tier)
+        {
+            if (tiers == null) return null;
+            return tiers.TryGetValue(tier, out var data) ? data : null;
+        }
+
+        /// <summary>
+        /// Get challenges for a specific tier.
+        /// </summary>
+        public List<HollowTrialChallenge> GetChallenges(int tier)
+        {
+            var data = GetTierData(tier);
+            return data?.challenges ?? new List<HollowTrialChallenge>();
+        }
+
+        /// <summary>
+        /// Get quest ID for a specific tier.
+        /// </summary>
+        public string GetQuestId(int tier)
+        {
+            var data = GetTierData(tier);
+            return data?.questId;
+        }
+
+        /// <summary>
+        /// Get max HP for a specific tier.
+        /// </summary>
+        public float GetMaxHealth(int tier)
+        {
+            var data = GetTierData(tier);
+            return data?.maxHealth ?? 300;
+        }
+
         public bool IsValid()
         {
             if (string.IsNullOrWhiteSpace(trialKey)) return false;
-            if (string.IsNullOrWhiteSpace(questId)) return false;
-            if (tier < 1 || tier > 3) return false;
+            if (tiers == null || tiers.Count == 0) return false;
+            // Must have at least tier 1
+            if (!tiers.ContainsKey(1)) return false;
+            // Each tier must have a questId
+            foreach (var kvp in tiers)
+            {
+                if (kvp.Key < 1 || kvp.Key > 3) return false;
+                if (string.IsNullOrWhiteSpace(kvp.Value?.questId)) return false;
+            }
             return true;
         }
 
@@ -90,13 +134,50 @@ namespace VsQuest
     }
 
     /// <summary>
+    /// Per-tier data for a trial boss.
+    /// </summary>
+    [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
+    public class HollowTrialTierData
+    {
+        /// <summary>
+        /// Quest ID for this tier (e.g. "albase:trial-tier1").
+        /// </summary>
+        public string questId;
+
+        /// <summary>
+        /// Max HP for this tier. Applied when spawning.
+        /// </summary>
+        public float maxHealth = 300;
+
+        /// <summary>
+        /// Damage multiplier for this tier (1.0 = base).
+        /// </summary>
+        public float damageMult = 1.0f;
+
+        /// <summary>
+        /// Speed multiplier for this tier (1.0 = base).
+        /// </summary>
+        public float speedMult = 1.0f;
+
+        /// <summary>
+        /// Enrage timer in seconds for this tier.
+        /// </summary>
+        public int enrageTimerSeconds = 240;
+
+        /// <summary>
+        /// Challenge definitions for this tier.
+        /// </summary>
+        public List<HollowTrialChallenge> challenges = new();
+    }
+
+    /// <summary>
     /// A single challenge condition for a trial boss.
     /// </summary>
     [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
     public class HollowTrialChallenge
     {
         /// <summary>
-        /// Challenge type: "speedkill", "deathless", "nopotions", "lowgear", "perfectdodge".
+        /// Challenge type: "speedkill", "deathless", "nofood", "lowgear", "perfectdodge".
         /// </summary>
         public string type;
 

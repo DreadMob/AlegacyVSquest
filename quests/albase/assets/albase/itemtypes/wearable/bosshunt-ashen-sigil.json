@@ -1,90 +1,97 @@
-{
-  "code": "bosshunt-ashen-sigil",
-  "behaviors": [
-    { "name": "Wearable" }
-  ],
-  "maxstacksize": 1,
-  "storageFlags": 128,
-  "attributes": {
-    "handbook": { "exclude": true },
-    "clothescategory": "emblem",
-    "wearableAttachment": true,
-    "warmth": 0.01,
-    "repairItemCode": { "code": "gear-temporal", "strength": 0.4 }
-  },
-  "shape": {
-    "base": "game:entity/humanoid/seraph/clothing/emblem/fibula"
-  },
-  "textures": {
-    "seraph": {
-      "base": "game:block/transparent"
-    },
-    "brass": {
-      "base": "game:entity/humanoid/seraphclothes/neck/metal/lead"
-    }
-  },
-  "renderAlphaTest": 0.25,
-  "fpHandTransform": {
-    "translation": {
-      "x": 0.6,
-      "y": 0,
-      "z": -0.5
-    },
-    "rotation": {
-      "x": 180,
-      "y": 42,
-      "z": -29
-    },
-    "scale": 2.5
-  },
-  "tpHandTransform": {
-    "translation": {
-      "x": 0.23,
-      "y": -0.65,
-      "z": -0.6
-    },
-    "rotation": {
-      "x": 0,
-      "y": 0,
-      "z": -90
-    },
-    "scale": 1
-  },
-  "guiTransform": {
-    "rotate": false,
-    "translation": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-    },
-    "rotation": {
-      "x": 174,
-      "y": -90,
-      "z": 5
-    },
-    "origin": {
-      "x": 0.71,
-      "y": 1.37,
-      "z": 0.41
-    },
-    "scale": 6
-  },
-  "groundTransform": {
-    "translation": {
-      "x": 0.05,
-      "y": -0.13,
-      "z": 0
-    },
-    "rotation": {
-      "x": 0,
-      "y": 0,
-      "z": -90
-    },
-    "origin": {
-      "x": 0.5,
-      "y": 0.5,
-      "z": 0.5299
-    },
-    "scale": 5
-  }
+﻿{
+    "code":  "bosshunt-ashen-sigil",
+    "behaviors":  [
+                      {
+                          "name":  "Wearable"
+                      }
+                  ],
+    "maxstacksize":  1,
+    "storageFlags":  128,
+    "attributes":  {
+                       "handbook":  {
+                                        "exclude":  true
+                                    },
+                       "clothescategory":  "emblem",
+                       "wearableAttachment":  true,
+                       "warmth":  0.01,
+                       "repairItemCode":  {
+                                              "code":  "gear-temporal",
+                                              "strength":  0.4
+                                          }
+                   },
+    "shape":  {
+                  "base":  "game:entity/humanoid/seraph/clothing/emblem/fibula"
+              },
+    "textures":  {
+                     "seraph":  {
+                                    "base":  "game:block/transparent"
+                                },
+                     "brass":  {
+                                   "base":  "game:entity/humanoid/seraphclothes/neck/metal/lead"
+                               }
+                 },
+    "renderAlphaTest":  0.25,
+    "fpHandTransform":  {
+                            "translation":  {
+                                                "x":  0.6,
+                                                "y":  0,
+                                                "z":  -0.5
+                                            },
+                            "rotation":  {
+                                             "x":  180,
+                                             "y":  42,
+                                             "z":  -29
+                                         },
+                            "scale":  2.5
+                        },
+    "tpHandTransform":  {
+                            "translation":  {
+                                                "x":  0.23,
+                                                "y":  -0.65,
+                                                "z":  -0.6
+                                            },
+                            "rotation":  {
+                                             "x":  0,
+                                             "y":  0,
+                                             "z":  -90
+                                         },
+                            "scale":  1
+                        },
+    "guiTransform":  {
+                         "rotate":  false,
+                         "translation":  {
+                                             "x":  0,
+                                             "y":  0,
+                                             "z":  0
+                                         },
+                         "rotation":  {
+                                          "x":  174,
+                                          "y":  -90,
+                                          "z":  5
+                                      },
+                         "origin":  {
+                                        "x":  0.71,
+                                        "y":  1.37,
+                                        "z":  0.41
+                                    },
+                         "scale":  6
+                     },
+    "groundTransform":  {
+                            "translation":  {
+                                                "x":  0.05,
+                                                "y":  -0.13,
+                                                "z":  0
+                                            },
+                            "rotation":  {
+                                             "x":  0,
+                                             "y":  0,
+                                             "z":  -90
+                                         },
+                            "origin":  {
+                                           "x":  0.5,
+                                           "y":  0.5,
+                                           "z":  0.5299
+                                       },
+                            "scale":  5
+                        }
 }

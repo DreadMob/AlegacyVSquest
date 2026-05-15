@@ -2,34 +2,30 @@
   "code": "voidriftanchor",
   "class": "BlockVoidRiftAnchor",
   "entityClass": "VoidRiftAnchor",
-  "behaviors": [
-    { "name": "UnstableFalling" }
-  ],
-  "creativeinventory": {
-    "general": ["*"],
-    "construction": ["*"]
-  },
-  "shape": { "base": "block/basic/cube" },
-  "drawtype": "Cube",
+  "shape": { "base": "alegacyvsquest:spawner/cage1" },
+  "drawtype": "json",
+  "faceCullMode": "NeverCull",
+  "sidesolid": { "all": false },
+  "sideopaque": { "all": false },
   "textures": {
-    "all": { "base": "block/stone/rock/obsidian1" }
+    "metal": { "base": "alegacyvsquest:block/locustnest/cage/metal" },
+    "fabric-side1": { "base": "alegacyvsquest:block/locustnest/cage/fabric-side1" },
+    "fabric-side2": { "base": "alegacyvsquest:block/locustnest/cage/fabric-side2" },
+    "fabric-top": { "base": "alegacyvsquest:block/locustnest/cage/fabric-top" }
   },
-  "sidesolid": {
-    "all": true
-  },
-  "sideopaque": {
-    "all": true
+  "creativeinventory": {
+    "alegacyvsquest-actionitems": ["*"]
   },
   "blockmaterial": "Stone",
   "resistance": 99,
   "lightAbsorption": 0,
   "sounds": {
-    "place": "block/stone",
-    "break": "block/stone",
-    "walk": "walk/stone"
+    "place": "game:block/stone",
+    "break": "game:block/stone",
+    "walk": "game:walk/stone"
   },
   "attributes": {
-    "trialKey": "",
+    "tier": 1,
     "yOffset": 1.0
   }
 }

@@ -1,0 +1,29 @@
+﻿{
+  "code": "trial-shadow-earring",
+  "behaviors": [{ "name": "Wearable" }],
+  "maxstacksize": 1,
+  "storageFlags": 128,
+  "attributes": {
+    "handbook": { "exclude": true },
+    "clothescategory": "face",
+    "wearableAttachment": true,
+    "warmth": 0
+  },
+  "shape": { "base": "game:entity/humanoid/seraph/clothing/face/forgotten" },
+  "textures": {
+    "seraph": { "base": "game:block/transparent" },
+    "mask-forgottennoble": { "base": "albase:trials/shadow-earring" }
+  },
+  "renderAlphaTest": 0.25,
+  "guiTransform": {
+    "translation": { "x": 0, "y": 0, "z": 0 },
+    "rotation": { "x": 1, "y": -121, "z": -167 },
+    "origin": { "x": 0.5, "y": 1.62, "z": 0.6 },
+    "scale": 3.23
+  },
+  "groundTransform": {
+    "rotation": { "x": 0, "y": 0, "z": 0 },
+    "origin": { "x": 0.5, "y": 1.5, "z": 0.5299 },
+    "scale": 2.58
+  }
+}

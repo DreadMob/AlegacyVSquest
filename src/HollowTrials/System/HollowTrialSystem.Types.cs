@@ -28,6 +28,11 @@ namespace VsQuest
             /// Per-boss state entries (respawn timers, anchor data).
             /// </summary>
             public List<HollowTrialStateEntry> entries = new();
+
+            /// <summary>
+            /// Currently active weekly modifier (persisted across restarts).
+            /// </summary>
+            public int activeModifier;
         }
 
         [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
@@ -58,6 +63,7 @@ namespace VsQuest
         public class HollowTrialAnchorPoint
         {
             public string anchorId;
+            public string friendlyId;
             public int x;
             public int y;
             public int z;

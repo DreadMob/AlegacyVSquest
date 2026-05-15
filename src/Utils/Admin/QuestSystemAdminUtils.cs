@@ -801,6 +801,28 @@ namespace VsQuest
                 player.Entity.WatchedAttributes.MarkAllDirty();
             }
 
+            // Reset trial system data (reputation, shards, kill counts, best results)
+            try
+            {
+                if (sapi != null)
+                {
+                    var trialSystem = sapi.ModLoader.GetModSystem<HollowTrialSystem>();
+                    var repManager = trialSystem?.GetReputationManager();
+                    repManager?.ResetPlayerData(player.PlayerUID);
+
+                    // Clear trial-related WatchedAttributes
+                    var wa = player.Entity.WatchedAttributes;
+                    wa.RemoveAttribute("alegacyvsquest:trial:lastRewardQuality");
+                    wa.RemoveAttribute("alegacyvsquest:trialtracker:cooldownUntilMs");
+                    wa.MarkPathDirty("alegacyvsquest:trial:lastRewardQuality");
+                    wa.MarkPathDirty("alegacyvsquest:trialtracker:cooldownUntilMs");
+                }
+            }
+            catch (Exception ex)
+            {
+                sapi?.Logger?.Warning("[QuestSystemAdminUtils] Failed to reset trial data for player {0}: {1}", player.PlayerUID, ex.Message);
+            }
+
             questSystem.SavePlayerQuests(player.PlayerUID, quests ?? new System.Collections.Generic.List<ActiveQuest>());
             return removedCount;
         }

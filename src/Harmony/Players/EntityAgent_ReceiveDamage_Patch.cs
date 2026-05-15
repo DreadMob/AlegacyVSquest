@@ -108,6 +108,57 @@ namespace VsQuest.Harmony.Players
                             damage *= GameMath.Clamp(1f + cached.RangedDamageMult, 0.1f, 5f);
                         }
                     }
+
+                    // Boss damage bonus (entities with tag "alegacy-boss")
+                    if (cached.BossDamage > 0.0001f && __instance != null)
+                    {
+                        bool isTrialBoss = false;
+                        try
+                        {
+                            var tags = __instance.Properties?.Attributes?["tags"]?.AsArray<string>();
+                            if (tags != null)
+                            {
+                                isTrialBoss = Array.Exists(tags, t => string.Equals(t, "alegacy-boss", StringComparison.OrdinalIgnoreCase));
+                            }
+                        }
+                        catch { }
+                        if (isTrialBoss)
+                        {
+                            damage *= 1f + cached.BossDamage;
+                        }
+                    }
+
+                    // PvP damage bonus (target is player)
+                    if (cached.PvpDamage > 0.0001f && __instance is EntityPlayer)
+                    {
+                        damage *= 1f + cached.PvpDamage;
+                    }
+
+                    // Full HP damage bonus (attacker at full health)
+                    if (cached.FullHpDamage > 0.0001f && causeEntity != null)
+                    {
+                        var healthTree = causeEntity.WatchedAttributes?.GetTreeAttribute("health");
+                        if (healthTree != null)
+                        {
+                            float cur = healthTree.GetFloat("currenthealth", 0);
+                            float max = healthTree.GetFloat("maxhealth", 1);
+                            if (max > 0 && cur >= max * 0.99f)
+                            {
+                                damage *= 1f + cached.FullHpDamage;
+                            }
+                        }
+                    }
+
+                    // Crit chance + crit damage
+                    if (cached.CritChance > 0.0001f)
+                    {
+                        var rand = __instance.World?.Rand;
+                        if (rand != null && rand.NextDouble() < cached.CritChance)
+                        {
+                            float critMult = 1.5f + cached.CritDamage;
+                            damage *= critMult;
+                        }
+                    }
                 }
             }
 
@@ -141,6 +192,13 @@ namespace VsQuest.Harmony.Players
                     if (growthMult > 1.01f)
                     {
                         damage *= growthMult;
+                    }
+
+                    // Trial tier damage multiplier (applied to boss melee attacks)
+                    float trialDamageMult = sourceWatchedAttrs.GetFloat("alegacyvsquest:trial:damageMult", 0f);
+                    if (trialDamageMult > 1.01f)
+                    {
+                        damage *= trialDamageMult;
                     }
                 }
             }

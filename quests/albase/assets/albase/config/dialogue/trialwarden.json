@@ -45,13 +45,17 @@
       "text": [
         { "value": "albase:trial-warden-quest-offer" }
       ],
-      "commands": ["questoffer"],
+      "trigger": "openquests",
       "jumpTo": "main"
     },
     {
       "code": "close",
       "owner": "npc",
-      "type": "close"
+      "type": "talk",
+      "trigger": "closedialogue",
+      "text": [
+        { "value": "albase:dialogue-trial-leave-answer" }
+      ]
     }
   ]
 }

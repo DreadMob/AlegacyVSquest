@@ -52,6 +52,13 @@ namespace VsQuest
                     {
                         var bh = entity.Api.ModLoader.GetModSystem<BossHuntSystem>();
                         bh?.OnBossDamaged(qt.TargetId, calendar.TotalHours);
+
+                        // Hollow Trials: route damage to combat tracker for kill credit + challenge metrics
+                        var trialSystem = entity.Api.ModLoader.GetModSystem<HollowTrialSystem>();
+                        if (trialSystem != null)
+                        {
+                            trialSystem.OnTrialBossDamaged(entity, damageSource, damage);
+                        }
                     }
                 }
             }

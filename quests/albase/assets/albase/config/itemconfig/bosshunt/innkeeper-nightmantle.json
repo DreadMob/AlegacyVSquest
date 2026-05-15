@@ -1,0 +1,22 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:innkeeper-nightmantle",
+      "itemCode": "game:clothes-emblem-silver-pin",
+      "name": "<font color=\"#8B5CF6\">Брошь трактирщика</font>",
+      "description": "<font color=\"#60A5FA\">Тот, кто наливает — знает больше,\nчем говорит.</font>",
+      "actions": [],
+      "attributes": {
+        "walkspeed": 0.05,
+        "hungerrate": -0.1,
+        "healingeffectiveness": 0.1
+      },
+      "showAttributes": [
+        "walkspeed",
+        "hungerrate",
+        "healingeffectiveness"
+      ],
+      "hideVanillaTooltips": []
+    }
+  ]
+}

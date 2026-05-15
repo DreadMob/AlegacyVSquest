@@ -36,6 +36,7 @@ namespace VsQuest
         private string noAvailableQuestDescLangKey;
         private string noAvailableQuestCooldownDescLangKey;
         private bool bossHuntActiveOnly;
+        private bool trialActiveOnly;
         private string reputationNpcId;
         private string reputationFactionId;
 
@@ -73,6 +74,41 @@ namespace VsQuest
             return _eligibilityChecker ??= new QuestEligibilityChecker(sapi);
         }
 
+        private bool HasActiveTrialQuest(ICoreServerAPI sapi)
+        {
+            if (!trialActiveOnly) return true;
+            var trialSystem = sapi.ModLoader.GetModSystem<HollowTrialSystem>();
+            if (trialSystem == null) return false;
+            var activeKeys = trialSystem.GetActiveTrialKeys();
+            return activeKeys != null && activeKeys.Count > 0;
+        }
+
+        /// <summary>
+        /// Removes trial quests from the available list if the player's reputation does not meet the tier threshold.
+        /// Tier 1: always available. Tier 2: 100+ reputation. Tier 3: 300+ reputation.
+        /// </summary>
+        private void FilterTrialQuestsByReputation(ICoreServerAPI sapi, IServerPlayer serverPlayer, List<string> availableQuestIds)
+        {
+            if (availableQuestIds == null || availableQuestIds.Count == 0) return;
+
+            var trialSystem = sapi.ModLoader.GetModSystem<HollowTrialSystem>();
+            if (trialSystem == null) return;
+
+            var repManager = trialSystem.GetReputationManager();
+            int maxTier = repManager?.GetMaxAccessibleTier(serverPlayer.PlayerUID) ?? 1;
+
+            for (int i = availableQuestIds.Count - 1; i >= 0; i--)
+            {
+                var qid = availableQuestIds[i];
+                var trialCfg = trialSystem.FindConfigByQuestId(qid, out int matchedTier);
+                if (trialCfg == null) continue;
+                if (matchedTier > maxTier)
+                {
+                    availableQuestIds.RemoveAt(i);
+                }
+            }
+        }
+
         private QuestGiverMessageBuilder GetMessageBuilder(ICoreServerAPI sapi)
         {
             return _messageBuilder ??= new QuestGiverMessageBuilder(sapi);
@@ -100,6 +136,7 @@ namespace VsQuest
             maxAvailableQuests = attributes["maxavailablequests"].AsInt(0);
             priorityQuests = attributes["priorityquests"].AsArray<string>() ?? Array.Empty<string>();
             bossHuntActiveOnly = attributes["bosshuntactiveonly"].AsBool(false);
+            trialActiveOnly = attributes["trialactiveonly"].AsBool(false);
 
             quests = attributes["quests"].AsArray<string>() ?? Array.Empty<string>();
             alwaysQuests = attributes["alwaysquests"].AsArray<string>() ?? Array.Empty<string>();
@@ -356,6 +393,29 @@ namespace VsQuest
                 return;
             }
 
+            // If trialactiveonly, check that a trial is currently active
+            if (!HasActiveTrialQuest(sapi))
+            {
+                availableQuestIds.Clear();
+                int effectiveCooldown = minCooldownDaysLeft ?? 0;
+
+                var msgNoTrial = messageBuilder.CreateBaseMessage(
+                    entity.EntityId, availableQuestIds, activeQuests,
+                    noAvailableQuestDescLangKey, noAvailableQuestCooldownDescLangKey,
+                    effectiveCooldown, rotationDaysLeft);
+                msgNoTrial.silentUpdate = silentUpdate;
+                messageBuilder.PopulateReputationInfo(msgNoTrial, serverPlayer, reputationNpcId, reputationFactionId);
+                messageBuilder.PopulateTrialShopInfo(msgNoTrial, serverPlayer, trialActiveOnly);
+                messageBuilder.SendMessage(msgNoTrial, serverPlayer);
+                return;
+            }
+
+            // Filter trial quests by player's reputation-based tier access
+            if (trialActiveOnly)
+            {
+                FilterTrialQuestsByReputation(sapi, serverPlayer, availableQuestIds);
+            }
+
             int cooldownDaysLeft = (availableQuestIds.Count == 0 && minCooldownDaysLeft.HasValue) ? minCooldownDaysLeft.Value : 0;
 
             var message = messageBuilder.CreateBaseMessage(
@@ -364,6 +424,7 @@ namespace VsQuest
                 cooldownDaysLeft, rotationDaysLeft);
             message.silentUpdate = silentUpdate;
             messageBuilder.PopulateReputationInfo(message, serverPlayer, reputationNpcId, reputationFactionId);
+            messageBuilder.PopulateTrialShopInfo(message, serverPlayer, trialActiveOnly);
             messageBuilder.SendMessage(message, serverPlayer);
         }
 

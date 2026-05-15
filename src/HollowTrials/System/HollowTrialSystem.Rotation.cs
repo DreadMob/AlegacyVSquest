@@ -22,14 +22,17 @@ namespace VsQuest
 
             state.activeTrialKeys.Clear();
 
-            // Select one boss per tier
-            SelectNextForTier(1, configsByTier1, state.activeTrialKeys);
-            SelectNextForTier(2, configsByTier2, state.activeTrialKeys);
-            SelectNextForTier(3, configsByTier3, state.activeTrialKeys);
+            // Select N bosses from the pool (cyclic rotation through all bosses)
+            int count = Math.Min(coreConfig?.ActiveTrialCount ?? 3, allConfigs.Count);
+            SelectNextBosses(count, state.activeTrialKeys);
 
             // Set next rotation time
             double rotationHours = (coreConfig?.RotationDays ?? 60) * 24.0;
             state.nextRotationTotalHours = nowHours + rotationHours;
+
+            // Roll a new weekly modifier
+            state.activeModifier = (int)TrialWeeklyModifierUtils.Roll(new System.Random());
+
             stateDirty = true;
 
             // Despawn old bosses that are no longer active
@@ -59,37 +62,58 @@ namespace VsQuest
             if (previousKeys.Count > 0 && sapi != null)
             {
                 CancelOutdatedTrialQuests(previousKeys);
+
+                // Broadcast rotation message to all online players (with Discord embed)
+                var modType = (TrialModifierType)state.activeModifier;
+                string modName = modType != TrialModifierType.None
+                    ? LocalizationUtils.GetSafe(TrialWeeklyModifierUtils.GetNameKey(modType))
+                    : "";
+
+                string rotationMsg = LocalizationUtils.GetSafe("albase:trial-rotation-reset-chat");
+                string discordRotationMsg = modType != TrialModifierType.None
+                    ? LocalizationUtils.GetSafe("albase:trial-rotation-discord", modName)
+                    : LocalizationUtils.GetSafe("albase:trial-rotation-discord-nomod");
+
+                GlobalChatBroadcastUtil.BroadcastGeneralChatWithDiscord(
+                    sapi, rotationMsg, discordRotationMsg,
+                    EnumChatType.Notification, DiscordBroadcastKind.TrialRotation);
+
+                // Broadcast active modifier in-game
+                if (modType != TrialModifierType.None)
+                {
+                    string modMsg = LocalizationUtils.GetSafe("albase:trial-modifier-active", modName);
+                    GlobalChatBroadcastUtil.BroadcastGeneralChat(sapi, modMsg, EnumChatType.Notification);
+                }
             }
 
             DebugLog($"Rotation complete. Active: [{string.Join(", ", state.activeTrialKeys)}]. Next rotation at {state.nextRotationTotalHours:0.0}h");
         }
 
-        private void SelectNextForTier(int tier, List<HollowTrialConfig> tierConfigs, List<string> activeKeys)
+        private void SelectNextBosses(int count, List<string> activeKeys)
         {
-            if (tierConfigs == null || tierConfigs.Count == 0)
-            {
-                sapi?.Logger?.Warning("[HollowTrialSystem] No configs for Tier {0}, skipping.", tier);
-                return;
-            }
+            if (allConfigs.Count == 0) return;
 
             state.rotationIndexPerTier ??= new Dictionary<int, int>();
 
-            if (!state.rotationIndexPerTier.TryGetValue(tier, out int currentIndex))
+            // Use key 0 for the global rotation index
+            if (!state.rotationIndexPerTier.TryGetValue(0, out int currentIndex))
             {
                 currentIndex = 0;
             }
 
-            // Ensure index is valid
-            if (currentIndex < 0 || currentIndex >= tierConfigs.Count)
+            if (currentIndex < 0 || currentIndex >= allConfigs.Count)
             {
                 currentIndex = 0;
             }
 
-            var selected = tierConfigs[currentIndex];
-            activeKeys.Add(selected.trialKey);
+            for (int i = 0; i < count; i++)
+            {
+                int idx = (currentIndex + i) % allConfigs.Count;
+                activeKeys.Add(allConfigs[idx].trialKey);
+            }
 
-            // Advance index for next rotation (cyclic)
-            state.rotationIndexPerTier[tier] = (currentIndex + 1) % tierConfigs.Count;
+            // Advance index for next rotation
+            state.rotationIndexPerTier[0] = (currentIndex + count) % allConfigs.Count;
         }
 
         private void CancelOutdatedTrialQuests(List<string> previousKeys)
@@ -103,13 +127,19 @@ namespace VsQuest
                 if (state.activeTrialKeys.Contains(oldKey)) continue;
 
                 var cfg = FindConfig(oldKey);
-                if (cfg == null || string.IsNullOrWhiteSpace(cfg.questId)) continue;
+                if (cfg == null) continue;
 
-                // Clear cooldowns and reset active quests for this boss
-                foreach (var player in sapi.World.AllOnlinePlayers)
+                // Cancel quests for all tiers of this boss
+                foreach (var tierKvp in cfg.tiers)
                 {
-                    if (player is not IServerPlayer sp) continue;
-                    QuestSystemAdminUtils.ClearQuestCooldownForPlayer(sp, cfg.questId);
+                    string questId = tierKvp.Value?.questId;
+                    if (string.IsNullOrWhiteSpace(questId)) continue;
+
+                    foreach (var player in sapi.World.AllOnlinePlayers)
+                    {
+                        if (player is not IServerPlayer sp) continue;
+                        QuestSystemAdminUtils.ClearQuestCooldownForPlayer(sp, questId);
+                    }
                 }
             }
         }

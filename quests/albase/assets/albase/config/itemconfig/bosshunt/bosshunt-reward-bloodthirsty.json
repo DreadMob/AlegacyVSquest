@@ -1,0 +1,33 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:bosshunt-reward-bloodthirsty",
+      "itemCode": "albase:bosshunt-bloodthirsty-bracelet",
+      "name": "<font color=\"#DC2626\">Кандалы Оссуария</font>",
+      "description": "<font color=\"#FCA5A5\">Железо помнит каждую рану, которую нанесло.</font>",
+      "actions": [],
+      "attributes": {
+        "attackpower": 1,
+        "maxhealthflat": -2.0,
+        "hungerrate": 0.15,
+        "knockbackmult": 0.44,
+        "walkspeed": -0.04
+      },
+      "showAttributes": [
+        "attackpower",
+        "maxhealthflat",
+        "hungerrate",
+        "knockbackmult",
+        "walkspeed"
+      ],
+      "hideVanillaTooltips": [
+        "armor",
+        "attackpower",
+        "protection",
+        "warmth",
+        "walkspeed",
+        "modsource"
+      ]
+    }
+  ]
+}

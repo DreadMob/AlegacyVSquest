@@ -5,34 +5,14 @@
   "predecessor": "albase:trial-intro",
   "trialTier": 1,
   "onAcceptedActions": [
-    {
-      "id": "playsound",
-      "args": ["alegacyvsquest:sounds/queacc", "0.175"]
-    },
-    {
-      "id": "notify",
-      "args": ["albase:trial-quest-accepted-tier1"]
-    }
+    { "id": "playsound", "args": ["alegacyvsquest:sounds/queacc", "0.175"] },
+    { "id": "notify", "args": ["albase:trial-quest-accepted-tier1"] }
   ],
   "actionObjectives": [
-    {
-      "id": "killactivetrial",
-      "objectiveId": "trial-tier1-kill",
-      "args": ["1"]
-    }
+    { "id": "killactivetrial", "objectiveId": "trial-tier1-kill", "args": ["1"] }
   ],
   "actionRewards": [
-    {
-      "id": "addreputation",
-      "args": ["npc", "albase:trialwarden", "15"]
-    },
-    {
-      "id": "randomquestitem",
-      "args": ["1", "albase:trial-reward-void-shard", "albase:trial-reward-shadow-ring"]
-    },
-    {
-      "id": "trialchallengebonuses",
-      "args": []
-    }
+    { "id": "trialchallengebonuses", "args": [] },
+    { "id": "randomquestitem", "args": ["1", "albase:trial-shadow-earring", "albase:trial-rift-bracelet", "albase:trial-void-pendant"] }
   ]
 }

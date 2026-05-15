@@ -92,7 +92,14 @@ namespace VsQuest
 
         private List<ReputationRankRewardStatus> reputationFactionRankRewards;
 
-
+        // Trial shop state
+        private bool hasTrialShop;
+        private int trialShopShards;
+        private int trialShopReputation;
+        private string trialShopRankName;
+        private string trialModifierName;
+        private List<string> trialChallengeNames;
+        private List<TrialShopItemData> trialShopItems;
 
         private Dictionary<string, string> lastRewardStatuses = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -338,7 +345,14 @@ namespace VsQuest
 
             reputationFactionRankRewards = message.reputationFactionRankRewards ?? new List<ReputationRankRewardStatus>();
 
-
+            // Trial shop
+            hasTrialShop = message.hasTrialShop;
+            trialShopShards = message.trialShopShards;
+            trialShopReputation = message.trialShopReputation;
+            trialShopRankName = message.trialShopRankName;
+            trialShopItems = message.trialShopItems;
+            trialModifierName = message.trialModifierName;
+            trialChallengeNames = message.trialChallengeNames;
 
             lastRewardStatuses = BuildRewardStatuses();
 
@@ -486,7 +500,7 @@ namespace VsQuest
 
             const int reputationWidth = 520;
 
-            int mainWidth = curTab == 2 ? reputationWidth : questsWidth;
+            int mainWidth = (curTab == 2 || curTab == 3) ? reputationWidth : questsWidth;
 
 
 
@@ -511,6 +525,14 @@ namespace VsQuest
             {
 
                 tabsList.Add(new GuiTab() { Name = Lang.Get("alegacyvsquest:tab-reputation"), DataInt = 2 });
+
+            }
+
+            if (hasTrialShop)
+
+            {
+
+                tabsList.Add(new GuiTab() { Name = Lang.Get("alegacyvsquest:tab-trial-shop"), DataInt = 3 });
 
             }
 
@@ -766,7 +788,7 @@ namespace VsQuest
 
             }
 
-            else
+            else if (curTab == 2)
 
             {
 
@@ -801,8 +823,29 @@ namespace VsQuest
                     .AddInteractiveElement(new ReputationTreeElement(capi, mapBounds, nodes, OnRewardNodeClicked), "reputationtree");
 
             }
+            else if (curTab == 3 && hasTrialShop)
+            {
+                // Trial Shop tab — uses ReputationTreeElement for icon-based display
+                string repLabel = LocalizationUtils.GetSafe("albase:trial-reputation-label");
+                string currLabel = LocalizationUtils.GetSafe("albase:trial-currency-name");
+                string headerText = $"{trialShopRankName ?? ""}  |  {repLabel}: {trialShopReputation}  |  {currLabel}: {trialShopShards}";
+                if (!string.IsNullOrWhiteSpace(trialModifierName))
+                {
+                    headerText += $"\n{LocalizationUtils.GetSafe("albase:trial-modifier-gui-label")}: {trialModifierName}";
+                }
 
+                var levelBounds = ElementBounds.Fixed(0, 20, mainWidth, 25);
+                var mapBounds = ElementBounds.Fixed(0, 60, mainWidth, 500);
+                mapBounds.WithParent(bgBounds);
+                var closeCenteredBounds2 = ElementBounds.FixedOffseted(EnumDialogArea.CenterBottom, 0, -10, 200, 20);
 
+                var shopNodes = BuildTrialShopNodes();
+
+                SingleComposer
+                    .AddStaticText(headerText, CairoFont.WhiteSmallishText(), levelBounds)
+                    .AddButton(Lang.Get("alegacyvsquest:button-cancel"), TryClose, closeCenteredBounds2)
+                    .AddInteractiveElement(new ReputationTreeElement(capi, mapBounds, shopNodes, OnTrialShopNodeClicked), "shopnodes");
+            }
 
             SingleComposer.EndChildElements().Compose();
 
@@ -826,6 +869,103 @@ namespace VsQuest
 
         }
 
+
+
+        private List<ReputationTreeNode> BuildTrialShopNodes()
+        {
+            var nodes = new List<ReputationTreeNode>();
+            if (trialShopItems == null) return nodes;
+
+            for (int i = 0; i < trialShopItems.Count; i++)
+            {
+                var item = trialShopItems[i];
+                if (item == null) continue;
+
+                string name = !string.IsNullOrWhiteSpace(item.NameKey)
+                    ? LocalizationUtils.GetSafe(item.NameKey)
+                    : item.ItemCode;
+
+                bool canBuy = !item.IsLocked && trialShopShards >= item.Cost;
+                bool soldOut = item.MaxPurchases > 0 && item.PurchasesMade >= item.MaxPurchases;
+
+                ReputationNodeStatus status;
+                string reqText;
+
+                if (item.IsLocked)
+                {
+                    status = ReputationNodeStatus.Locked;
+                    reqText = $"{item.Cost}◆ | {LocalizationUtils.GetSafe("albase:trial-warden-shop-locked")}";
+                }
+                else if (soldOut)
+                {
+                    status = ReputationNodeStatus.Claimed;
+                    reqText = $"{item.Cost}◆ | ✓";
+                }
+                else if (canBuy)
+                {
+                    status = ReputationNodeStatus.Available;
+                    reqText = $"{item.Cost}◆\n{Lang.Get("alegacyvsquest:reputation-lmb-claim")}";
+                }
+                else
+                {
+                    status = ReputationNodeStatus.Locked;
+                    reqText = $"{item.Cost}◆ | Недостаточно осколков";
+                }
+
+                // Resolve icon item code for display
+                string iconCode = item.ItemCode;
+                if (iconCode.StartsWith("case:", StringComparison.OrdinalIgnoreCase))
+                {
+                    iconCode = "game:gear-temporal"; // Use temporal gear icon for cases
+                }
+
+                nodes.Add(new ReputationTreeNode
+                {
+                    Id = "shop:" + i,
+                    Title = name,
+                    RequirementText = reqText,
+                    X = 0, // Will be laid out by grid
+                    Y = 0,
+                    Status = status,
+                    IconItemCode = iconCode
+                });
+            }
+
+            ApplyReputationGridLayout(nodes);
+            return nodes;
+        }
+
+        private void OnTrialShopNodeClicked(string nodeId)
+        {
+            if (string.IsNullOrWhiteSpace(nodeId)) return;
+            if (!nodeId.StartsWith("shop:", StringComparison.OrdinalIgnoreCase)) return;
+
+            string indexStr = nodeId.Substring(5);
+            if (!int.TryParse(indexStr, out int index)) return;
+            if (trialShopItems == null || index < 0 || index >= trialShopItems.Count) return;
+
+            var item = trialShopItems[index];
+            if (item == null || item.IsLocked) return;
+            if (item.MaxPurchases > 0 && item.PurchasesMade >= item.MaxPurchases) return;
+            if (trialShopShards < item.Cost) return;
+
+            // Send buy request via trial shop channel
+            capi.Network.GetChannel(TrialShopNetworkHandler.ChannelName).SendPacket(new BuyTrialShopItemMessage
+            {
+                ItemCode = item.ItemCode,
+                Cost = item.Cost
+            });
+
+            // Refresh the quest giver UI
+            if (questGiverId > 0)
+            {
+                capi.Network.GetChannel("alegacyvsquest").SendPacket(new DialogTriggerMessage
+                {
+                    EntityId = questGiverId,
+                    Trigger = "openquests"
+                });
+            }
+        }
 
 
         private void OnNewScrollbarvalue(float value)
@@ -1256,7 +1396,23 @@ namespace VsQuest
 
         {
 
-            return quest.ClientState?.ProgressText ?? string.Empty;
+            string baseText = quest.ClientState?.ProgressText ?? string.Empty;
+
+            // Append trial challenges if available
+            if (trialChallengeNames != null && trialChallengeNames.Count > 0)
+            {
+                string challengeHeader = LocalizationUtils.GetSafe("albase:trial-challenges-header");
+                var sb = new System.Text.StringBuilder(baseText);
+                sb.AppendLine();
+                sb.AppendLine($"<font color=\"#A78BFA\">{challengeHeader}</font>");
+                foreach (var name in trialChallengeNames)
+                {
+                    sb.AppendLine($"<font color=\"#C4B5FD\">  \u2022 {name}</font>");
+                }
+                return sb.ToString();
+            }
+
+            return baseText;
 
         }
 

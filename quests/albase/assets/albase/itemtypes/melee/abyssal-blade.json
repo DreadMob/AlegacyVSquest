@@ -1,0 +1,27 @@
+{
+  "code": "abyssal-blade",
+  "maxstacksize": 1,
+  "storageFlags": 2,
+  "creativeinventory": { "general": ["*"] },
+  "shape": { "base": "game:item/tool/blade/claymore" },
+  "textures": {
+    "blade": { "base": "game:block/metal/ingot/meteoriciron" },
+    "guard": { "base": "game:block/stone/obsidian" },
+    "handle": { "base": "game:block/leather/dark" }
+  },
+  "attributes": {
+    "handbook": { "exclude": true }
+  },
+  "guiTransform": {
+    "translation": { "x": 0, "y": 0, "z": 0 },
+    "rotation": { "x": -20, "y": 40, "z": 0 },
+    "origin": { "x": 0.5, "y": 0.3, "z": 0.5 },
+    "scale": 4.5
+  },
+  "groundTransform": {
+    "translation": { "x": 0, "y": 0, "z": 0 },
+    "rotation": { "x": 0, "y": 0, "z": 0 },
+    "origin": { "x": 0.5, "y": 0, "z": 0.5 },
+    "scale": 4
+  }
+}

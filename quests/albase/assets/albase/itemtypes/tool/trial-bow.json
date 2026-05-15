@@ -32,6 +32,52 @@
     "arrow": { "base": "game:block/metal/ingot/meteoriciron" },
     "stick": { "base": "game:block/metal/ingot/bismuthbronze" }
   },
+  "texturesByType": {
+    "trial-bow-dim": {
+      "aged": { "base": "game:block/metal/ingot/bismuthbronze" },
+      "string": { "base": "albase:item/bowstring-dark" },
+      "leather": { "base": "game:block/leather/dark" },
+      "iron": { "base": "game:block/metal/ingot/meteoriciron" },
+      "bone": { "base": "game:block/metal/ingot/meteoriciron" },
+      "feather2": { "base": "albase:item/bowstring-dark" },
+      "beeswax": { "base": "game:block/metal/ingot/bismuthbronze" },
+      "arrow": { "base": "game:block/metal/ingot/meteoriciron" },
+      "stick": { "base": "game:block/metal/ingot/bismuthbronze" }
+    },
+    "trial-bow-shimmer": {
+      "aged": { "base": "game:block/metal/ingot/silver" },
+      "string": { "base": "albase:item/bowstring-dark" },
+      "leather": { "base": "game:block/leather/medium" },
+      "iron": { "base": "game:block/metal/ingot/meteoriciron" },
+      "bone": { "base": "game:block/metal/ingot/silver" },
+      "feather2": { "base": "albase:item/bowstring-dark" },
+      "beeswax": { "base": "game:block/metal/ingot/silver" },
+      "arrow": { "base": "game:block/metal/ingot/meteoriciron" },
+      "stick": { "base": "game:block/metal/ingot/silver" }
+    },
+    "trial-bow-radiant": {
+      "aged": { "base": "game:block/metal/ingot/electrum" },
+      "string": { "base": "albase:item/bowstring-dark" },
+      "leather": { "base": "game:block/leather/medium" },
+      "iron": { "base": "game:block/metal/ingot/electrum" },
+      "bone": { "base": "game:block/metal/ingot/electrum" },
+      "feather2": { "base": "albase:item/bowstring-dark" },
+      "beeswax": { "base": "game:block/metal/ingot/electrum" },
+      "arrow": { "base": "game:block/metal/ingot/electrum" },
+      "stick": { "base": "game:block/metal/ingot/electrum" }
+    },
+    "trial-bow-abyssal": {
+      "aged": { "base": "game:block/metal/ingot/gold" },
+      "string": { "base": "albase:item/bowstring-dark" },
+      "leather": { "base": "game:block/leather/light" },
+      "iron": { "base": "game:block/metal/ingot/gold" },
+      "bone": { "base": "game:block/metal/ingot/gold" },
+      "feather2": { "base": "albase:item/bowstring-dark" },
+      "beeswax": { "base": "game:block/stone/cinnabar" },
+      "arrow": { "base": "game:block/metal/ingot/gold" },
+      "stick": { "base": "game:block/metal/ingot/gold" }
+    }
+  },
   "creativeinventory": { "general": ["*"], "items": ["*"], "tools": ["*"] },
   "attributes": {
     "heldItemPitchFollow": 1,

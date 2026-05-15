@@ -1,91 +1,102 @@
-{
-  "code": "bosshunt-miner-belt",
-  "behaviors": [
-    { "name": "Wearable" }
-  ],
-  "maxstacksize": 1,
-  "storageFlags": 128,
-  "attributes": {
-    "handbook": { "exclude": true },
-    "clothescategory": "waist",
-    "wearableAttachment": true,
-    "warmth": 0.01,
-    "repairItemCode": { "code": "gear-temporal", "strength": 0.4 }
-  },
-  "shape": {
-    "base": "game:entity/humanoid/villageraccessories/waist/miner-accessories"
-  },
-  "textures": {
-    "seraph": {
-      "base": "game:block/transparent"
-    },
-    "waisttexture": {
-      "base": "albase:miner"
-    }
-  },
-  "renderAlphaTest": 0.25,
-  "lightHsv": [8, 2, 1],
-  "fpHandTransform": {
-    "translation": {
-      "x": 0.6,
-      "y": -1.5,
-      "z": -1.3
-    },
-    "rotation": {
-      "x": 42,
-      "y": 100,
-      "z": -9
-    },
-    "scale": 3.06
-  },
-  "tpHandTransform": {
-    "translation": {
-      "x": -0.78,
-      "y": -0.93,
-      "z": -1.23
-    },
-    "rotation": {
-      "x": 35,
-      "y": -90,
-      "z": 49
-    },
-    "scale": 0.67
-  },
-  "guiTransform": {
-    "rotate": false,
-    "translation": {
-      "x": 0,
-      "y": 0,
-      "z": 19
-    },
-    "rotation": {
-      "x": 174,
-      "y": -45,
-      "z": 23
-    },
-    "origin": {
-      "x": 0.4,
-      "y": 1.1,
-      "z": 0.4
-    },
-    "scale": 2.85
-  },
-  "groundTransform": {
-    "translation": {
-      "x": 0.05,
-      "y": -0.21,
-      "z": 0
-    },
-    "rotation": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-    },
-    "origin": {
-      "x": 0.5,
-      "y": 0.5,
-      "z": 0.5299
-    },
-    "scale": 2.72
-  }
+﻿{
+    "code":  "bosshunt-miner-belt",
+    "behaviors":  [
+                      {
+                          "name":  "Wearable"
+                      }
+                  ],
+    "maxstacksize":  1,
+    "storageFlags":  128,
+    "attributes":  {
+                       "handbook":  {
+                                        "exclude":  true
+                                    },
+                       "clothescategory":  "waist",
+                       "wearableAttachment":  true,
+                       "warmth":  0.01,
+                       "repairItemCode":  {
+                                              "code":  "gear-temporal",
+                                              "strength":  0.4
+                                          }
+                   },
+    "shape":  {
+                  "base":  "game:entity/humanoid/villageraccessories/waist/miner-accessories"
+              },
+    "textures":  {
+                     "seraph":  {
+                                    "base":  "game:block/transparent"
+                                },
+                     "waisttexture":  {
+                                          "base":  "albase:miner"
+                                      }
+                 },
+    "renderAlphaTest":  0.25,
+    "lightHsv":  [
+                     8,
+                     2,
+                     1
+                 ],
+    "fpHandTransform":  {
+                            "translation":  {
+                                                "x":  0.6,
+                                                "y":  -1.5,
+                                                "z":  -1.3
+                                            },
+                            "rotation":  {
+                                             "x":  42,
+                                             "y":  100,
+                                             "z":  -9
+                                         },
+                            "scale":  3.06
+                        },
+    "tpHandTransform":  {
+                            "translation":  {
+                                                "x":  -0.78,
+                                                "y":  -0.93,
+                                                "z":  -1.23
+                                            },
+                            "rotation":  {
+                                             "x":  35,
+                                             "y":  -90,
+                                             "z":  49
+                                         },
+                            "scale":  0.67
+                        },
+    "guiTransform":  {
+                         "rotate":  false,
+                         "translation":  {
+                                             "x":  0,
+                                             "y":  0,
+                                             "z":  19
+                                         },
+                         "rotation":  {
+                                          "x":  174,
+                                          "y":  -45,
+                                          "z":  23
+                                      },
+                         "origin":  {
+                                        "x":  0.4,
+                                        "y":  1.1,
+                                        "z":  0.4
+                                    },
+                         "scale":  2.85
+                     },
+    "groundTransform":  {
+                            "translation":  {
+                                                "x":  0.05,
+                                                "y":  -0.21,
+                                                "z":  0
+                                            },
+                            "rotation":  {
+                                             "x":  0,
+                                             "y":  0,
+                                             "z":  0
+                                         },
+                            "origin":  {
+                                           "x":  0.5,
+                                           "y":  0.5,
+                                           "z":  0.5299
+                                       },
+                            "scale":  2.72
+                        }
 }

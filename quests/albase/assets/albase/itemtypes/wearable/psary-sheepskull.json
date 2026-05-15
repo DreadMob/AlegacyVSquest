@@ -1,94 +1,101 @@
-{
-  "code": "psary-sheepskull",
-  "behaviors": [
-    { "name": "Wearable" }
-  ],
-  "maxstacksize": 1,
-  "storageFlags": 128,
-  "attributes": {
-    "handbook": { "exclude": true },
-    "clothescategory": "face",
-    "wearableAttachment": true,
-    "warmth": 0.01,
-    "repairItemCode": { "code": "gear-temporal", "strength": 0.4 }
-  },
-  "shape": {
-    "base": "game:entity/humanoid/seraph/clothing/face/sheepskull"
-  },
-  "textures": {
-    "seraph": {
-      "base": "game:block/transparent"
-    },
-    "sheepskull": {
-      "base": "albase:sheepskull"
-    }
-  },
-  "renderAlphaTest": 0.25,
-  "fpHandTransform": {
-    "translation": {
-      "x": 0.08,
-      "y": -1.71,
-      "z": -0.5
-    },
-    "rotation": {
-      "x": 12,
-      "y": 42,
-      "z": -29
-    },
-    "origin": {
-      "x": 0.5,
-      "y": 1,
-      "z": 0.5
-    },
-    "scale": 2.5
-  },
-  "tpHandTransform": {
-    "translation": {
-      "x": -0.55,
-      "y": -2.2,
-      "z": -0.94
-    },
-    "rotation": {
-      "x": -89,
-      "y": 180,
-      "z": 102
-    },
-    "origin": {
-      "x": 0.5,
-      "y": 1.5,
-      "z": 0.5
-    },
-    "scale": 0.7
-  },
-  "guiTransform": {
-    "translation": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-    },
-    "rotation": {
-      "x": 1,
-      "y": -90,
-      "z": -167
-    },
-    "origin": {
-      "x": 0.5,
-      "y": 1.72,
-      "z": 0.55
-    },
-    "scale": 2.18
-  },
-  "groundTransform": {
-    "rotation": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-    },
-    "origin": {
-      "x": 0.5,
-      "y": 1.5,
-      "z": 0.5299
-    },
-    "scale": 2.58
-  }
+﻿{
+    "code":  "psary-sheepskull",
+    "behaviors":  [
+                      {
+                          "name":  "Wearable"
+                      }
+                  ],
+    "maxstacksize":  1,
+    "storageFlags":  128,
+    "attributes":  {
+                       "handbook":  {
+                                        "exclude":  true
+                                    },
+                       "clothescategory":  "face",
+                       "wearableAttachment":  true,
+                       "warmth":  0.01,
+                       "repairItemCode":  {
+                                              "code":  "gear-temporal",
+                                              "strength":  0.4
+                                          }
+                   },
+    "shape":  {
+                  "base":  "game:entity/humanoid/seraph/clothing/face/sheepskull"
+              },
+    "textures":  {
+                     "seraph":  {
+                                    "base":  "game:block/transparent"
+                                },
+                     "sheepskull":  {
+                                        "base":  "albase:sheepskull"
+                                    }
+                 },
+    "renderAlphaTest":  0.25,
+    "fpHandTransform":  {
+                            "translation":  {
+                                                "x":  0.08,
+                                                "y":  -1.71,
+                                                "z":  -0.5
+                                            },
+                            "rotation":  {
+                                             "x":  12,
+                                             "y":  42,
+                                             "z":  -29
+                                         },
+                            "origin":  {
+                                           "x":  0.5,
+                                           "y":  1,
+                                           "z":  0.5
+                                       },
+                            "scale":  2.5
+                        },
+    "tpHandTransform":  {
+                            "translation":  {
+                                                "x":  -0.55,
+                                                "y":  -2.2,
+                                                "z":  -0.94
+                                            },
+                            "rotation":  {
+                                             "x":  -89,
+                                             "y":  180,
+                                             "z":  102
+                                         },
+                            "origin":  {
+                                           "x":  0.5,
+                                           "y":  1.5,
+                                           "z":  0.5
+                                       },
+                            "scale":  0.7
+                        },
+    "guiTransform":  {
+                         "translation":  {
+                                             "x":  0,
+                                             "y":  0,
+                                             "z":  0
+                                         },
+                         "rotation":  {
+                                          "x":  1,
+                                          "y":  -90,
+                                          "z":  -167
+                                      },
+                         "origin":  {
+                                        "x":  0.5,
+                                        "y":  1.72,
+                                        "z":  0.55
+                                    },
+                         "scale":  2.18
+                     },
+    "groundTransform":  {
+                            "rotation":  {
+                                             "x":  0,
+                                             "y":  0,
+                                             "z":  0
+                                         },
+                            "origin":  {
+                                           "x":  0.5,
+                                           "y":  1.5,
+                                           "z":  0.5299
+                                       },
+                            "scale":  2.58
+                        }
 }

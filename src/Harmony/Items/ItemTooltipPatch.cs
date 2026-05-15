@@ -149,7 +149,9 @@ namespace VsQuest.Harmony
             // Show quality header at the top
             if (showQualityHeader)
             {
-                dsc.AppendLine($"<font color=\"{qualityColor}\">\u25AC\u25AC\u25AC \u2666\u2666 {qualityName} \u2666\u2666 \u25AC\u25AC\u25AC</font>");
+                int qualityTier = attrs.GetInt("alegacyvsquest:qualityTier", 0);
+                string tierSuffix = qualityTier > 0 ? $" {ItemQualityService.GetTierRoman(qualityTier)}" : "";
+                dsc.AppendLine($"<font color=\"{qualityColor}\">\u25AC\u25AC\u25AC \u2666\u2666 {qualityName}{tierSuffix} \u2666\u2666 \u25AC\u25AC\u25AC</font>");
             }
 
             // Show condition at the top for wearable action items

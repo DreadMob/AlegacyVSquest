@@ -1,0 +1,30 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:bosshunt-reward-ossuary-mask",
+      "itemCode": "albase:bosshunt-ossuary-mask",
+      "name": "<font color=\"#5599DD\">Маска Оссуария</font>",
+      "description": "<font color=\"#9CA3AF\">Лицо знати. Холод склепа. Голод, который не утолить едой.</font>",
+      "actions": [],
+      "attributes": {
+        "healonkill": 0.22,
+        "hungerrate": 0.25,
+        "maxhealthflat": -6.0,
+        "walkspeed": -0.06
+      },
+      "showAttributes": [
+        "healonkill",
+        "hungerrate",
+        "maxhealthflat",
+        "walkspeed"
+      ],
+      "hideVanillaTooltips": [
+        "armor",
+        "protection",
+        "warmth",
+        "walkspeed",
+        "modsource"
+      ]
+    }
+  ]
+}

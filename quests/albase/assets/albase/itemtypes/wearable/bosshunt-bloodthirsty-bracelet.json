@@ -1,85 +1,92 @@
-{
-  "code": "bosshunt-bloodthirsty-bracelet",
-  "behaviors": [
-    { "name": "Wearable" }
-  ],
-  "maxstacksize": 1,
-  "storageFlags": 128,
-  "attributes": {
-    "handbook": { "exclude": true },
-    "clothescategory": "arm",
-    "wearableAttachment": true,
-    "warmth": 0.01,
-    "repairItemCode": { "code": "gear-temporal", "strength": 0.4 }
-  },
-  "shape": {
-    "base": "game:entity/humanoid/seraph/clothing/arm/rusty-wrist-manacles"
-  },
-  "textures": {
-    "seraph": {
-      "base": "game:block/transparent"
-    },
-    "rusty-iron3": {
-      "base": "game:block/metal/tarnished/tarnished-lead"
-    }
-  },
-  "renderAlphaTest": 0.25,
-  "fpHandTransform": {
-    "translation": {
-      "x": 0.6,
-      "y": 0,
-      "z": -0.5
-    },
-    "rotation": {
-      "x": 180,
-      "y": 42,
-      "z": -29
-    },
-    "scale": 2.5
-  },
-  "tpHandTransform": {
-    "translation": {
-      "x": -1.6,
-      "y": -1.2,
-      "z": -0.9
-    },
-    "rotation": {
-      "x": -13,
-      "y": -64,
-      "z": 49
-    },
-    "scale": 0.55
-  },
-  "guiTransform": {
-    "rotate": false,
-    "translation": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-    },
-    "rotation": {
-      "x": 174,
-      "y": -49,
-      "z": 23
-    },
-    "origin": {
-      "x": 0.42,
-      "y": 0.9,
-      "z": 0.7
-    },
-    "scale": 4.71
-  },
-  "groundTransform": {
-    "translation": {
-      "x": 0.05,
-      "y": -0.18,
-      "z": 0
-    },
-    "rotation": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-    },
-    "scale": 4
-  }
+﻿{
+    "code":  "bosshunt-bloodthirsty-bracelet",
+    "behaviors":  [
+                      {
+                          "name":  "Wearable"
+                      }
+                  ],
+    "maxstacksize":  1,
+    "storageFlags":  128,
+    "attributes":  {
+                       "handbook":  {
+                                        "exclude":  true
+                                    },
+                       "clothescategory":  "arm",
+                       "wearableAttachment":  true,
+                       "warmth":  0.01,
+                       "repairItemCode":  {
+                                              "code":  "gear-temporal",
+                                              "strength":  0.4
+                                          }
+                   },
+    "shape":  {
+                  "base":  "game:entity/humanoid/seraph/clothing/arm/rusty-wrist-manacles"
+              },
+    "textures":  {
+                     "seraph":  {
+                                    "base":  "game:block/transparent"
+                                },
+                     "rusty-iron3":  {
+                                         "base":  "game:block/metal/tarnished/tarnished-lead"
+                                     }
+                 },
+    "renderAlphaTest":  0.25,
+    "fpHandTransform":  {
+                            "translation":  {
+                                                "x":  0.6,
+                                                "y":  0,
+                                                "z":  -0.5
+                                            },
+                            "rotation":  {
+                                             "x":  180,
+                                             "y":  42,
+                                             "z":  -29
+                                         },
+                            "scale":  2.5
+                        },
+    "tpHandTransform":  {
+                            "translation":  {
+                                                "x":  -1.6,
+                                                "y":  -1.2,
+                                                "z":  -0.9
+                                            },
+                            "rotation":  {
+                                             "x":  -13,
+                                             "y":  -64,
+                                             "z":  49
+                                         },
+                            "scale":  0.55
+                        },
+    "guiTransform":  {
+                         "rotate":  false,
+                         "translation":  {
+                                             "x":  0,
+                                             "y":  0,
+                                             "z":  0
+                                         },
+                         "rotation":  {
+                                          "x":  174,
+                                          "y":  -49,
+                                          "z":  23
+                                      },
+                         "origin":  {
+                                        "x":  0.42,
+                                        "y":  0.9,
+                                        "z":  0.7
+                                    },
+                         "scale":  4.71
+                     },
+    "groundTransform":  {
+                            "translation":  {
+                                                "x":  0.05,
+                                                "y":  -0.18,
+                                                "z":  0
+                                            },
+                            "rotation":  {
+                                             "x":  0,
+                                             "y":  0,
+                                             "z":  0
+                                         },
+                            "scale":  4
+                        }
 }

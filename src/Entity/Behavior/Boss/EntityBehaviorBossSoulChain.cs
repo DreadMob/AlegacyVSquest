@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
@@ -8,87 +9,76 @@ using Vintagestory.API.Server;
 namespace VsQuest
 {
     /// <summary>
-    /// Soul Chain: boss tethers the player with a chain (particles).
-    /// While chained: player is slowed. Break by: distance OR dealing enough damage.
+    /// Soul Chain: boss tethers the nearest player with a chain.
+    /// While chained: player is slowed. Break by: distance, damage dealt to boss, or timeout.
+    /// Uses periodic tick to check chain state and spawn line particles.
     /// </summary>
-    public class EntityBehaviorBossSoulChain : EntityBehavior
+    public class EntityBehaviorBossSoulChain : BossAbilityBase
     {
-        private float chainDurationSec = 5f;
-        private float slowFactor = 0.4f;
-        private float breakDistance = 12f;
-        private float breakDamage = 20f;
-        private float cooldownSec = 15f;
+        private const string LastChainKey = "alegacyvsquest:bosssoulchain:lastMs";
+        protected override string CooldownKey => LastChainKey;
+
+        private class Stage : BossAbilityStage
+        {
+            public float chainDurationSec;
+            public float slowFactor;
+            public float breakDistance;
+            public float breakDamage;
+            public string sound;
+            public float soundRange;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                chainDurationSec = json["chainDurationSec"].AsFloat(5f);
+                slowFactor = json["slowFactor"].AsFloat(0.4f);
+                breakDistance = json["breakDistance"].AsFloat(12f);
+                breakDamage = json["breakDamage"].AsFloat(20f);
+                sound = json["sound"].AsString("block/meteoriciron");
+                soundRange = json["soundRange"].AsFloat(24f);
+            }
+        }
+
+        private List<Stage> stages = new();
 
         private bool chainActive;
-        private double chainStartMs;
+        private long chainStartMs;
         private string chainedPlayerUid;
         private float damageDealtDuringChain;
-        private double lastChainMs;
-        private long tickListenerId;
+        private int activeStageIndex;
 
         public bool IsChainActive => chainActive;
 
         public EntityBehaviorBossSoulChain(Entity entity) : base(entity) { }
         public override string PropertyName() => "bosssoulchain";
 
-        public override void Initialize(EntityProperties properties, JsonObject typeAttributes)
+        protected override bool UsePeriodicTick() => true;
+
+        protected override void InitializeStages(JsonObject attributes) { stages = ParseStages<Stage>(attributes); }
+        protected override int GetStageCount() => stages.Count;
+        protected override object GetStage(int index) => stages[index];
+        protected override float GetStageHealthThreshold(object stage) => ((Stage)stage).whenHealthRelBelow;
+        protected override float GetStageCooldown(object stage) => ((Stage)stage).cooldownSeconds;
+        protected override float GetMaxTargetRange(object stage) => ((Stage)stage).maxTargetRange;
+
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
-            base.Initialize(properties, typeAttributes);
-            chainDurationSec = typeAttributes["chainDurationSec"].AsFloat(5f);
-            slowFactor = typeAttributes["slowFactor"].AsFloat(0.4f);
-            breakDistance = typeAttributes["breakDistance"].AsFloat(12f);
-            breakDamage = typeAttributes["breakDamage"].AsFloat(20f);
-            cooldownSec = typeAttributes["cooldownSec"].AsFloat(15f);
+            if (stageObj is not Stage stage) return;
+            if (target == null) return;
 
-            if (entity.Api?.Side == EnumAppSide.Server)
-            {
-                tickListenerId = entity.World.RegisterGameTickListener(OnTick, 200);
-            }
-        }
-
-        /// <summary>
-        /// Chain the nearest player.
-        /// </summary>
-        public bool TryChain()
-        {
-            if (entity.Api?.Side != EnumAppSide.Server) return false;
-            if (!entity.Alive || chainActive) return false;
-
-            double nowMs = entity.World.ElapsedMilliseconds;
-            if (nowMs - lastChainMs < cooldownSec * 1000) return false;
-
-            var sapi = entity.Api as ICoreServerAPI;
-            if (sapi == null) return false;
-
-            // Find nearest player
-            IServerPlayer target = null;
-            double nearestDist = double.MaxValue;
-
-            foreach (var p in sapi.World.AllOnlinePlayers)
-            {
-                if (p is not IServerPlayer sp) continue;
-                if (sp.Entity == null || !sp.Entity.Alive) continue;
-                if (sp.Entity.Pos.Dimension != entity.Pos.Dimension) continue;
-
-                double dist = sp.Entity.Pos.SquareDistanceTo(entity.Pos.XYZ);
-                if (dist < nearestDist)
-                {
-                    nearestDist = dist;
-                    target = sp;
-                }
-            }
-
-            if (target == null) return false;
+            MarkCooldownStart();
 
             chainActive = true;
-            chainStartMs = nowMs;
+            chainStartMs = Sapi.World.ElapsedMilliseconds;
             chainedPlayerUid = target.PlayerUID;
             damageDealtDuringChain = 0;
+            activeStageIndex = stageIndex;
 
             // Apply slow
-            target.Entity.Stats.Set("walkspeed", "soulchain", -slowFactor, false);
+            target.Stats.Set("walkspeed", "soulchain", -stage.slowFactor, false);
 
-            return true;
+            // Sound on attach
+            TryPlaySound(stage.sound, stage.soundRange);
         }
 
         public override void OnEntityReceiveDamage(DamageSource damageSource, ref float damage)
@@ -105,98 +95,73 @@ namespace VsQuest
             }
         }
 
-        private void OnTick(float dt)
+        protected override void OnPeriodicTick(float dt)
         {
-            if (entity.Api?.Side != EnumAppSide.Server) return;
-            if (!chainActive) return;
+            if (Sapi == null || !chainActive) return;
+            if (activeStageIndex < 0 || activeStageIndex >= stages.Count)
+            {
+                BreakChain();
+                return;
+            }
 
-            double nowMs = entity.World.ElapsedMilliseconds;
-            var sapi = entity.Api as ICoreServerAPI;
+            var stage = stages[activeStageIndex];
+            long nowMs = Sapi.World.ElapsedMilliseconds;
 
             // Check duration expired
-            if (nowMs - chainStartMs >= chainDurationSec * 1000)
+            if (nowMs - chainStartMs >= stage.chainDurationSec * 1000)
             {
-                BreakChain(sapi);
+                BreakChain();
                 return;
             }
 
             // Check break by damage
-            if (damageDealtDuringChain >= breakDamage)
+            if (damageDealtDuringChain >= stage.breakDamage)
             {
-                BreakChain(sapi);
+                BreakChain();
                 return;
             }
 
-            // Check break by distance
-            if (sapi != null && !string.IsNullOrWhiteSpace(chainedPlayerUid))
+            // Check break by distance and spawn line particles
+            if (!string.IsNullOrWhiteSpace(chainedPlayerUid))
             {
-                var player = sapi.World.PlayerByUid(chainedPlayerUid) as IServerPlayer;
+                var player = Sapi.World.PlayerByUid(chainedPlayerUid) as IServerPlayer;
                 if (player?.Entity != null && player.Entity.Alive)
                 {
                     double dist = Math.Sqrt(player.Entity.Pos.SquareDistanceTo(entity.Pos.XYZ));
-                    if (dist >= breakDistance)
+                    if (dist >= stage.breakDistance)
                     {
-                        BreakChain(sapi);
+                        BreakChain();
                         return;
                     }
 
-                    // Spawn chain particles between boss and player
-                    SpawnChainParticles(entity.Pos.XYZ, player.Entity.Pos.XYZ);
+                    // Spawn chain line particles between boss and player
+                    var fromCenter = entity.Pos.XYZ.AddCopy(0, 1, 0);
+                    var toCenter = player.Entity.Pos.XYZ.AddCopy(0, 1, 0);
+                    ParticleUtils.SpawnLine(Sapi, fromCenter, toCenter, ParticleUtils.Colors.Chain, 10, 0.2f);
                 }
                 else
                 {
-                    BreakChain(sapi);
+                    BreakChain();
                 }
             }
         }
 
-        private void BreakChain(ICoreServerAPI sapi)
+        private void BreakChain()
         {
             chainActive = false;
-            lastChainMs = entity.World.ElapsedMilliseconds;
 
-            if (sapi != null && !string.IsNullOrWhiteSpace(chainedPlayerUid))
+            if (Sapi != null && !string.IsNullOrWhiteSpace(chainedPlayerUid))
             {
-                var player = sapi.World.PlayerByUid(chainedPlayerUid) as IServerPlayer;
+                var player = Sapi.World.PlayerByUid(chainedPlayerUid) as IServerPlayer;
                 player?.Entity?.Stats.Remove("walkspeed", "soulchain");
             }
 
             chainedPlayerUid = null;
         }
 
-        private void SpawnChainParticles(Vec3d from, Vec3d to)
+        protected override void StopAbility()
         {
-            int segments = 5;
-            for (int i = 0; i <= segments; i++)
-            {
-                float t = i / (float)segments;
-                double px = from.X + (to.X - from.X) * t;
-                double py = from.Y + 1 + (to.Y + 1 - from.Y - 1) * t;
-                double pz = from.Z + (to.Z - from.Z) * t;
-
-                entity.World.SpawnParticles(new SimpleParticleProperties(
-                    1, 1, ColorUtil.ToRgba(200, 180, 100, 255),
-                    new Vec3d(px, py, pz), new Vec3d(px, py, pz),
-                    new Vec3f(0, 0, 0), new Vec3f(0, 0, 0),
-                    0.3f, 0f, 0.1f, 0.15f));
-            }
-        }
-
-        public override void OnEntityDespawn(EntityDespawnData despawn)
-        {
-            base.OnEntityDespawn(despawn);
-            if (tickListenerId != 0 && entity.World != null)
-            {
-                entity.World.UnregisterGameTickListener(tickListenerId);
-                tickListenerId = 0;
-            }
-
-            // Clean up slow on despawn
-            if (chainActive)
-            {
-                var sapi = entity.Api as ICoreServerAPI;
-                BreakChain(sapi);
-            }
+            BreakChain();
         }
     }
 }

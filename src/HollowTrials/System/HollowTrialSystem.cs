@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
+using Vintagestory.API.Config;
 using Vintagestory.API.Server;
 
 namespace VsQuest
@@ -19,9 +21,6 @@ namespace VsQuest
         private bool debug;
 
         private readonly List<HollowTrialConfig> allConfigs = new();
-        private readonly List<HollowTrialConfig> configsByTier1 = new();
-        private readonly List<HollowTrialConfig> configsByTier2 = new();
-        private readonly List<HollowTrialConfig> configsByTier3 = new();
 
         private HollowTrialWorldState state;
         private bool stateDirty;
@@ -29,6 +28,7 @@ namespace VsQuest
 
         private BossEntityTracker entityTracker;
         private long tickListenerId;
+        private long armorScanListenerId;
         private TrialShopNetworkHandler shopNetworkHandler;
 
         public override void StartServerSide(ICoreServerAPI api)
@@ -53,9 +53,11 @@ namespace VsQuest
             shopNetworkHandler.RegisterServer(sapi);
 
             tickListenerId = sapi.Event.RegisterGameTickListener(OnTick, 60000);
+            armorScanListenerId = sapi.Event.RegisterGameTickListener(OnArmorScanTick, 1000);
             sapi.Event.GameWorldSave += OnWorldSave;
             sapi.Event.OnEntityDeath += OnEntityDeath;
             sapi.Event.PlayerJoin += TrySpawnForPlayer;
+            sapi.Event.PlayerDeath += OnPlayerDeathHandler;
         }
 
         public override void Dispose()
@@ -74,9 +76,16 @@ namespace VsQuest
                     tickListenerId = 0;
                 }
 
+                if (armorScanListenerId != 0)
+                {
+                    sapi.Event.UnregisterGameTickListener(armorScanListenerId);
+                    armorScanListenerId = 0;
+                }
+
                 sapi.Event.GameWorldSave -= OnWorldSave;
                 sapi.Event.OnEntityDeath -= OnEntityDeath;
                 sapi.Event.PlayerJoin -= TrySpawnForPlayer;
+                sapi.Event.PlayerDeath -= OnPlayerDeathHandler;
             }
 
             _stateLock?.Dispose();
@@ -104,9 +113,6 @@ namespace VsQuest
         private void LoadConfigs()
         {
             allConfigs.Clear();
-            configsByTier1.Clear();
-            configsByTier2.Clear();
-            configsByTier3.Clear();
 
             foreach (var mod in sapi.ModLoader.Mods)
             {
@@ -121,8 +127,8 @@ namespace VsQuest
 
                         if (!asset.Value.IsValid())
                         {
-                            sapi.Logger.Warning("[HollowTrialSystem] Invalid trial config in mod {0}: trialKey='{1}' questId='{2}' tier={3}",
-                                mod.Info.ModID, asset.Value.trialKey, asset.Value.questId, asset.Value.tier);
+                            sapi.Logger.Warning("[HollowTrialSystem] Invalid trial config in mod {0}: trialKey='{1}'",
+                                mod.Info.ModID, asset.Value.trialKey);
                             continue;
                         }
 
@@ -135,24 +141,10 @@ namespace VsQuest
                 }
             }
 
-            // Sort into tier buckets
-            foreach (var cfg in allConfigs)
-            {
-                switch (cfg.tier)
-                {
-                    case 1: configsByTier1.Add(cfg); break;
-                    case 2: configsByTier2.Add(cfg); break;
-                    case 3: configsByTier3.Add(cfg); break;
-                }
-            }
+            // Sort alphabetically by trialKey for deterministic rotation
+            allConfigs.Sort((a, b) => string.Compare(a.trialKey, b.trialKey, StringComparison.OrdinalIgnoreCase));
 
-            // Sort each tier alphabetically by trialKey for deterministic rotation
-            configsByTier1.Sort((a, b) => string.Compare(a.trialKey, b.trialKey, StringComparison.OrdinalIgnoreCase));
-            configsByTier2.Sort((a, b) => string.Compare(a.trialKey, b.trialKey, StringComparison.OrdinalIgnoreCase));
-            configsByTier3.Sort((a, b) => string.Compare(a.trialKey, b.trialKey, StringComparison.OrdinalIgnoreCase));
-
-            sapi.Logger.Notification("[HollowTrialSystem] Loaded {0} trial configs (T1:{1} T2:{2} T3:{3})",
-                allConfigs.Count, configsByTier1.Count, configsByTier2.Count, configsByTier3.Count);
+            sapi.Logger.Notification("[HollowTrialSystem] Loaded {0} trial boss configs (each with up to 3 tiers)", allConfigs.Count);
         }
 
         private void OnTick(float dt)
@@ -177,13 +169,53 @@ namespace VsQuest
                     if (entry.deadUntilTotalHours > nowHours) continue;
 
                     var bossEntity = entityTracker?.GetTrackedEntity(trialKey);
-                    if (bossEntity != null && bossEntity.Alive) continue;
+                    if (bossEntity != null && bossEntity.Alive)
+                    {
+                        // Check soft reset (no damage for softResetIdleHours)
+                        TryProcessSoftReset(cfg, entry, bossEntity, nowHours);
+                        continue;
+                    }
 
                     TrySpawnIfPlayerNearby(cfg, entry, nowHours);
                 }
             }
 
             SaveStateIfDirty();
+        }
+
+        /// <summary>
+        /// If boss has not received damage for softResetIdleHours, despawn and reset combat tracker.
+        /// Boss will respawn fresh when player approaches.
+        /// </summary>
+        private void TryProcessSoftReset(HollowTrialConfig cfg, HollowTrialStateEntry entry, Entity bossEntity, double nowHours)
+        {
+            if (cfg == null || bossEntity == null || !bossEntity.Alive) return;
+
+            double idleThresholdHours = cfg.GetSoftResetIdleHours(coreConfig);
+            if (idleThresholdHours <= 0) return;
+
+            double lastDamageHours = bossEntity.WatchedAttributes.GetDouble(BossHuntSystem.LastBossDamageTotalHoursKey, double.NaN);
+            if (double.IsNaN(lastDamageHours) || lastDamageHours <= 0) return;
+
+            if ((nowHours - lastDamageHours) < idleThresholdHours) return;
+
+            DebugLog($"Soft reset for trial '{cfg.trialKey}' (idle for {nowHours - lastDamageHours:0.00}h)");
+
+            try
+            {
+                sapi.World.DespawnEntity(bossEntity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
+            }
+            catch (Exception ex)
+            {
+                sapi.Logger.Warning("[HollowTrialSystem] Soft reset despawn failed for '{0}': {1}", cfg.trialKey, ex.Message);
+            }
+
+            // Reset combat tracker so next attempt is clean
+            var tracker = GetCombatTracker(cfg.trialKey);
+            tracker?.Reset();
+
+            entry.deadUntilTotalHours = 0;
+            stateDirty = true;
         }
 
         private void TrySpawnForPlayer(IServerPlayer byPlayer)
@@ -206,6 +238,18 @@ namespace VsQuest
 
                 TrySpawnIfPlayerNearby(cfg, entry, nowHours);
             }
+        }
+
+        private void NotifyPlayerOfActiveModifier(IServerPlayer player)
+        {
+            if (player == null || state == null) return;
+
+            var modType = (TrialModifierType)state.activeModifier;
+            if (modType == TrialModifierType.None) return;
+
+            string modName = LocalizationUtils.GetSafe(TrialWeeklyModifierUtils.GetNameKey(modType));
+            string msg = LocalizationUtils.GetSafe("albase:trial-modifier-active", modName);
+            sapi.SendMessage(player, GlobalConstants.GeneralChatGroup, msg, EnumChatType.Notification);
         }
 
         public HollowTrialConfig FindConfig(string trialKey)

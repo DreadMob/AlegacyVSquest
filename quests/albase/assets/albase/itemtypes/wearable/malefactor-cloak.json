@@ -1,107 +1,114 @@
-{
-  "code": "malefactor-cloak",
-  "behaviors": [
-    { "name": "Wearable" }
-  ],
-  "maxstacksize": 1,
-  "storageFlags": 128,
-  "attributes": {
-    "handbook": { "exclude": true },
-    "clothescategory": "shoulder",
-    "wearableAttachment": true,
-    "warmth": 0.01,
-    "repairItemCode": { "code": "gear-temporal", "strength": 0.4 },
-    "disableElements": [
-      "hoodupperover",
-      "Hair tile upper part",
-      "ponytailhigh",
-      "ponytaillow",
-      "hair-uncovered",
-      "hidehood",
-      "hidehat"
-    ],
-    "keepElements": [
-      "hair-covered"
-    ]
-  },
-  "shape": {
-    "base": "game:entity/humanoid/seraph/clothing/shoulder/longsleeve-hood",
-    "overlays": [
-      {
-        "base": "game:entity/humanoid/seraph/clothing/shoulder/collar-longsleeve-hood-fancy"
-      }
-    ]
-  },
-  "textures": {
-    "seraph": {
-      "base": "game:block/transparent"
-    },
-    "shouldertexture": {
-      "base": "albase:malefactor-cloak"
-    }
-  },
-  "renderAlphaTest": 0.25,
-  "fpHandTransform": {
-    "translation": {
-      "x": -0.15,
-      "y": -0.8,
-      "z": 0.3
-    },
-    "rotation": {
-      "x": 180,
-      "y": 150,
-      "z": 180
-    },
-    "scale": 2
-  },
-  "tpHandTransform": {
-    "translation": {
-      "x": 0,
-      "y": -0.7,
-      "z": -0.7
-    },
-    "rotation": {
-      "x": -81,
-      "y": 180,
-      "z": 91
-    },
-    "scale": 0.59
-  },
-  "guiTransform": {
-    "rotate": false,
-    "translation": {
-      "x": 2,
-      "y": 0,
-      "z": 17
-    },
-    "rotation": {
-      "x": -178,
-      "y": -65,
-      "z": 10
-    },
-    "origin": {
-      "x": 0.4,
-      "y": 1.45,
-      "z": 0.5
-    },
-    "scale": 1.51
-  },
-  "groundTransform": {
-    "translation": {
-      "x": 0.05,
-      "y": 0.1,
-      "z": 0
-    },
-    "rotation": {
-      "x": 0,
-      "y": 0,
-      "z": -87
-    },
-    "origin": {
-      "x": 0.5,
-      "y": 0.5,
-      "z": 0.5299
-    },
-    "scale": 2.19
-  }
+﻿{
+    "code":  "malefactor-cloak",
+    "behaviors":  [
+                      {
+                          "name":  "Wearable"
+                      }
+                  ],
+    "maxstacksize":  1,
+    "storageFlags":  128,
+    "attributes":  {
+                       "handbook":  {
+                                        "exclude":  true
+                                    },
+                       "clothescategory":  "shoulder",
+                       "wearableAttachment":  true,
+                       "warmth":  0.01,
+                       "repairItemCode":  {
+                                              "code":  "gear-temporal",
+                                              "strength":  0.4
+                                          },
+                       "disableElements":  [
+                                               "hoodupperover",
+                                               "Hair tile upper part",
+                                               "ponytailhigh",
+                                               "ponytaillow",
+                                               "hair-uncovered",
+                                               "hidehood",
+                                               "hidehat"
+                                           ],
+                       "keepElements":  [
+                                            "hair-covered"
+                                        ]
+                   },
+    "shape":  {
+                  "base":  "game:entity/humanoid/seraph/clothing/shoulder/longsleeve-hood",
+                  "overlays":  [
+                                   {
+                                       "base":  "game:entity/humanoid/seraph/clothing/shoulder/collar-longsleeve-hood-fancy"
+                                   }
+                               ]
+              },
+    "textures":  {
+                     "seraph":  {
+                                    "base":  "game:block/transparent"
+                                },
+                     "shouldertexture":  {
+                                             "base":  "albase:malefactor-cloak"
+                                         }
+                 },
+    "renderAlphaTest":  0.25,
+    "fpHandTransform":  {
+                            "translation":  {
+                                                "x":  -0.15,
+                                                "y":  -0.8,
+                                                "z":  0.3
+                                            },
+                            "rotation":  {
+                                             "x":  180,
+                                             "y":  150,
+                                             "z":  180
+                                         },
+                            "scale":  2
+                        },
+    "tpHandTransform":  {
+                            "translation":  {
+                                                "x":  0,
+                                                "y":  -0.7,
+                                                "z":  -0.7
+                                            },
+                            "rotation":  {
+                                             "x":  -81,
+                                             "y":  180,
+                                             "z":  91
+                                         },
+                            "scale":  0.59
+                        },
+    "guiTransform":  {
+                         "rotate":  false,
+                         "translation":  {
+                                             "x":  2,
+                                             "y":  0,
+                                             "z":  17
+                                         },
+                         "rotation":  {
+                                          "x":  -178,
+                                          "y":  -65,
+                                          "z":  10
+                                      },
+                         "origin":  {
+                                        "x":  0.4,
+                                        "y":  1.45,
+                                        "z":  0.5
+                                    },
+                         "scale":  1.51
+                     },
+    "groundTransform":  {
+                            "translation":  {
+                                                "x":  0.05,
+                                                "y":  0.1,
+                                                "z":  0
+                                            },
+                            "rotation":  {
+                                             "x":  0,
+                                             "y":  0,
+                                             "z":  -87
+                                         },
+                            "origin":  {
+                                           "x":  0.5,
+                                           "y":  0.5,
+                                           "z":  0.5299
+                                       },
+                            "scale":  2.19
+                        }
 }

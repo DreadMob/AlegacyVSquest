@@ -6,12 +6,12 @@ using Vintagestory.API.Server;
 namespace VsQuest
 {
     /// <summary>
-    /// Dynamic objective for trial quests: checks if the active trial boss of the given tier is dead.
+    /// Dynamic objective for trial quests: checks if any active trial boss has been killed solo.
     /// Usage in quest JSON: { "id": "killactivetrial", "args": ["tier"] }
-    /// where tier = "1", "2", or "3".
+    /// where tier = "1", "2", or "3" (determines which tier quest the player took).
     /// 
-    /// IsCompletable returns true when the active trial boss of that tier has been killed
-    /// (tracked via TrialCombatTracker.IsFinished).
+    /// IsCompletable returns true when any active trial boss has been killed solo
+    /// and this player has kill credit.
     /// </summary>
     public class KillActiveTrialObjective : ActionObjectiveBase
     {
@@ -27,17 +27,25 @@ namespace VsQuest
             var trialSystem = sapi.ModLoader.GetModSystem<HollowTrialSystem>();
             if (trialSystem == null) return false;
 
-            // Find the active trial key for this tier
-            string trialKey = ResolveActiveTrialKey(trialSystem, tier);
-            if (string.IsNullOrWhiteSpace(trialKey)) return false;
+            // Check all active trial bosses — any of them could be the target
+            var activeKeys = trialSystem.GetActiveTrialKeys();
+            if (activeKeys == null || activeKeys.Count == 0) return false;
 
-            // Check if the combat tracker shows the fight is finished
-            var tracker = trialSystem.GetCombatTracker(trialKey);
-            if (tracker == null || !tracker.IsFinished) return false;
+            foreach (var trialKey in activeKeys)
+            {
+                var tracker = trialSystem.GetCombatTracker(trialKey);
+                if (tracker == null || !tracker.IsFinished) continue;
 
-            // Check if this player has kill credit
-            string creditPlayer = tracker.GetKillCreditPlayer(sapi);
-            return string.Equals(creditPlayer, byPlayer.PlayerUID, StringComparison.OrdinalIgnoreCase);
+                // SOLO ENFORCEMENT: if multiple players participated, kill is void
+                if (tracker.DamageByPlayer.Count > 1) continue;
+
+                // Check if this player has kill credit
+                string creditPlayer = tracker.GetKillCreditPlayer(sapi);
+                if (string.Equals(creditPlayer, byPlayer.PlayerUID, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
         }
 
         public override List<int> GetProgress(IPlayer byPlayer, params string[] args)
@@ -45,26 +53,6 @@ namespace VsQuest
             // Progress: [current, target] — 0/1 or 1/1
             bool complete = IsCompletable(byPlayer, args);
             return new List<int> { complete ? 1 : 0, 1 };
-        }
-
-        /// <summary>
-        /// Resolve the active trial key for the given tier.
-        /// </summary>
-        public static string ResolveActiveTrialKey(HollowTrialSystem trialSystem, int tier)
-        {
-            if (trialSystem == null) return null;
-
-            var activeKeys = trialSystem.GetActiveTrialKeys();
-            if (activeKeys == null) return null;
-
-            foreach (var key in activeKeys)
-            {
-                var cfg = trialSystem.FindConfig(key);
-                if (cfg != null && cfg.tier == tier)
-                    return key;
-            }
-
-            return null;
         }
     }
 }

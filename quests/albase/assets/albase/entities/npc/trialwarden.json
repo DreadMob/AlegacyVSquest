@@ -1,15 +1,14 @@
 {
-  "code": "trialwarden",
-  "class": "EntityAgent",
   "canClimb": true,
-  "hitboxSize": { "x": 0.6, "y": 1.75 },
-  "attributes": {
-    "alternativeCollisionBox": [0.6, 1.75]
-  },
+  "class": "EntityAgent",
   "client": {
     "renderer": "Shape",
-    "shape": { "base": "game:entity/humanoid/seraph" },
-    "texture": { "base": "game:entity/humanoid/seraph1" },
+    "shape": {
+      "base": "albase:entity/humanoid/trader"
+    },
+    "texture": {
+      "base": "albase:bosshunter1"
+    },
     "behaviors": [
       { "code": "nametag", "showtagonlywhentargeted": false },
       { "code": "repulseagents" },
@@ -19,8 +18,13 @@
       { "code": "questgiver" }
     ],
     "animations": [
-      { "code": "idle", "animation": "idle", "blendMode": "Average", "triggeredBy": { "defaultAnim": true } }
+      { "code": "idle", "animation": "SitFloorIdle", "blendMode": "AddAverage", "triggeredBy": { "defaultAnim": true } }
     ]
+  },
+  "code": "trialwarden",
+  "hitboxSize": { "x": 0.6, "y": 1.2 },
+  "attributes": {
+    "alternativeCollisionBox": [0.6, 1.2]
   },
   "server": {
     "behaviors": [
@@ -30,12 +34,15 @@
         "selectFromRandomName": ["Вестник Разломов"]
       },
       { "code": "controlledphysics", "stepHeight": 1.01 },
-      { "code": "health", "currenthealth": 1000000, "maxhealth": 1000000 },
+      {
+        "code": "health",
+        "currenthealth": 1000000,
+        "maxhealth": 1000000
+      },
       { "code": "conversable", "dialogue": "config/dialogue/trialwarden" },
       {
         "code": "questgiver",
         "trialactiveonly": true,
-        "reputationnpc": "albase:trialwarden",
         "alwaysquests": [
           "albase:trial-intro"
         ],
@@ -46,6 +53,7 @@
         ],
         "singlequestatatime": true,
         "noAvailableQuestDescLangKey": "albase:trial-warden-quest-cooldown",
+        "noAvailableQuestCooldownDescLangKey": "albase:trial-warden-quest-cooldown-days",
         "selectrandom": false
       }
     ]

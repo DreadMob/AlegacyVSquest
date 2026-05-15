@@ -1,0 +1,20 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:trial-abyss-pendant",
+      "itemCode": "albase:trial-abyss-pendant",
+      "name": "<font color=\"#F59E0B\">Подвеска Бездны</font>",
+      "description": "<font color=\"#FBBF24\">Осколок чистой Бездны. Каждый удар может стать последним — для врага или для тебя.</font>",
+      "actions": [],
+      "attributes": {
+        "critchance": 0.10,
+        "critdamage": 0.6,
+        "attackspeed": 0.05,
+        "bossdamage": 0.08,
+        "maxhealthflat": -2.0
+      },
+      "showAttributes": ["critchance", "critdamage", "attackspeed", "bossdamage", "maxhealthflat"],
+      "hideVanillaTooltips": ["warmth", "modsource"]
+    }
+  ]
+}

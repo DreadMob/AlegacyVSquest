@@ -1,41 +1,60 @@
 using System;
+using System.Collections.Generic;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
 
 namespace VsQuest
 {
     /// <summary>
-    /// Blood Price: boss heals for a % of damage dealt. After healing, enters vulnerability window.
-    /// The more it healed, the longer the vulnerability. Creates a risk/reward dynamic.
+    /// Blood Price: reactive ability that triggers when boss deals damage.
+    /// Boss heals for a % of damage dealt. After healing past threshold, enters vulnerability window.
+    /// Never auto-activates — OnBossDealtDamage is called externally.
     /// </summary>
-    public class EntityBehaviorBossBloodPrice : EntityBehavior
+    public class EntityBehaviorBossBloodPrice : BossAbilityBase
     {
-        private float healPercent = 0.3f;
-        private float minVulnMs = 1500f;
-        private float maxVulnMs = 4000f;
-        private float healThreshold = 5f; // minimum heal amount to trigger vulnerability
-        private float cooldownMs = 12000f;
+        private const string LastBloodPriceKey = "alegacyvsquest:bossbloodprice:lastMs";
+        protected override string CooldownKey => LastBloodPriceKey;
 
+        private class Stage : BossAbilityStage
+        {
+            public float healPercent;
+            public float minVulnMs;
+            public float maxVulnMs;
+            public float healThreshold;
+
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                healPercent = json["healPercent"].AsFloat(0.3f);
+                minVulnMs = json["minVulnMs"].AsFloat(1500f);
+                maxVulnMs = json["maxVulnMs"].AsFloat(4000f);
+                healThreshold = json["healThreshold"].AsFloat(5f);
+            }
+        }
+
+        private List<Stage> stages = new();
         private float accumulatedHeal;
-        private double lastHealTriggerMs;
-        private bool vulnerableFromHeal;
-        private double vulnEndMs;
-
-        public bool IsVulnerableFromHeal => vulnerableFromHeal;
 
         public EntityBehaviorBossBloodPrice(Entity entity) : base(entity) { }
         public override string PropertyName() => "bossbloodprice";
 
-        public override void Initialize(EntityProperties properties, JsonObject typeAttributes)
+        protected override bool UsePeriodicTick() => false;
+        protected override bool RequiresTarget() => false;
+        protected override bool ShouldCheckAbility() => false;
+
+        protected override void InitializeStages(JsonObject attributes) { stages = ParseStages<Stage>(attributes); }
+        protected override int GetStageCount() => stages.Count;
+        protected override object GetStage(int index) => stages[index];
+        protected override float GetStageHealthThreshold(object stage) => ((Stage)stage).whenHealthRelBelow;
+        protected override float GetStageCooldown(object stage) => ((Stage)stage).cooldownSeconds;
+        protected override float GetMaxTargetRange(object stage) => ((Stage)stage).maxTargetRange;
+
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
-            base.Initialize(properties, typeAttributes);
-            healPercent = typeAttributes["healPercent"].AsFloat(0.3f);
-            minVulnMs = typeAttributes["minVulnMs"].AsFloat(1500f);
-            maxVulnMs = typeAttributes["maxVulnMs"].AsFloat(4000f);
-            healThreshold = typeAttributes["healThreshold"].AsFloat(5f);
-            cooldownMs = typeAttributes["cooldownMs"].AsFloat(12000f);
+            // Not used — this is a reactive ability
         }
 
         /// <summary>
@@ -43,13 +62,20 @@ namespace VsQuest
         /// </summary>
         public void OnBossDealtDamage(float damageDealt)
         {
-            if (entity.Api?.Side != EnumAppSide.Server) return;
-            if (!entity.Alive || damageDealt <= 0) return;
+            if (Sapi == null || !entity.Alive || damageDealt <= 0) return;
+            if (stages.Count == 0) return;
+            if (IsBossClone) return;
 
-            double nowMs = entity.World.ElapsedMilliseconds;
-            if (nowMs - lastHealTriggerMs < cooldownMs) return;
+            // Check cooldown
+            if (!CooldownSystem.IsCooldownReady(CooldownKey, GetCurrentStageCooldown()))
+                return;
 
-            float healAmount = damageDealt * healPercent;
+            // Find appropriate stage for current health
+            if (!entity.TryGetHealthFraction(out float frac)) return;
+            var (stageObj, _) = FindStageForHealth(frac);
+            if (stageObj is not Stage stage) return;
+
+            float healAmount = damageDealt * stage.healPercent;
             accumulatedHeal += healAmount;
 
             // Actually heal the boss
@@ -63,27 +89,20 @@ namespace VsQuest
                 entity.WatchedAttributes.MarkPathDirty("health");
             }
 
-            // Spawn green heal particles
-            SpawnHealParticles(healAmount);
+            // Blood/heal particles
+            ParticleUtils.SpawnEntityAura(Sapi, entity, ParticleUtils.Colors.Blood, 8, 0.35f, 0.6f);
+            ParticleUtils.SpawnSpiral(Sapi, entity.Pos.XYZ, 0.8f, 2f, ParticleUtils.Colors.Blood, 16, 0.2f);
 
             // Check if accumulated heal triggers vulnerability
-            if (accumulatedHeal >= healThreshold)
+            if (accumulatedHeal >= stage.healThreshold)
             {
-                TriggerVulnerability();
+                TriggerVulnerability(stage);
             }
         }
 
-        private void TriggerVulnerability()
+        private void TriggerVulnerability(Stage stage)
         {
-            double nowMs = entity.World.ElapsedMilliseconds;
-            lastHealTriggerMs = nowMs;
-
-            // Calculate vulnerability duration based on how much was healed
-            float ratio = Math.Min(1f, accumulatedHeal / (healThreshold * 3f));
-            float vulnDuration = minVulnMs + (maxVulnMs - minVulnMs) * ratio;
-
-            vulnerableFromHeal = true;
-            vulnEndMs = nowMs + vulnDuration;
+            MarkCooldownStart();
             accumulatedHeal = 0;
 
             // Notify vulnerability window behavior if present
@@ -91,28 +110,18 @@ namespace VsQuest
             vulnBehavior?.OnAbilityCompleted("bossbloodprice");
         }
 
-        public void OnGameTick(float dt)
+        private float GetCurrentStageCooldown()
         {
-            if (!vulnerableFromHeal) return;
-
-            double nowMs = entity.World.ElapsedMilliseconds;
-            if (nowMs >= vulnEndMs)
-            {
-                vulnerableFromHeal = false;
-            }
+            if (stages.Count == 0) return 0f;
+            if (!entity.TryGetHealthFraction(out float frac)) return stages[0].cooldownSeconds;
+            var (stageObj, _) = FindStageForHealth(frac);
+            if (stageObj is Stage stage) return stage.cooldownSeconds;
+            return stages[0].cooldownSeconds;
         }
 
-        private void SpawnHealParticles(float amount)
+        protected override void StopAbility()
         {
-            var pos = entity.Pos;
-            int count = Math.Min(10, (int)(amount * 2));
-
-            entity.World.SpawnParticles(new SimpleParticleProperties(
-                count, count + 3, ColorUtil.ToRgba(180, 50, 200, 50),
-                new Vec3d(pos.X - 0.5, pos.Y + 0.5, pos.Z - 0.5),
-                new Vec3d(pos.X + 0.5, pos.Y + 1.5, pos.Z + 0.5),
-                new Vec3f(0, 0.1f, 0), new Vec3f(0, 0.3f, 0),
-                0.6f, -0.02f, 0.1f, 0.25f));
+            accumulatedHeal = 0;
         }
     }
 }

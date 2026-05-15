@@ -257,6 +257,32 @@ namespace VsQuest
 
             bossEntity = null;
             bossAlive = false;
+
+            // Broadcast relocation message
+            try
+            {
+                string bossName = GetBossDisplayNameFromConfig(cfg);
+                string chatMsg = LocalizationUtils.GetSafe("alegacyvsquest:bosshunt-relocate-chat", bossName);
+                string discordMsg = LocalizationUtils.GetSafe("alegacyvsquest:bosshunt-relocate-discord", bossName);
+                if (!string.IsNullOrWhiteSpace(chatMsg))
+                {
+                    GlobalChatBroadcastUtil.BroadcastGeneralChatWithDiscord(
+                        sapi, chatMsg, discordMsg,
+                        EnumChatType.Notification, DiscordBroadcastKind.BossHuntEvent);
+                }
+            }
+            catch (Exception ex)
+            {
+                sapi.Logger.Debug("[BossHuntSystem] Relocation broadcast failed: {0}", ex.Message);
+            }
+        }
+
+        private string GetBossDisplayNameFromConfig(BossHuntConfig cfg)
+        {
+            if (cfg == null) return "?";
+            string entityCode = cfg.GetBossEntityCode();
+            if (string.IsNullOrWhiteSpace(entityCode)) return cfg.bossKey ?? "?";
+            return MobLocalizationUtils.GetMobDisplayName(entityCode) ?? cfg.bossKey ?? "?";
         }
 
         private void TrySpawnIfPlayerNearby(BossHuntConfig cfg, BossHuntStateEntry st, double nowHours)

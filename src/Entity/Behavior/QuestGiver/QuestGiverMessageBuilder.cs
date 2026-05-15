@@ -261,5 +261,79 @@ namespace VsQuest
             if (message == null || player == null || sapi == null) return;
             sapi.Network.GetChannel(VsQuestNetworkRegistry.QuestChannelName).SendPacket(message, player);
         }
+
+        /// <summary>
+        /// Populates trial shop data in the message if this NPC has a trial shop.
+        /// </summary>
+        public void PopulateTrialShopInfo(QuestInfoMessage message, IServerPlayer serverPlayer, bool isTrialWarden)
+        {
+            if (!isTrialWarden || message == null || serverPlayer == null || sapi == null) return;
+
+            var trialSystem = sapi.ModLoader.GetModSystem<HollowTrialSystem>();
+            if (trialSystem == null) return;
+
+            var shopHandler = trialSystem.GetShopHandler();
+            if (shopHandler == null) return;
+
+            var repManager = trialSystem.GetReputationManager();
+            if (repManager == null) return;
+
+            string playerUid = serverPlayer.PlayerUID;
+            message.hasTrialShop = true;
+            message.trialShopShards = repManager.GetVoidShards(playerUid);
+            message.trialShopReputation = repManager.GetReputation(playerUid);
+            message.trialShopRankName = repManager.GetRankName(playerUid);
+            message.trialShopItems = shopHandler.BuildShopItemsForMessage(playerUid);
+
+            // Include active modifier name
+            var modType = (TrialModifierType)trialSystem.GetActiveModifier();
+            if (modType != TrialModifierType.None)
+            {
+                message.trialModifierName = LocalizationUtils.GetSafe(TrialWeeklyModifierUtils.GetNameKey(modType));
+            }
+
+            // Include challenges for the player's active trial quest
+            if (message.activeQuests != null)
+            {
+                foreach (var aq in message.activeQuests)
+                {
+                    if (string.IsNullOrWhiteSpace(aq?.questId)) continue;
+
+                    // Determine tier from quest ID (albase:trial-tier1 -> 1, tier2 -> 2, tier3 -> 3)
+                    int tier = 0;
+                    if (aq.questId.Contains("tier1")) tier = 1;
+                    else if (aq.questId.Contains("tier2")) tier = 2;
+                    else if (aq.questId.Contains("tier3")) tier = 3;
+                    if (tier == 0) continue;
+
+                    // Find which boss is active and get its challenges for this tier
+                    var activeKeys = trialSystem.GetActiveTrialKeys();
+                    if (activeKeys == null) continue;
+
+                    foreach (var trialKey in activeKeys)
+                    {
+                        var cfg = trialSystem.FindConfig(trialKey);
+                        if (cfg == null) continue;
+
+                        var challenges = cfg.GetChallenges(tier);
+                        if (challenges != null && challenges.Count > 0)
+                        {
+                            message.trialChallengeNames = new List<string>();
+                            foreach (var ch in challenges)
+                            {
+                                string nameKey = $"albase:trial-challenge-{ch.type}";
+                                string name = LocalizationUtils.GetSafe(nameKey);
+                                if (!string.IsNullOrWhiteSpace(name))
+                                {
+                                    message.trialChallengeNames.Add(name);
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    break; // only first active trial quest
+                }
+            }
+        }
     }
 }

@@ -27,6 +27,14 @@ namespace VsQuest.Harmony.Items
             public float MeleeAttackPower { get; set; }
             public float AttackSpeed { get; set; }
             public float RangedDamageMult { get; set; }
+
+            // Trial custom stats
+            public float CritChance { get; set; }
+            public float CritDamage { get; set; }
+            public float BossDamage { get; set; }
+            public float PvpDamage { get; set; }
+            public float FullHpDamage { get; set; }
+
             public long Timestamp { get; set; }
 
             // Fast check if cache is still valid
@@ -106,6 +114,13 @@ namespace VsQuest.Harmony.Items
             stats.MeleeAttackPower += ItemAttributeUtils.GetAttributeFloatScaled(stack, ItemAttributeUtils.AttrMeleeAttackPower);
             stats.AttackSpeed += ItemAttributeUtils.GetAttributeFloatScaled(stack, ItemAttributeUtils.AttrAttackSpeed);
             stats.RangedDamageMult += ItemAttributeUtils.GetAttributeFloatScaled(stack, ItemAttributeUtils.AttrRangedDamageMult);
+
+            // Trial custom stats
+            stats.CritChance += ItemAttributeUtils.GetAttributeFloatScaled(stack, ItemAttributeUtils.AttrCritChance);
+            stats.CritDamage += ItemAttributeUtils.GetAttributeFloatScaled(stack, ItemAttributeUtils.AttrCritDamage);
+            stats.BossDamage += ItemAttributeUtils.GetAttributeFloatScaled(stack, ItemAttributeUtils.AttrBossDamage);
+            stats.PvpDamage += ItemAttributeUtils.GetAttributeFloatScaled(stack, ItemAttributeUtils.AttrPvpDamage);
+            stats.FullHpDamage += ItemAttributeUtils.GetAttributeFloatScaled(stack, ItemAttributeUtils.AttrFullHpDamage);
         }
 
         public static void EnsureItemAttributes(ItemStack stack)
@@ -160,6 +175,11 @@ namespace VsQuest.Harmony.Items
                         MeleeAttackPower = tree.GetFloat("mp"),
                         AttackSpeed = tree.GetFloat("as"),
                         RangedDamageMult = tree.GetFloat("rd"),
+                        CritChance = tree.GetFloat("cc"),
+                        CritDamage = tree.GetFloat("cd"),
+                        BossDamage = tree.GetFloat("bd"),
+                        PvpDamage = tree.GetFloat("pd"),
+                        FullHpDamage = tree.GetFloat("fh"),
                         Timestamp = timestamp
                     };
                 }
@@ -184,6 +204,11 @@ namespace VsQuest.Harmony.Items
                 tree.SetFloat("mp", stats.MeleeAttackPower);
                 tree.SetFloat("as", stats.AttackSpeed);
                 tree.SetFloat("rd", stats.RangedDamageMult);
+                tree.SetFloat("cc", stats.CritChance);
+                tree.SetFloat("cd", stats.CritDamage);
+                tree.SetFloat("bd", stats.BossDamage);
+                tree.SetFloat("pd", stats.PvpDamage);
+                tree.SetFloat("fh", stats.FullHpDamage);
                 tree.SetLong("t", stats.Timestamp);
                 player.WatchedAttributes.SetAttribute(CacheKey, tree);
             }

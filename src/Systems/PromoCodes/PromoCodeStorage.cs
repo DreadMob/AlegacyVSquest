@@ -11,7 +11,7 @@ namespace VsQuest
     /// </summary>
     public class PromoCodeStorage
     {
-        private const string StorageFile = "promocodes-usage.json";
+        private const string StorageFile = "alegacyvsquest/promocodes-usage.json";
 
         private readonly ICoreServerAPI sapi;
         private PromoCodeUsageData data;

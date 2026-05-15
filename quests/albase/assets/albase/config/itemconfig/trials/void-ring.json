@@ -1,0 +1,20 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:trial-void-ring",
+      "itemCode": "albase:trial-void-ring",
+      "name": "<font color=\"#F59E0B\">Кольцо Пустоты</font>",
+      "description": "<font color=\"#FBBF24\">Выковано в сердце разлома. Пустота укрепляет тело, но замедляет руки.</font>",
+      "actions": [],
+      "attributes": {
+        "maxhealthflat": 5.0,
+        "bossdamage": 0.04,
+        "knockbackmult": -0.3,
+        "healingeffectiveness": 0.1,
+        "attackspeed": -0.03
+      },
+      "showAttributes": ["maxhealthflat", "bossdamage", "knockbackmult", "healingeffectiveness", "attackspeed"],
+      "hideVanillaTooltips": ["warmth", "modsource"]
+    }
+  ]
+}

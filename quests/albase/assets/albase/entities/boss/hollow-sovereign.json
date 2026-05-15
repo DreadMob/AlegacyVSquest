@@ -1,0 +1,154 @@
+{
+  "code": "hollow-sovereign",
+  "class": "EntityDrifter",
+  "tags": ["alegacy-boss"],
+  "canClimb": true,
+  "hitboxSize": { "x": 1.0, "y": 2.5 },
+  "deadHitboxSize": { "x": 1.0, "y": 0.5 },
+  "eyeHeight": 2.1,
+  "attributes": {
+    "knockbackResistance": 0.9,
+    "killedByInfoText": "deadcreature-vile",
+    "reckless": true,"vsquestSoundPitchMul": 1.4,
+    "alegacyvsquestHideInfoText": true
+  },
+  "drops": [],
+  "client": {
+    "renderer": "Shape",
+    "pitchStep": false,
+    "size": 1.6,
+    "shape": { "base": "game:entity/lore/drifter/deerhorn" },
+    "texture": { "base": "game:entity/lore/drifter/deerhorn" },
+    "glowLevel": 80,
+    "behaviors": [
+      { "code": "repulseagents" },
+      { "code": "controlledphysics", "stepHeight": 1.01 },
+      { "code": "floatupwhenstuck", "onlyWhenDead": true },
+      { "code": "interpolateposition" },
+      { "code": "harvestable", "duration": 999999 },
+      { "code": "boss", "bossHpBarRange": 60 },
+      { "code": "bossmusicurl", "musicKey": "theme_trial_3", "range": 60, "startRange": 25, "combatTimeoutMs": 20000, "fadeOutSeconds": 4, "usePhases": true, "phases": [ { "whenHealthRelBelow": 0.7, "startAtRel": 0.33333334 }, { "whenHealthRelBelow": 0.35, "startAtRel": 0.6666667 } ] },
+      { "code": "bossnametag", "nameLangKey": "albase:trial-hollow-sovereign-title", "color": "#F59E0B", "backgroundColor": "#000000", "backgroundOpacity": 0.35, "renderRange": 80 }
+    ],
+    "animations": [
+      { "code": "crawlhurt", "animation": "crawlhurt", "animationSpeed": 2.0, "weight": 10, "blendMode": "AddAverage" },
+      { "code": "crawldie", "animation": "crawldie", "animationSpeed": 0.7, "weight": 10, "blendMode": "Average", "triggeredBy": { "onControls": ["dead"] } },
+      { "code": "idle", "animation": "crawlidle", "blendMode": "Average", "triggeredBy": { "defaultAnim": true } },
+      { "code": "crawlwalk", "animation": "crawlwalk", "blendMode": "Average" },
+      { "code": "crawlrun", "animation": "crawlrun", "blendMode": "Average" },
+      { "code": "crawlattack", "animation": "crawlattack", "animationSpeed": 1.5, "blendMode": "Average", "weight": 100 }
+    ]
+  },
+  "server": {
+    "behaviors": [
+      { "code": "repulseagents" },
+      { "code": "controlledphysics", "stepHeight": 1.01 },
+      { "code": "health", "currenthealth": 1500, "maxhealth": 1500 },
+      { "code": "bosspassiveregen", "regenPerSecond": 0.5, "outOfCombatRegenMult": 0.8 },
+      { "code": "bosscombatmarker", "trackCombatTime": true },
+      { "code": "bosshastargetsync" },
+      { "code": "questtarget", "targetId": "albase:trial:hollow-sovereign", "leashRange": 80, "returnMoveSpeed": 0.045, "leashCheckMs": 1000 },
+      {
+        "code": "emotionstates",
+        "states": [
+          { "code": "aggressiveondamage", "duration": 30, "chance": 1, "slot": 0, "priority": 0.5, "accumType": "noaccum" },
+          { "code": "sovereign-ritual", "duration": 999999, "chance": 1, "slot": 1, "priority": 1, "accumType": "noaccum", "whenHealthRelBelow": 0.6 },
+          { "code": "sovereign-wrath", "duration": 999999, "chance": 1, "slot": 1, "priority": 2, "accumType": "noaccum", "whenHealthRelBelow": 0.3 }
+        ]
+      },
+      { "code": "bossenrage", "enrageTimerSeconds": 300 },
+      { "code": "bossvulnerabilitywindow", "damageMultiplier": 2.0, "durationSeconds": 2.5, "triggerAbilities": ["bossretaliation", "bossgroundslam"] },
+      { "code": "bosstelegraph", "windupMs": 1200, "shape": "cone", "radius": 10, "angle": 60 },
+      { "code": "bossgroundslam", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 11, "maxTargetRange": 20, "radius": 7, "damage": 16, "windupMs": 1400, "knockbackStrength": 2.5, "sound": "environment/largerock1", "soundRange": 32 }] },
+      { "code": "bossmirrorimage", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 22, "maxTargetRange": 30, "imageCount": 2, "imageLifetimeSec": 6, "teleportOnCast": true, "teleportRadius": 8, "sound": "effect/translocate-active", "soundRange": 32 }] },
+      { "code": "bosscursestack", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 0, "maxTargetRange": 30, "maxStacks": 4, "effectType": "stun", "stackDecaySeconds": 4, "stunDurationMs": 2500, "slowFactor": 0.5, "slowDurationMs": 3000 }] },
+      { "code": "bossretaliation", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 20, "maxTargetRange": 30, "damageThreshold": 50, "retaliationMultiplier": 0.65, "retaliationRadius": 9, "windowDurationSec": 4, "sound": "effect/reverbhit", "soundRange": 32 }] },
+      {
+        "code": "taskai",
+        "inheritedTasks": false,
+        "aitasks": [
+          {
+            "code": "seekentity",
+            "entityCodes": ["player"],
+            "priority": 2.0,
+            "movespeed": 0.04,
+            "seekingRange": 45,
+            "maxFollowTime": 120,
+            "animation": "crawlrun",
+            "animationSpeed": 1.1
+          },
+          {
+            "code": "meleeattack",
+            "entityCodes": ["player"],
+            "priority": 2.5,
+            "damage": 25,
+            "damageTier": 4,
+            "minDist": 6.0,
+            "minVerDist": 3.0,
+            "mincooldown": 1500,
+            "maxcooldown": 2500,
+            "damagePlayerAtMs": 500,
+            "attackDurationMs": 900,
+            "animation": "crawlattack",
+            "animationSpeed": 1.1,
+            "sound": "game:sounds/creature/drifter-hit",
+            "soundStartMs": 500
+          },
+          {
+            "code": "meleeattack",
+            "entityCodes": ["player"],
+            "priority": 2.35,
+            "damage": 32,
+            "damageTier": 4,
+            "minDist": 7.0,
+            "minVerDist": 3.0,
+            "mincooldown": 1200,
+            "maxcooldown": 2000,
+            "damagePlayerAtMs": 450,
+            "attackDurationMs": 800,
+            "attackAngleDeg": 150,
+            "animation": "crawlattack",
+            "animationSpeed": 1.3,
+            "sound": "game:sounds/creature/drifter-hit",
+            "soundStartMs": 450,
+            "whenInEmotionState": "sovereign-ritual"
+          },
+          {
+            "code": "meleeattack",
+            "entityCodes": ["player"],
+            "priority": 2.4,
+            "damage": 42,
+            "damageTier": 4,
+            "minDist": 8.0,
+            "minVerDist": 3.5,
+            "mincooldown": 800,
+            "maxcooldown": 1400,
+            "damagePlayerAtMs": 400,
+            "attackDurationMs": 700,
+            "attackAngleDeg": 200,
+            "animation": "crawlattack",
+            "animationSpeed": 1.5,
+            "sound": "game:sounds/creature/drifter-hit",
+            "soundStartMs": 400,
+            "whenInEmotionState": "sovereign-wrath"
+          },
+          {
+            "code": "wander",
+            "priority": 1.0,
+            "movespeed": 0.02,
+            "animation": "crawlwalk",
+            "animationSpeed": 1.0
+          },
+          { "code": "lookaround", "priority": 0.5 }
+        ]
+      },
+      { "code": "deaddecay", "hoursToDecay": 999999 },{ "code": "bossrespawn", "respawnInGameHours": 168, "spawnNewBoss": false },
+      { "code": "floatupwhenstuck", "onlyWhenDead": true }
+    ]
+  },
+  "sounds": {
+    "hurt": "game:sounds/creature/drifter-hurt",
+    "death": "game:sounds/creature/drifter-death",
+    "idle": "game:sounds/creature/drifter-idle"
+  }
+}

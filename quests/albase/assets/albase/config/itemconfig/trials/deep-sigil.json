@@ -1,0 +1,17 @@
+﻿{
+  "actionItems": [
+    {
+      "id": "albase:trial-deep-sigil",
+      "itemCode": "albase:trial-deep-sigil",
+      "name": "<font color=\"#60A5FA\">Печать Глубин</font>",
+      "description": "<font color=\"#93C5FD\">Знак глубинного разлома. Ускоряет руки и усиливает первый удар.</font>",
+      "actions": [],
+      "attributes": {
+        "attackspeed": 0.08,
+        "fullhpdamage": 0.10
+      },
+      "showAttributes": ["attackspeed", "fullhpdamage"],
+      "hideVanillaTooltips": ["warmth", "modsource"]
+    }
+  ]
+}

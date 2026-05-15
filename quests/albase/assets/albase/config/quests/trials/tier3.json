@@ -5,34 +5,14 @@
   "predecessor": "albase:trial-intro",
   "trialTier": 3,
   "onAcceptedActions": [
-    {
-      "id": "playsound",
-      "args": ["alegacyvsquest:sounds/queacc", "0.175"]
-    },
-    {
-      "id": "notify",
-      "args": ["albase:trial-quest-accepted-tier3"]
-    }
+    { "id": "playsound", "args": ["alegacyvsquest:sounds/queacc", "0.175"] },
+    { "id": "notify", "args": ["albase:trial-quest-accepted-tier3"] }
   ],
   "actionObjectives": [
-    {
-      "id": "killactivetrial",
-      "objectiveId": "trial-tier3-kill",
-      "args": ["3"]
-    }
+    { "id": "killactivetrial", "objectiveId": "trial-tier3-kill", "args": ["3"] }
   ],
   "actionRewards": [
-    {
-      "id": "addreputation",
-      "args": ["npc", "albase:trialwarden", "50"]
-    },
-    {
-      "id": "randomquestitem",
-      "args": ["1", "albase:trial-reward-void-shard", "albase:trial-reward-abyssal-blade"]
-    },
-    {
-      "id": "trialchallengebonuses",
-      "args": []
-    }
+    { "id": "trialchallengebonuses", "args": [] },
+    { "id": "randomquestitem", "args": ["1", "albase:trial-void-cloak", "albase:trial-abyss-belt", "albase:trial-deep-sigil", "albase:trial-bow", "albase:trial-abyss-pendant", "albase:trial-void-ring"] }
   ]
 }

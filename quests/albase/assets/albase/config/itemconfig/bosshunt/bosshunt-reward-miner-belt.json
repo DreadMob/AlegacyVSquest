@@ -1,0 +1,32 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:bosshunt-reward-miner-belt",
+      "itemCode": "albase:bosshunt-miner-belt",
+      "name": "<font color=\"#F59E0B\">Пояс Оссуария</font>",
+      "description": "<font color=\"#FBBF24\">Чем глубже копаешь, тем тише становится наверху.</font>",
+      "actions": [],
+      "attributes": {
+        "maxhealthflat": -4.0,
+        "walkspeed": -0.2,
+        "hungerrate": 0.85,
+        "miningspeedmult": 0.67,
+        "temporaldrainmult": -0.2
+      },
+      "showAttributes": [
+        "maxhealthflat",
+        "walkspeed",
+        "hungerrate",
+        "miningspeedmult",
+        "temporaldrainmult"
+      ],
+      "hideVanillaTooltips": [
+        "armor",
+        "protection",
+        "warmth",
+        "walkspeed",
+        "modsource"
+      ]
+    }
+  ]
+}

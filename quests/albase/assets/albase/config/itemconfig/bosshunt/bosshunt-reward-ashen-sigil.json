@@ -1,0 +1,28 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:bosshunt-reward-ashen-sigil",
+      "itemCode": "albase:bosshunt-ashen-sigil",
+      "name": "<font color=\"#F59E0B\">Печать роя</font>",
+      "description": "<font color=\"#FDE68A\">Зуд под кожей. Рой рядом. Рой — это ты.</font>",
+      "actions": [],
+      "attributes": {
+        "rangedaccuracy": 0.05,
+        "rangedchargspeed": 0.05,
+        "hungerrate": -0.1
+      },
+      "showAttributes": [
+        "rangedaccuracy",
+        "rangedchargspeed",
+        "hungerrate"
+      ],
+      "hideVanillaTooltips": [
+        "armor",
+        "protection",
+        "warmth",
+        "walkspeed",
+        "modsource"
+      ]
+    }
+  ]
+}

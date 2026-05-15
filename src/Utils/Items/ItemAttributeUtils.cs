@@ -65,6 +65,13 @@ namespace VsQuest
         public const string AttrHealOnKill = "healonkill";
         public const string AttrFurCoatChargeHours = "furcoatchargehours";
 
+        // Trial custom stats
+        public const string AttrCritChance = "critchance";
+        public const string AttrCritDamage = "critdamage";
+        public const string AttrBossDamage = "bossdamage";
+        public const string AttrPvpDamage = "pvpdamage";
+        public const string AttrFullHpDamage = "fullhpdamage";
+
         // Charge system metadata keys (stored on item stack attributes, not prefixed)
         /// <summary>
         /// Charge mode: "all" = all stats gated by charge (default), "partial" = only listed attrs gated.

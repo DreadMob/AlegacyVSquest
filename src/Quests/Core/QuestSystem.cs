@@ -79,8 +79,8 @@ namespace VsQuest
 
         private void LoadConfigs(ICoreAPI api)
         {
-            Config = LoadOrCreateModConfig<QuestConfig>(api, "questconfig.json");
-            CoreConfig = LoadOrCreateModConfig<AlegacyVsQuestConfig>(api, "alegacy-vsquest-config.json");
+            Config = LoadOrCreateModConfig<QuestConfig>(api, "alegacyvsquest/questconfig.json");
+            CoreConfig = LoadOrCreateModConfig<AlegacyVsQuestConfig>(api, "alegacyvsquest/alegacy-vsquest-config.json");
             HarmonyPatchSwitches.ApplyFromConfig(CoreConfig);
             
             // Initialize performance config
@@ -216,9 +216,9 @@ namespace VsQuest
             eventHandler = new QuestEventHandler(persistenceManager, sapi, activeQuestEventDispatcher);
 
             // Initialize database sync
-            var dbConfig = sapi.LoadModConfig<Systems.Database.AlegacyVsQuestDbConfig>("AlegacyVsQuestDbConfig.json")
+            var dbConfig = sapi.LoadModConfig<Systems.Database.AlegacyVsQuestDbConfig>("alegacyvsquest/db-config.json")
                 ?? new Systems.Database.AlegacyVsQuestDbConfig();
-            sapi.StoreModConfig(dbConfig, "AlegacyVsQuestDbConfig.json");
+            sapi.StoreModConfig(dbConfig, "alegacyvsquest/db-config.json");
 
             dbClient = new Systems.Database.VsQuestDbClient(dbConfig);
             if (dbClient.IsEnabled)

@@ -1,0 +1,38 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:bosshunt-reward-ultrawarm-coat",
+      "itemCode": "albase:psary-fur-coat",
+      "name": "<font color=\"#F8FAFC\">Шкура Псаря</font>",
+      "description": "<font color=\"#E2E8F0\">Шерсть пахнет кровью и снегом. Тем, кто внутри — тепло.</font>",
+      "actions": [],
+      "chargeMode": "partial",
+      "chargeGatedAttrs": ["warmth"],
+      "chargeMaterials": ["fat", "hide-", "pelt-"],
+      "chargePerUnit": 12,
+      "chargeMax": 168,
+      "chargeDepletedMult": 0.267,
+      "attributes": {
+        "furcoatchargehours": 10,
+        "warmth": 15,
+        "maxhealthflat": 2.0,
+        "hungerrate": 0.2,
+        "viewdistance": -0.38
+      },
+      "showAttributes": [
+        "furcoatchargehours",
+        "warmth",
+        "maxhealthflat",
+        "hungerrate",
+        "viewdistance"
+      ],
+      "hideVanillaTooltips": [
+        "armor",
+        "protection",
+        "warmth",
+        "walkspeed",
+        "modsource"
+      ]
+    }
+  ]
+}

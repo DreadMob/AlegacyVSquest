@@ -352,7 +352,11 @@ namespace VsQuest
 
             if (anyReset)
             {
-                GlobalChatBroadcastUtil.BroadcastGeneralChat(sapi, Lang.Get("alegacyvsquest:bosshunt-rotation-reset-chat"), EnumChatType.Notification);
+                string chatMsg = Lang.Get("alegacyvsquest:bosshunt-rotation-reset-chat");
+                string discordMsg = LocalizationUtils.GetSafe("alegacyvsquest:bosshunt-rotation-discord");
+                GlobalChatBroadcastUtil.BroadcastGeneralChatWithDiscord(
+                    sapi, chatMsg, discordMsg,
+                    EnumChatType.Notification, DiscordBroadcastKind.BossHuntEvent);
             }
         }
     }

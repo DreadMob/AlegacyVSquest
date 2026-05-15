@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
@@ -8,83 +9,73 @@ using Vintagestory.API.Server;
 namespace VsQuest
 {
     /// <summary>
-    /// Ground Slam: telegraph circle → windup → AoE damage + knockback.
-    /// Leaves temporary crack particles on the ground.
+    /// Ground Slam: telegraph particles → windup delay → AoE damage + knockback in radius.
+    /// Uses RegisterCallbackTracked for delayed execution after windup.
     /// </summary>
-    public class EntityBehaviorBossGroundSlam : EntityBehavior
+    public class EntityBehaviorBossGroundSlam : BossAbilityBase
     {
-        private float radius = 5f;
-        private float damage = 8f;
-        private float windupMs = 1200f;
-        private float crackDurationSec = 5f;
-        private float knockbackStrength = 1.5f;
-        private float cooldownMs = 8000f;
+        private const string LastSlamKey = "alegacyvsquest:bossgroundslam:lastMs";
+        protected override string CooldownKey => LastSlamKey;
 
-        private bool slamActive;
-        private double slamStartMs;
-        private Vec3d slamCenter;
-        private double lastSlamMs;
+        private class Stage : BossAbilityStage
+        {
+            public float radius;
+            public float damage;
+            public float windupMs;
+            public float knockbackStrength;
+            public string sound;
+            public float soundRange;
 
-        public bool IsSlamActive => slamActive;
+            public override void FromJson(JsonObject json)
+            {
+                base.FromJson(json);
+                radius = json["radius"].AsFloat(5f);
+                damage = json["damage"].AsFloat(8f);
+                windupMs = json["windupMs"].AsFloat(1200f);
+                knockbackStrength = json["knockbackStrength"].AsFloat(1.5f);
+                sound = json["sound"].AsString("environment/largerock1");
+                soundRange = json["soundRange"].AsFloat(32f);
+            }
+        }
+
+        private List<Stage> stages = new();
 
         public EntityBehaviorBossGroundSlam(Entity entity) : base(entity) { }
         public override string PropertyName() => "bossgroundslam";
 
-        public override void Initialize(EntityProperties properties, JsonObject typeAttributes)
+        protected override void InitializeStages(JsonObject attributes) { stages = ParseStages<Stage>(attributes); }
+        protected override int GetStageCount() => stages.Count;
+        protected override object GetStage(int index) => stages[index];
+        protected override float GetStageHealthThreshold(object stage) => ((Stage)stage).whenHealthRelBelow;
+        protected override float GetStageCooldown(object stage) => ((Stage)stage).cooldownSeconds;
+        protected override float GetMaxTargetRange(object stage) => ((Stage)stage).maxTargetRange;
+
+        protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
-            base.Initialize(properties, typeAttributes);
-            radius = typeAttributes["radius"].AsFloat(5f);
-            damage = typeAttributes["damage"].AsFloat(8f);
-            windupMs = typeAttributes["windupMs"].AsFloat(1200f);
-            crackDurationSec = typeAttributes["crackDurationSec"].AsFloat(5f);
-            knockbackStrength = typeAttributes["knockbackStrength"].AsFloat(1.5f);
-            cooldownMs = typeAttributes["cooldownMs"].AsFloat(8000f);
-        }
+            if (stageObj is not Stage stage) return;
+            MarkCooldownStart();
 
-        /// <summary>
-        /// Trigger a ground slam at the boss's current position.
-        /// </summary>
-        public bool TrySlam()
-        {
-            if (entity.Api?.Side != EnumAppSide.Server) return false;
-            if (!entity.Alive || slamActive) return false;
+            Vec3d slamCenter = entity.Pos.XYZ.Clone();
 
-            double nowMs = entity.World.ElapsedMilliseconds;
-            if (nowMs - lastSlamMs < cooldownMs) return false;
+            // Telegraph particles during windup
+            SpawnTelegraphParticles(slamCenter, stage.radius);
 
-            slamActive = true;
-            slamStartMs = nowMs;
-            slamCenter = entity.Pos.XYZ.Clone();
-
-            // Spawn telegraph particles
-            SpawnTelegraphParticles();
-            return true;
-        }
-
-        public void OnGameTick(float dt)
-        {
-            if (entity.Api?.Side != EnumAppSide.Server) return;
-            if (!slamActive) return;
-
-            double nowMs = entity.World.ElapsedMilliseconds;
-            if (nowMs - slamStartMs >= windupMs)
+            // Delayed execution after windup
+            RegisterCallbackTracked(_ =>
             {
-                ExecuteSlam();
-            }
+                if (entity == null || !entity.Alive) return;
+                ExecuteSlam(stage, slamCenter);
+            }, (int)stage.windupMs);
         }
 
-        private void ExecuteSlam()
+        private void ExecuteSlam(Stage stage, Vec3d slamCenter)
         {
-            slamActive = false;
-            lastSlamMs = entity.World.ElapsedMilliseconds;
+            if (Sapi == null) return;
 
-            if (slamCenter == null) return;
+            float finalDamage = ApplyDamageMultiplier(stage.damage);
 
             // Damage + knockback all players in radius
-            var sapi = entity.Api as ICoreServerAPI;
-            if (sapi == null) return;
-
-            foreach (var p in sapi.World.AllOnlinePlayers)
+            foreach (var p in Sapi.World.AllOnlinePlayers)
             {
                 if (p is not IServerPlayer sp) continue;
                 var pe = sp.Entity;
@@ -95,69 +86,45 @@ namespace VsQuest
                 double dz = pe.Pos.Z - slamCenter.Z;
                 double distSq = dx * dx + dz * dz;
 
-                if (distSq <= radius * radius)
+                if (distSq <= stage.radius * stage.radius)
                 {
-                    // Deal damage
                     pe.ReceiveDamage(new DamageSource
                     {
                         Source = EnumDamageSource.Entity,
                         SourceEntity = entity,
                         Type = EnumDamageType.BluntAttack
-                    }, damage);
+                    }, finalDamage);
 
                     // Knockback
                     double dist = Math.Sqrt(distSq);
                     if (dist > 0.1)
                     {
-                        float kbX = (float)(dx / dist) * knockbackStrength;
-                        float kbZ = (float)(dz / dist) * knockbackStrength;
-                        pe.SidedPos.Motion.Add(kbX, 0.3f * knockbackStrength, kbZ);
+                        float kbX = (float)(dx / dist) * stage.knockbackStrength;
+                        float kbZ = (float)(dz / dist) * stage.knockbackStrength;
+                        pe.SidedPos.Motion.Add(kbX, 0.3f * stage.knockbackStrength, kbZ);
                     }
                 }
             }
 
-            // Spawn crack/impact particles
-            SpawnImpactParticles();
+            // Shockwave particles on impact
+            ParticleUtils.SpawnShockwave(Sapi, slamCenter, stage.radius, ParticleUtils.Colors.Fire, (int)(stage.radius * 6), 0.5f);
+
+            // Secondary shockwave for visual impact
+            ParticleUtils.SpawnShockwave(Sapi, slamCenter, stage.radius * 0.5f, ParticleUtils.Colors.Smoke, (int)(stage.radius * 3), 0.3f);
+
+            // Sound
+            TryPlaySound(stage.sound, stage.soundRange);
+
+            SetAbilityActive(false);
         }
 
-        private void SpawnTelegraphParticles()
+        private void SpawnTelegraphParticles(Vec3d center, float radius)
         {
-            if (slamCenter == null) return;
-            var rand = entity.World.Rand;
+            if (Sapi == null || center == null) return;
 
-            for (int i = 0; i < (int)(radius * 4); i++)
-            {
-                double angle = rand.NextDouble() * Math.PI * 2;
-                double r = Math.Sqrt(rand.NextDouble()) * radius;
-                double px = slamCenter.X + Math.Cos(angle) * r;
-                double pz = slamCenter.Z + Math.Sin(angle) * r;
-
-                entity.World.SpawnParticles(new SimpleParticleProperties(
-                    1, 1, ColorUtil.ToRgba(160, 200, 100, 50),
-                    new Vec3d(px, slamCenter.Y + 0.1, pz), new Vec3d(px, slamCenter.Y + 0.1, pz),
-                    new Vec3f(0, 0.02f, 0), new Vec3f(0, 0.05f, 0),
-                    0.8f, 0f, 0.2f, 0.4f));
-            }
+            ParticleUtils.SpawnAuraRing(Sapi, center, radius, ParticleUtils.Colors.Fire, (int)(radius * 4), 0.25f);
         }
 
-        private void SpawnImpactParticles()
-        {
-            if (slamCenter == null) return;
-            var rand = entity.World.Rand;
-
-            for (int i = 0; i < (int)(radius * 6); i++)
-            {
-                double angle = rand.NextDouble() * Math.PI * 2;
-                double r = Math.Sqrt(rand.NextDouble()) * radius;
-                double px = slamCenter.X + Math.Cos(angle) * r;
-                double pz = slamCenter.Z + Math.Sin(angle) * r;
-
-                entity.World.SpawnParticles(new SimpleParticleProperties(
-                    1, 2, ColorUtil.ToRgba(200, 80, 60, 40),
-                    new Vec3d(px, slamCenter.Y, pz), new Vec3d(px, slamCenter.Y + 0.5, pz),
-                    new Vec3f(0, 0.1f, 0), new Vec3f(0, 0.4f, 0),
-                    crackDurationSec, 0.05f, 0.1f, 0.25f));
-            }
-        }
+        protected override void StopAbility() { }
     }
 }

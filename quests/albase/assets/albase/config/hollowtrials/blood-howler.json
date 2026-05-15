@@ -1,13 +1,45 @@
 {
   "trialKey": "albase:trial:blood-howler",
-  "questId": "albase:trial-tier2",
-  "tier": 2,
+  "entityCode": "albase:blood-howler",
   "respawnInGameHours": 168,
   "activationRange": 120,
   "softResetIdleHours": 2.0,
-  "challenges": [
-    { "type": "speedkill", "thresholdMinutes": 3 },
-    { "type": "deathless" },
-    { "type": "nopotions" }
-  ]
+  "tiers": {
+    "1": {
+      "questId": "albase:trial-tier1",
+      "maxHealth": 320,
+      "damageMult": 1.0,
+      "speedMult": 1.05,
+      "enrageTimerSeconds": 230,
+      "challenges": [
+        { "type": "speedkill", "thresholdMinutes": 3 },
+        { "type": "deathless" }
+      ]
+    },
+    "2": {
+      "questId": "albase:trial-tier2",
+      "maxHealth": 680,
+      "damageMult": 1.4,
+      "speedMult": 1.2,
+      "enrageTimerSeconds": 220,
+      "challenges": [
+        { "type": "speedkill", "thresholdMinutes": 4 },
+        { "type": "deathless" },
+        { "type": "nofood" }
+      ]
+    },
+    "3": {
+      "questId": "albase:trial-tier3",
+      "maxHealth": 1350,
+      "damageMult": 1.8,
+      "speedMult": 1.35,
+      "enrageTimerSeconds": 200,
+      "challenges": [
+        { "type": "speedkill", "thresholdMinutes": 5 },
+        { "type": "deathless" },
+        { "type": "nofood" },
+        { "type": "lowgear", "maxArmorTier": 3 }
+      ]
+    }
+  }
 }

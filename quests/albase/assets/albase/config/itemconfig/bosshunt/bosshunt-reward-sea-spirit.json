@@ -1,0 +1,31 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:bosshunt-reward-sea-spirit",
+      "itemCode": "albase:psary-sheepskull",
+      "name": "<font color=\"#F8FAFC\">Череп Псаря</font>",
+      "description": "<font color=\"#E2E8F0\">Мир — лишь пиршество для высшего хищника.</font>",
+      "actions": [],
+      "attributes": {
+        "healonkill": 0.05,
+        "hungerrate": 0.25,
+        "meleeattackpower": 2.5,
+        "maxhealthflat": -4.5
+      },
+      "showAttributes": [
+        "healonkill",
+        "hungerrate",
+        "meleeattackpower",
+        "maxhealthflat"
+      ],
+      "hideVanillaTooltips": [
+        "armor",
+        "attackpower",
+        "protection",
+        "warmth",
+        "walkspeed",
+        "modsource"
+      ]
+    }
+  ]
+}

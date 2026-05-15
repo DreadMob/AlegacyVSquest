@@ -201,8 +201,8 @@ namespace VsQuest
                 foreach (var attr in actionItem.attributes)
                 {
                     float originalValue = attr.Value;
-                    bool isBuff = originalValue > 0;
-                    bool isDebuff = originalValue < 0;
+                    bool isBuff = ItemAttributeUtils.IsValueBeneficial(attr.Key, originalValue);
+                    bool isDebuff = !isBuff && originalValue != 0;
 
                     bool shouldApply = bonusMode == ItemQualityBonusMode.All ||
                         (bonusMode == ItemQualityBonusMode.BuffsOnly && isBuff) ||
@@ -231,19 +231,23 @@ namespace VsQuest
 
                         if (isBuff)
                         {
-                            // Buffs: increase the positive value
-                            bonus = originalValue * bonusMult;
-                            newValue = originalValue + bonus;
+                            // Buffs: make the value more beneficial
+                            // For normal attrs (positive=good): increase
+                            // For inverted attrs (negative=good, e.g. hungerrate -0.1): make more negative
+                            bonus = Math.Abs(originalValue) * bonusMult;
+                            newValue = originalValue > 0 ? originalValue + bonus : originalValue - bonus;
                         }
                         else
                         {
-                            // Debuffs: reduce the negative value (make it less negative)
-                            bonus = -originalValue * bonusMult; // bonus is positive
-                            newValue = originalValue + bonus; // debuff becomes less severe
+                            // Debuffs: make the value less harmful
+                            // For normal attrs (negative=bad): reduce magnitude
+                            // For inverted attrs (positive=bad, e.g. hungerrate 0.3): reduce magnitude
+                            bonus = Math.Abs(originalValue) * bonusMult;
+                            newValue = originalValue > 0 ? originalValue - bonus : originalValue + bonus;
                         }
 
                         // Store the bonus amount for tooltip display
-                        bonusData[attr.Key] = bonus;
+                        bonusData[attr.Key] = isBuff ? bonus : -bonus;
 
                         // Update the attribute on the stack
                         stack.Attributes.SetFloat(ItemAttributeUtils.GetKey(attr.Key), newValue);
@@ -256,7 +260,12 @@ namespace VsQuest
             {
                 float avgBonusPercent = totalBonusPercent / appliedCount;
                 stack.Attributes.SetFloat(ItemAttributeUtils.ItemQualityBonusPercentKey, avgBonusPercent);
+                baseBonusPercent = avgBonusPercent; // use average for tier calculation
             }
+
+            // Calculate and store quality tier (I-V) based on final average bonus within min-max range
+            int qualityTier = CalculateQualityTier(baseBonusPercent, quality.minBonusPercent, quality.maxBonusPercent);
+            stack.Attributes.SetInt("alegacyvsquest:qualityTier", qualityTier);
 
             // Special handling: damagetier upgrades at higher quality tiers (45%+ bonus = tier +1)
             if (actionItem.attributes != null && actionItem.attributes.ContainsKey(ItemAttributeUtils.AttrDamageTier))
@@ -337,6 +346,38 @@ namespace VsQuest
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Calculate quality tier (1-5) based on where the bonus falls within the min-max range.
+        /// Tier I = bottom 20%, Tier V = top 20%.
+        /// </summary>
+        public static int CalculateQualityTier(float bonusPercent, float minBonus, float maxBonus)
+        {
+            if (maxBonus <= minBonus) return 1;
+
+            float normalized = (bonusPercent - minBonus) / (maxBonus - minBonus); // 0.0 to 1.0
+            normalized = Math.Clamp(normalized, 0f, 1f);
+
+            // 5 tiers: 0-0.2 = I, 0.2-0.4 = II, 0.4-0.6 = III, 0.6-0.8 = IV, 0.8-1.0 = V
+            int tier = (int)(normalized * 5f) + 1;
+            return Math.Min(tier, 5);
+        }
+
+        /// <summary>
+        /// Get roman numeral string for a tier (1-5).
+        /// </summary>
+        public static string GetTierRoman(int tier)
+        {
+            return tier switch
+            {
+                1 => "I",
+                2 => "II",
+                3 => "III",
+                4 => "IV",
+                5 => "V",
+                _ => "I"
+            };
         }
     }
 }

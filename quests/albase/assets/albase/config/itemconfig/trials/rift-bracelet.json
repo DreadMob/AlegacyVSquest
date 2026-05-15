@@ -1,0 +1,17 @@
+﻿{
+  "actionItems": [
+    {
+      "id": "albase:trial-rift-bracelet",
+      "itemCode": "albase:trial-rift-bracelet",
+      "name": "<font color=\"#A78BFA\">Браслет Разлома</font>",
+      "description": "<font color=\"#9CA3AF\">Ржавые оковы из разлома. Дают устойчивость и ускоряют руки.</font>",
+      "actions": [],
+      "attributes": {
+        "knockbackmult": -0.3,
+        "attackspeed": 0.05
+      },
+      "showAttributes": ["knockbackmult", "attackspeed"],
+      "hideVanillaTooltips": ["warmth", "modsource"]
+    }
+  ]
+}
