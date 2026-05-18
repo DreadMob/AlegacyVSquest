@@ -17,8 +17,8 @@
     "renderer": "Shape",
     "pitchStep": false,
     "size": 1.45,
-    "shape": { "base": "game:entity/lore/drifter/knife" },
-    "texture": { "base": "game:entity/lore/drifter/deep1", "overlays": ["albase:entity/overlay/void-deep"] },
+    "shape": { "base": "game:entity/lore/drifter/spiked2" },
+    "texture": { "base": "albase:trials/deep-wanderer" },
     "glowLevel": 80,
     "behaviors": [
       { "code": "repulseagents" },

@@ -19,7 +19,7 @@
     "pitchStep": false,
     "size": 1.8,
     "shape": { "base": "game:entity/lore/drifter/surface" },
-    "texture": { "base": "game:entity/lore/drifter/deep1", "overlays": ["albase:entity/overlay/void-blood"] },
+    "texture": { "base": "albase:trials/blood-howler" },
     "glowLevel": 60,
     "behaviors": [
       { "code": "repulseagents" },

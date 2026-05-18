@@ -20,7 +20,7 @@
     "pitchStep": false,
     "size": 1.4,
     "shape": { "base": "game:entity/lore/bowtorn/gearfoot" },
-    "texture": { "base": "game:entity/lore/bowtorn/gearfoot", "overlays": ["albase:entity/overlay/void-purple"] },
+    "texture": { "base": "albase:trials/ember-wraith" },
     "glowLevel": 60,
     "behaviors": [
       { "code": "repulseagents" },

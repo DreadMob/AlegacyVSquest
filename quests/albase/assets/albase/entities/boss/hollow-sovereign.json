@@ -18,7 +18,7 @@
     "pitchStep": false,
     "size": 1.6,
     "shape": { "base": "game:entity/lore/drifter/deerhorn" },
-    "texture": { "base": "game:entity/lore/drifter/deerhorn", "overlays": ["albase:entity/overlay/void-sovereign"] },
+    "texture": { "base": "albase:trials/hollow-sovereign" },
     "glowLevel": 80,
     "behaviors": [
       { "code": "repulseagents" },

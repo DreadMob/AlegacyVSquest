@@ -17,8 +17,8 @@
     "renderer": "Shape",
     "pitchStep": false,
     "size": 1.55,
-    "shape": { "base": "game:entity/lore/drifter/deerhorn" },
-    "texture": { "base": "game:entity/lore/drifter/deerhorn", "overlays": ["albase:entity/overlay/void-ice"] },
+    "shape": { "base": "game:entity/lore/drifter/double-headed" },
+    "texture": { "base": "albase:trials/frostbound-sentinel" },
     "glowLevel": 60,
     "behaviors": [
       { "code": "repulseagents" },

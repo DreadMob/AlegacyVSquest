@@ -19,7 +19,7 @@
     "pitchStep": false,
     "size": 1.45,
     "shape": { "base": "game:entity/lore/drifter/knife" },
-    "texture": { "base": "game:entity/lore/drifter/deep2", "overlays": ["albase:entity/overlay/void-deep"] },
+    "texture": { "base": "albase:trials/void-weaver" },
     "glowLevel": 60,
     "behaviors": [
       { "code": "repulseagents" },

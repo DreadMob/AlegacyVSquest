@@ -17,8 +17,8 @@
     "renderer": "Shape",
     "pitchStep": false,
     "size": 2.2,
-    "shape": { "base": "game:entity/lore/locust/locust-corrupt" },
-    "texture": { "base": "game:entity/lore/locust/corrupt", "overlays": ["albase:entity/overlay/void-ash"] },
+    "shape": { "base": "game:entity/lore/locust/locust-bronze" },
+    "texture": { "base": "albase:trials/ashen-crawler" },
     "glowLevel": 80,
     "behaviors": [
       { "code": "repulseagents" },

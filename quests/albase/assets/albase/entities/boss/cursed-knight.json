@@ -18,7 +18,7 @@
     "pitchStep": false,
     "size": 1.4,
     "shape": { "base": "game:entity/lore/drifter/knife" },
-    "texture": { "base": "game:entity/lore/drifter/deep1", "overlays": ["albase:entity/overlay/void-purple"] },
+    "texture": { "base": "albase:trials/cursed-knight" },
     "glowLevel": 60,
     "behaviors": [
       { "code": "repulseagents" },

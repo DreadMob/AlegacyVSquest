@@ -19,7 +19,7 @@
     "pitchStep": false,
     "size": 3.2,
     "shape": { "base": "game:entity/lore/drifter/deerhorn" },
-    "texture": { "base": "game:entity/lore/drifter/deerhorn", "overlays": ["albase:entity/overlay/void-purple"] },
+    "texture": { "base": "albase:trials/iron-warden" },
     "glowLevel": 40,
     "behaviors": [
       { "code": "repulseagents" },

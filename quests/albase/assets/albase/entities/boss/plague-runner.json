@@ -19,7 +19,7 @@
     "pitchStep": false,
     "size": 2.0,
     "shape": { "base": "game:entity/lore/locust/locust-corrupt" },
-    "texture": { "base": "game:entity/lore/locust/corrupt", "overlays": ["albase:entity/overlay/void-purple"] },
+    "texture": { "base": "albase:trials/plague-runner" },
     "glowLevel": 50,
     "behaviors": [
       { "code": "repulseagents" },

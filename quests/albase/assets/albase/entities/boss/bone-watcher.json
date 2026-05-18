@@ -17,8 +17,8 @@
     "renderer": "Shape",
     "pitchStep": false,
     "size": 1.55,
-    "shape": { "base": "game:entity/lore/drifter/deerhorn" },
-    "texture": { "base": "game:entity/lore/drifter/deep1", "overlays": ["albase:entity/overlay/void-bone"] },
+    "shape": { "base": "game:entity/lore/drifter/spiked1" },
+    "texture": { "base": "albase:trials/bone-watcher" },
     "glowLevel": 80,
     "behaviors": [
       { "code": "repulseagents" },
