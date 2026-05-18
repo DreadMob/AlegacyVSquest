@@ -3,8 +3,8 @@
     {
       "id": "albase:trial-rift-bracelet",
       "itemCode": "albase:trial-rift-bracelet",
-      "name": "<font color=\"#A78BFA\">Браслет Разлома</font>",
-      "description": "<font color=\"#9CA3AF\">Ржавые оковы из разлома. Дают устойчивость и ускоряют руки.</font>",
+      "name": "<font color=\"#A78BFA\">Перчатки Разлома</font>",
+      "description": "<font color=\"#9CA3AF\">Латные рукавицы, пропитанные энергией разлома. Дают устойчивость и ускоряют руки.</font>",
       "actions": [],
       "attributes": {
         "knockbackmult": -0.3,

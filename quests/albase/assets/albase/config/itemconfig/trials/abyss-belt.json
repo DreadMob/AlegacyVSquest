@@ -3,8 +3,8 @@
     {
       "id": "albase:trial-abyss-belt",
       "itemCode": "albase:trial-abyss-belt",
-      "name": "<font color=\"#60A5FA\">Пояс Бездны</font>",
-      "description": "<font color=\"#93C5FD\">Пряжка из костей порождения. Усиливает каждый удар.</font>",
+      "name": "<font color=\"#60A5FA\">Кушак Бездны</font>",
+      "description": "<font color=\"#93C5FD\">Тканый пояс, пропитанный силой порождений. Усиливает каждый удар.</font>",
       "actions": [],
       "attributes": {
         "critchance": 0.04,

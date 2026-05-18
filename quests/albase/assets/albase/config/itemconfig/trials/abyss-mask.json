@@ -3,8 +3,8 @@
     {
       "id": "albase:trial-abyss-mask",
       "itemCode": "albase:trial-abyss-mask",
-      "name": "<font color=\"#F59E0B\">Маска Бездны</font>",
-      "description": "<font color=\"#FBBF24\">Лик павшего Владыки. Сила Бездны — но Пустота забирает часть жизни.</font>",
+      "name": "<font color=\"#F59E0B\">Мантия Бездны</font>",
+      "description": "<font color=\"#FBBF24\">Одеяние павшего Владыки. Сила Бездны пронизывает каждую нить — но Пустота забирает часть жизни.</font>",
       "actions": [],
       "attributes": {
         "bossdamage": 0.10,

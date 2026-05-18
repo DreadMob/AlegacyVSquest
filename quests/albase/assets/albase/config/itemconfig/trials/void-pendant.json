@@ -3,8 +3,8 @@
     {
       "id": "albase:trial-void-pendant",
       "itemCode": "albase:trial-void-pendant",
-      "name": "<font color=\"#A78BFA\">Подвеска Пустоты</font>",
-      "description": "<font color=\"#9CA3AF\">Камень из сердца разлома. Пока ты цел — Пустота усиливает удары.</font>",
+      "name": "<font color=\"#A78BFA\">Назар Пустоты</font>",
+      "description": "<font color=\"#9CA3AF\">Глаз-оберег, вырванный из разлома. Пока ты цел — Пустота усиливает удары.</font>",
       "actions": [],
       "attributes": {
         "fullhpdamage": 0.08,

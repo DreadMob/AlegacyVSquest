@@ -5,25 +5,28 @@
   "storageFlags": 128,
   "attributes": {
     "handbook": { "exclude": true },
-    "clothescategory": "face",
+    "clothescategory": "head",
     "wearableAttachment": true,
-    "warmth": 0
+    "warmth": 0,
+    "disableElements": ["Hair tile upper part", "ponytailhigh", "ponytaillow", "hair-uncovered", "Hair", "sidehigh", "sidelow", "bangs", "hoodshoulder", "hoodupperover"],
+    "keepElements": ["hair-covered", "hoodtight"]
   },
-  "shape": { "base": "game:entity/humanoid/seraph/clothing/face/forgotten" },
+  "shape": { "base": "game:entity/humanoid/seraph/clothing/head/jester" },
   "textures": {
     "seraph": { "base": "game:block/transparent" },
-    "mask-forgottennoble": { "base": "albase:trials/shadow-earring" }
+    "hood-jester": { "base": "albase:trials/shadow-earring" }
   },
   "renderAlphaTest": 0.25,
   "guiTransform": {
-    "translation": { "x": 0, "y": 0, "z": 0 },
-    "rotation": { "x": 1, "y": -121, "z": -167 },
-    "origin": { "x": 0.5, "y": 1.62, "z": 0.6 },
-    "scale": 3.23
+    "translation": { "x": 0, "y": 0, "z": 19 },
+    "rotation": { "x": 174, "y": -45, "z": 23 },
+    "origin": { "x": 0.44, "y": 1.8, "z": 0.5 },
+    "scale": 1.99
   },
   "groundTransform": {
-    "rotation": { "x": 0, "y": 0, "z": 0 },
-    "origin": { "x": 0.5, "y": 1.5, "z": 0.5299 },
-    "scale": 2.58
+    "translation": { "x": 0.05, "y": -1.1, "z": 0 },
+    "rotation": { "x": -2, "y": 0, "z": -4 },
+    "origin": { "x": 0.5, "y": 0.5, "z": 0.5299 },
+    "scale": 4
   }
 }

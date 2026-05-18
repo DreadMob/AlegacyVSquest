@@ -7,20 +7,25 @@
     "handbook": { "exclude": true },
     "clothescategory": "shoulder",
     "wearableAttachment": true,
-    "warmth": 0
+    "warmth": 0,
+    "disableElements": ["ponytailhigh", "hair-uncovered", "sidehigh", "sidelow", "bangs"],
+    "keepElements": ["hair-covered", "hoodtight"]
   },
-  "shape": { "base": "game:entity/humanoid/seraph/clothing/shoulder/cloak" },
+  "shape": {
+    "base": "game:entity/humanoid/seraph/clothing/shoulder/cape-hood",
+    "overlays": [{ "base": "game:entity/humanoid/seraph/clothing/shoulder/collar-cape-hood-fancy" }]
+  },
   "textures": {
     "seraph": { "base": "game:block/transparent" },
-    "cloak": { "base": "albase:trials/void-cloak" }
+    "shouldertexture": { "base": "albase:trials/void-cloak" },
+    "cloth": { "base": "albase:trials/void-cloak" }
   },
   "renderAlphaTest": 0.25,
   "guiTransform": {
-    "rotate": false,
     "translation": { "x": 2, "y": 0, "z": 17 },
     "rotation": { "x": -178, "y": -65, "z": 10 },
-    "origin": { "x": 0.4, "y": 1.45, "z": 0.5 },
-    "scale": 1.51
+    "origin": { "x": 0.5, "y": 1.5, "z": 0.5 },
+    "scale": 1.63
   },
   "groundTransform": {
     "translation": { "x": 0.05, "y": 0.1, "z": 0 },

@@ -3,8 +3,8 @@
     {
       "id": "albase:trial-abyss-pendant",
       "itemCode": "albase:trial-abyss-pendant",
-      "name": "<font color=\"#F59E0B\">Подвеска Бездны</font>",
-      "description": "<font color=\"#FBBF24\">Осколок чистой Бездны. Каждый удар может стать последним — для врага или для тебя.</font>",
+      "name": "<font color=\"#F59E0B\">Амулет Бездны</font>",
+      "description": "<font color=\"#FBBF24\">Бронзовый медальон, выкованный в жерле разлома. Каждый удар может стать последним — для врага или для тебя.</font>",
       "actions": [],
       "attributes": {
         "critchance": 0.10,

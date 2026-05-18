@@ -3,8 +3,8 @@
     {
       "id": "albase:trial-void-ring",
       "itemCode": "albase:trial-void-ring",
-      "name": "<font color=\"#F59E0B\">Кольцо Пустоты</font>",
-      "description": "<font color=\"#FBBF24\">Выковано в сердце разлома. Пустота укрепляет тело, но замедляет руки.</font>",
+      "name": "<font color=\"#F59E0B\">Ожерелье Пустоты</font>",
+      "description": "<font color=\"#FBBF24\">Тяжёлая цепь из глубин разлома. Пустота укрепляет тело, но замедляет руки.</font>",
       "actions": [],
       "attributes": {
         "maxhealthflat": 5.0,

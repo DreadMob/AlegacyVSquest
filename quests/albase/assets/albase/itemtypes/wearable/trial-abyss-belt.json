@@ -9,23 +9,21 @@
     "wearableAttachment": true,
     "warmth": 0
   },
-  "shape": { "base": "game:entity/humanoid/seraph/clothing/emblem/fibula" },
+  "shape": { "base": "game:entity/humanoid/seraph/clothing/waist/midsummer" },
   "textures": {
-    "seraph": { "base": "game:block/transparent" },
-    "brass": { "base": "albase:trials/abyss-belt" }
+    "seraph": { "base": "game:block/transparent" }
   },
   "renderAlphaTest": 0.25,
   "guiTransform": {
-    "rotate": false,
-    "translation": { "x": 0, "y": 0, "z": 0 },
-    "rotation": { "x": 174, "y": -90, "z": 5 },
-    "origin": { "x": 0.71, "y": 1.37, "z": 0.41 },
-    "scale": 6
+    "translation": { "x": 0, "y": 0, "z": 19 },
+    "rotation": { "x": 174, "y": -45, "z": 23 },
+    "origin": { "x": 0.4, "y": 1.1, "z": 0.4 },
+    "scale": 2.85
   },
   "groundTransform": {
-    "translation": { "x": 0.05, "y": -0.13, "z": 0 },
-    "rotation": { "x": 0, "y": 0, "z": -90 },
+    "translation": { "x": 0.05, "y": -0.21, "z": 0 },
+    "rotation": { "x": 0, "y": 0, "z": 0 },
     "origin": { "x": 0.5, "y": 0.5, "z": 0.5299 },
-    "scale": 5
+    "scale": 2.72
   }
 }

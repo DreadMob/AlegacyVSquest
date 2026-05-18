@@ -3,8 +3,8 @@
     {
       "id": "albase:trial-void-cloak",
       "itemCode": "albase:trial-void-cloak",
-      "name": "<font color=\"#60A5FA\">Плащ Пустоты</font>",
-      "description": "<font color=\"#93C5FD\">Ткань из тени разлома. Укрывает от ударов стражей Бездны.</font>",
+      "name": "<font color=\"#60A5FA\">Пончо Пустоты</font>",
+      "description": "<font color=\"#93C5FD\">Полуночная накидка, сотканная из тени разлома. Укрывает от ударов стражей Бездны.</font>",
       "actions": [],
       "attributes": {
         "bossdamage": 0.06,

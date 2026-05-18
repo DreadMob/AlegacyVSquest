@@ -3,8 +3,8 @@
     {
       "id": "albase:trial-shadow-earring",
       "itemCode": "albase:trial-shadow-earring",
-      "name": "<font color=\"#A78BFA\">Серьга Тени</font>",
-      "description": "<font color=\"#9CA3AF\">Осколок тьмы, что обостряет зрение. Каждый удар может стать критическим.</font>",
+      "name": "<font color=\"#A78BFA\">Колпак Безумия</font>",
+      "description": "<font color=\"#9CA3AF\">Шутовской убор, пропитанный энергией разлома. Обостряет чутьё — каждый удар может стать роковым.</font>",
       "actions": [],
       "attributes": {
         "critchance": 0.06,
