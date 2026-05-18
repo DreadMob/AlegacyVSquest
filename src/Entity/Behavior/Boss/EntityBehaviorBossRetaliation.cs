@@ -30,7 +30,7 @@ namespace VsQuest
             public override void FromJson(JsonObject json)
             {
                 base.FromJson(json);
-                damageThreshold = json["damageThreshold"].AsFloat(30f);
+                damageThreshold = json["damageThreshold"].AsFloat(16f);
                 retaliationMultiplier = json["retaliationMultiplier"].AsFloat(0.6f);
                 retaliationRadius = json["retaliationRadius"].AsFloat(6f);
                 windowDurationSec = json["windowDurationSec"].AsFloat(4f);
@@ -94,7 +94,7 @@ namespace VsQuest
                 absorbedDamage += damage;
 
                 // Absorb particles
-                ParticleUtils.SpawnEntityAura(Sapi, entity, ParticleUtils.Colors.Fire, 4, 0.2f + AbsorbProgress * 0.3f, 0.4f);
+                ParticleUtils.SpawnEntityAura(Sapi, entity, ParticleUtils.Colors.Arcane, 4, 0.2f + AbsorbProgress * 0.3f, 0.4f);
 
                 // Check threshold
                 if (activeStageIndex >= 0 && activeStageIndex < stages.Count)
@@ -162,7 +162,7 @@ namespace VsQuest
             entity.WatchedAttributes.MarkPathDirty("alegacyvsquest:retaliation:absorbing");
 
             // Warning: visual burst + sound when absorption starts
-            ParticleUtils.SpawnEntityAura(Sapi, entity, ParticleUtils.Colors.Fire, 12, 0.4f, 0.6f);
+            ParticleUtils.SpawnEntityAura(Sapi, entity, ParticleUtils.Colors.ArcaneBright, 12, 0.4f, 0.6f);
             TryPlaySound("effect/reverbhit", 24f, 0, 0.3f);
         }
 
@@ -205,7 +205,7 @@ namespace VsQuest
             }
 
             // Shockwave on burst
-            ParticleUtils.SpawnShockwave(Sapi, entity.Pos.XYZ, stage.retaliationRadius, ParticleUtils.Colors.Fire, 30, 0.5f);
+            ParticleUtils.SpawnShockwave(Sapi, entity.Pos.XYZ, stage.retaliationRadius, ParticleUtils.Colors.Arcane, 30, 0.5f);
 
             // Sounds
             TryPlaySound(stage.sound, stage.soundRange);

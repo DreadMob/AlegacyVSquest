@@ -1,0 +1,32 @@
+{
+  "_comment": "Репутация — Кассий Железный (Военачальник)",
+
+  "reputation-npc-warlord-title": "Военачальник",
+  "game:reputation-npc-warlord-title": "Военачальник",
+  "albase:reputation-npc-warlord-title": "Военачальник",
+
+  "reputation-warlord-rank-0": "Новобранец",
+  "game:reputation-warlord-rank-0": "Новобранец",
+  "albase:reputation-warlord-rank-0": "Новобранец",
+  "reputation-warlord-rank-50": "Боец",
+  "game:reputation-warlord-rank-50": "Боец",
+  "albase:reputation-warlord-rank-50": "Боец",
+  "reputation-warlord-rank-150": "Воитель",
+  "game:reputation-warlord-rank-150": "Воитель",
+  "albase:reputation-warlord-rank-150": "Воитель",
+  "reputation-warlord-rank-300": "Ветеран",
+  "game:reputation-warlord-rank-300": "Ветеран",
+  "albase:reputation-warlord-rank-300": "Ветеран",
+  "reputation-warlord-rank-500": "Чемпион",
+  "game:reputation-warlord-rank-500": "Чемпион",
+  "albase:reputation-warlord-rank-500": "Чемпион",
+  "reputation-warlord-rank-1000": "Легенда арены",
+  "game:reputation-warlord-rank-1000": "Легенда арены",
+  "albase:reputation-warlord-rank-1000": "Легенда арены",
+
+  "reputation-reward-title-albase-warlord-50": "Боец",
+  "reputation-reward-title-albase-warlord-150": "Воитель",
+  "reputation-reward-title-albase-warlord-300": "Ветеран",
+  "reputation-reward-title-albase-warlord-500": "Чемпион",
+  "reputation-reward-title-albase-warlord-1000": "Легенда арены"
+}

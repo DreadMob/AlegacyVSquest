@@ -283,7 +283,10 @@ namespace VsQuest
             message.trialShopShards = repManager.GetVoidShards(playerUid);
             message.trialShopReputation = repManager.GetReputation(playerUid);
             message.trialShopRankName = repManager.GetRankName(playerUid);
-            message.trialShopItems = shopHandler.BuildShopItemsForMessage(playerUid);
+            message.trialShopItems = shopHandler.BuildShopItemsForMessage(playerUid) ?? new List<TrialShopItemData>();
+
+            sapi.Logger.Debug("[TrialShop] PopulateTrialShopInfo: shards={0}, rep={1}, rank='{2}', items={3}",
+                message.trialShopShards, message.trialShopReputation, message.trialShopRankName, message.trialShopItems?.Count ?? 0);
 
             // Include active modifier name
             var modType = (TrialModifierType)trialSystem.GetActiveModifier();

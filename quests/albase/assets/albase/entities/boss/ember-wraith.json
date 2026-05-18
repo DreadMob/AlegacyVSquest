@@ -20,7 +20,7 @@
     "pitchStep": false,
     "size": 1.4,
     "shape": { "base": "game:entity/lore/bowtorn/gearfoot" },
-    "texture": { "base": "game:entity/lore/bowtorn/gearfoot" },
+    "texture": { "base": "game:entity/lore/bowtorn/gearfoot", "overlays": ["albase:entity/overlay/void-purple"] },
     "glowLevel": 60,
     "behaviors": [
       { "code": "repulseagents" },
@@ -48,6 +48,7 @@
       { "code": "health", "currenthealth": 350, "maxhealth": 350 },
       { "code": "bosscombatmarker", "trackCombatTime": true },
       { "code": "bosshastargetsync" },
+      { "code": "bossghostflight", "hoverHeight": 3.5, "hoverSpeed": 0.04, "bobAmplitude": 0.3, "bobFrequency": 1.5 },
       { "code": "questtarget", "targetId": "albase:trial:ember-wraith", "leashRange": 60, "returnMoveSpeed": 0.06, "leashCheckMs": 1000 },
       {
         "code": "emotionstates",
@@ -61,7 +62,7 @@
       { "code": "bossvoidzone", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 9, "maxTargetRange": 25, "maxRadius": 4, "growDurationSec": 2, "dpsInZone": 4, "lifetimeSec": 7, "maxActiveZones": 2, "sound": "effect/translocate-idle", "soundRange": 24 }] },
       { "code": "bosscursemark", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 14, "maxTargetRange": 25, "markDelaySec": 3, "baseDamage": 14, "safeDistance": 15, "sound": "environment/thunder1", "soundRange": 32 }] },
       { "code": "bossphaseshift", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 10, "maxTargetRange": 30, "shiftRadius": 10, "durationMs": 1000, "sound": "block/meteoriciron", "soundRange": 32 }] },
-      { "code": "bossrandomlightning", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 5, "maxTargetRange": 25, "damage": 6, "damageTier": 3, "strikeCount": 2, "strikeRadius": 3, "sound": "weather/lightning-verynear", "soundRange": 32, "soundVolume": 0.3 }] },
+      { "code": "bossrandomlightning", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 9, "maxTargetRange": 25, "damage": 6, "damageTier": 3, "strikeCount": 2, "strikeRadius": 3, "minCount": 2, "maxCount": 3, "minRadius": 2, "maxRadius": 10, "warningDelayMs": 2500, "sound": "weather/lightning-verynear", "soundRange": 48, "soundVolume": 0.15, "warningSound": "effect/translocate-active", "warningSoundRange": 32, "warningSoundVolume": 0.3 }] },
       {
         "code": "taskai",
         "inheritedTasks": false,

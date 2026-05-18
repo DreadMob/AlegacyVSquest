@@ -231,10 +231,10 @@ namespace VsQuest
 
             TryPlayAnimation(stage.dashAnimation);
 
-            // Dash trail particles at start
+            // Dash trail particles at start — big burst
             if (Sapi != null)
             {
-                ParticleUtils.SpawnShockwave(Sapi, entity.Pos.XYZ, 1.5f, ParticleUtils.Colors.Smoke, 12, 0.3f);
+                ParticleUtils.SpawnShockwave(Sapi, entity.Pos.XYZ, 2.5f, ParticleUtils.Colors.Shadow, 20, 0.6f);
             }
 
             // Register game tick listener for continuous movement updates
@@ -275,6 +275,12 @@ namespace VsQuest
                     double spd = activeStage.dashSpeed;
                     entity.Pos.Motion.X = dashDir.X * spd;
                     entity.Pos.Motion.Z = dashDir.Z * spd;
+
+                    // Trail particles during dash
+                    if (Sapi != null && now % 100 < 60)
+                    {
+                        ParticleUtils.SpawnEntityAura(Sapi, entity, ParticleUtils.Colors.Shadow, 4, 0.4f, 0.6f);
+                    }
                 }
                 catch (Exception ex)
                 {

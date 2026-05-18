@@ -18,7 +18,7 @@
     "pitchStep": false,
     "size": 1.55,
     "shape": { "base": "game:entity/lore/drifter/deerhorn" },
-    "texture": { "base": "game:entity/lore/drifter/deerhorn" },
+    "texture": { "base": "game:entity/lore/drifter/deerhorn", "overlays": ["albase:entity/overlay/void-ice"] },
     "glowLevel": 60,
     "behaviors": [
       { "code": "repulseagents" },
@@ -59,8 +59,11 @@
       { "code": "bossenrage", "enrageTimerSeconds": 300 },
       { "code": "bossvulnerabilitywindow", "damageMultiplier": 2.0, "durationSeconds": 3.0, "triggerAbilities": ["bossretaliation"] },
       { "code": "bossgroundslam", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 10, "maxTargetRange": 20, "radius": 7, "damage": 12, "windupMs": 1500, "knockbackStrength": 2.5, "sound": "environment/largerock1", "soundRange": 32 }] },
-      { "code": "bosscursestack", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 0, "maxTargetRange": 30, "maxStacks": 5, "effectType": "stun", "stackDecaySeconds": 5, "stunDurationMs": 2000, "slowFactor": 0.5, "slowDurationMs": 3000 }] },
-      { "code": "bossretaliation", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 18, "maxTargetRange": 30, "damageThreshold": 40, "retaliationMultiplier": 0.55, "retaliationRadius": 7, "windowDurationSec": 5, "sound": "effect/reverbhit", "soundRange": 32 }] },
+      { "code": "bosscursestack", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 0, "maxTargetRange": 30, "maxStacks": 5, "effectType": "stun", "stackDecaySeconds": 5, "stunDurationMs": 4000, "slowFactor": 0.5, "slowDurationMs": 4000 }] },
+      { "code": "bossretaliation", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 18, "maxTargetRange": 30, "damageThreshold": 16, "retaliationMultiplier": 0.55, "retaliationRadius": 7, "windowDurationSec": 5, "sound": "effect/reverbhit", "soundRange": 32 }] },
+      { "code": "bossprojectile", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 6, "maxTargetRange": 22, "damage": 8, "speed": 8, "variant": "ice", "shape": "ball", "damageTier": 3, "windupMs": 1200, "windupSound": "effect/translocate-active", "windupSoundRange": 24 }] },
+      { "code": "bosshazardzone", "stages": [{ "whenHealthRelBelow": 0.6, "cooldownSeconds": 12, "maxTargetRange": 18, "zoneType": "frost", "radius": 5, "dpsInZone": 0, "dotDps": 0, "dotDurationSec": 0, "slowFactor": 0.5, "lifetimeSec": 10, "maxActiveZones": 2 }] },
+      { "code": "bossarena", "stages": [{ "whenHealthRelBelow": 0.3, "cooldownSeconds": 35, "maxTargetRange": 25, "arenaRadius": 12, "arenaDurationSec": 18, "boundaryDps": 8 }] },
       {
         "code": "taskai",
         "inheritedTasks": false,

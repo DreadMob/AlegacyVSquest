@@ -176,7 +176,8 @@ namespace VsQuest
                         continue;
                     }
 
-                    TrySpawnIfPlayerNearby(cfg, entry, nowHours);
+                    // Auto-spawn disabled — boss is summoned via RMB on anchor block
+                    // TrySpawnIfPlayerNearby(cfg, entry, nowHours);
                 }
             }
 
@@ -220,24 +221,7 @@ namespace VsQuest
 
         private void TrySpawnForPlayer(IServerPlayer byPlayer)
         {
-            if (sapi == null || byPlayer?.Entity?.Pos == null) return;
-            if (state?.activeTrialKeys == null) return;
-
-            double nowHours = sapi.World.Calendar.TotalHours;
-
-            foreach (var trialKey in state.activeTrialKeys)
-            {
-                var cfg = FindConfig(trialKey);
-                if (cfg == null) continue;
-
-                var entry = GetOrCreateEntry(trialKey);
-                if (entry.deadUntilTotalHours > nowHours) continue;
-
-                var bossEntity = entityTracker?.GetTrackedEntity(trialKey);
-                if (bossEntity != null && bossEntity.Alive) continue;
-
-                TrySpawnIfPlayerNearby(cfg, entry, nowHours);
-            }
+            // Auto-spawn disabled — boss is summoned via RMB on anchor block
         }
 
         private void NotifyPlayerOfActiveModifier(IServerPlayer player)

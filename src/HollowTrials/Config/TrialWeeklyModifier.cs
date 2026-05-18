@@ -25,7 +25,7 @@ namespace VsQuest
         AbilityCooldownReduced = 8,
         /// <summary>No vulnerability windows at all.</summary>
         NoVulnerability = 9,
-        /// <summary>Boss regenerates 1% HP per second out of combat (3s threshold).</summary>
+        /// <summary>Boss regenerates 0.3% HP per second ALWAYS (even in combat).</summary>
         BossRegen = 10,
         /// <summary>Player healing reduced by 50% during fight.</summary>
         HealingReduced = 11,

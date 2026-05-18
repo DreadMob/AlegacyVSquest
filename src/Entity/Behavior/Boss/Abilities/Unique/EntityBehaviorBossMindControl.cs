@@ -190,11 +190,10 @@ namespace VsQuest
                 
                 float yaw = (float)Math.Atan2(dir.X, dir.Z);
                 controlledPlayer.Pos.Yaw = yaw;
-                controlledPlayer.ServerPos.Yaw = yaw;
 
                 // Apply motion directly (server-authoritative movement)
-                controlledPlayer.ServerPos.Motion.X = dir.X * moveSpeed;
-                controlledPlayer.ServerPos.Motion.Z = dir.Z * moveSpeed;
+                controlledPlayer.Pos.Motion.X = dir.X * moveSpeed;
+                controlledPlayer.Pos.Motion.Z = dir.Z * moveSpeed;
 
                 // Attack if close enough — deal damage directly instead of using Controls
                 if (minDist <= 3.5)
@@ -225,10 +224,9 @@ namespace VsQuest
                 }
                 
                 controlledPlayer.Pos.Yaw = randomWalkYaw;
-                controlledPlayer.ServerPos.Yaw = randomWalkYaw;
                 
-                controlledPlayer.ServerPos.Motion.X = Math.Sin(randomWalkYaw) * moveSpeed;
-                controlledPlayer.ServerPos.Motion.Z = Math.Cos(randomWalkYaw) * moveSpeed;
+                controlledPlayer.Pos.Motion.X = Math.Sin(randomWalkYaw) * moveSpeed;
+                controlledPlayer.Pos.Motion.Z = Math.Cos(randomWalkYaw) * moveSpeed;
             }
 
             // Spawn particles periodically

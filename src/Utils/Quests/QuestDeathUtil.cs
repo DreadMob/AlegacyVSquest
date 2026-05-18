@@ -21,6 +21,19 @@ namespace VsQuest
 
             var questSystem = sapi.ModLoader.GetModSystem<QuestSystem>();
 
+            // [EXPERIMENTAL] killwithweapon objective
+            if (serverPlayer != null)
+            {
+                try
+                {
+                    ExperimentalObjectiveDispatcher.OnEntityKilled(sapi, serverPlayer, quests);
+                }
+                catch (System.Exception ex)
+                {
+                    sapi.Logger.Warning("[QuestDeathUtil] Experimental OnEntityKilled failed: {0}", ex.Message);
+                }
+            }
+
             foreach (var quest in quests)
             {
                 sapi.Logger.Debug($"[QuestDeathUtil] Processing quest {quest.questId} for kill {killedCode}");

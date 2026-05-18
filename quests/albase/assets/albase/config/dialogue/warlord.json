@@ -14,11 +14,12 @@
       "owner": "player",
       "type": "talk",
       "text": [
-        { "value": "albase:dialogue-warlord-quests", "jumpTo": "openquests" },
-        { "value": "albase:dialogue-warlord-whoareyou", "jumpTo": "whoareyou" },
-        { "value": "albase:dialogue-warlord-aboutarena", "jumpTo": "aboutarena" },
+        { "value": "albase:dialogue-warlord-reputation", "jumpTo": "openreputation" },
+        { "value": "albase:dialogue-warlord-repair", "jumpTo": "repairinfo" },
         { "value": "albase:dialogue-warlord-stats", "jumpTo": "showstats" },
         { "value": "albase:dialogue-warlord-leaderboard", "jumpTo": "showleaderboard" },
+        { "value": "albase:dialogue-warlord-whoareyou", "jumpTo": "whoareyou" },
+        { "value": "albase:dialogue-warlord-aboutarena", "jumpTo": "aboutarena" },
         { "value": "albase:dialogue-warlord-close", "jumpTo": "close" }
       ]
     },
@@ -61,14 +62,131 @@
       "jumpTo": "main"
     },
     {
-      "code": "openquests",
+      "code": "openreputation",
       "owner": "npc",
       "type": "talk",
       "trigger": "openquests",
       "text": [
-        { "value": "albase:dialogue-warlord-quests-confirm" }
+        { "value": "albase:dialogue-warlord-reputation-confirm" }
       ]
     },
+
+    {
+      "code": "repairinfo",
+      "owner": "npc",
+      "type": "talk",
+      "text": [
+        { "value": "albase:dialogue-warlord-repair-info" }
+      ],
+      "jumpTo": "repairchoice"
+    },
+    {
+      "code": "repairchoice",
+      "owner": "player",
+      "type": "talk",
+      "text": [
+        { "value": "albase:dialogue-warlord-repair-full", "jumpTo": "testrepair-full", "condition": { "variable": "player.inventory", "isValue": "{type: 'item', code: 'gear-rusty', stacksize: 36}" } },
+        { "value": "albase:dialogue-warlord-repair-small", "jumpTo": "testrepair-small", "condition": { "variable": "player.inventory", "isValue": "{type: 'item', code: 'gear-rusty', stacksize: 10}" } },
+        { "value": "albase:dialogue-warlord-repair-cantafford", "jumpTo": "repaircantafford" }
+      ]
+    },
+    {
+      "code": "repaircantafford",
+      "owner": "npc",
+      "type": "talk",
+      "text": [
+        { "value": "albase:dialogue-warlord-repair-cantafford-answer" }
+      ],
+      "jumpTo": "main"
+    },
+    {
+      "code": "testrepair-small",
+      "owner": "npc",
+      "type": "condition",
+      "variable": "player.heldstack",
+      "isValue": "damagedtool",
+      "thenJumpTo": "takegears-small",
+      "elseJumpTo": "testrepair-small-other"
+    },
+    {
+      "code": "testrepair-small-other",
+      "owner": "npc",
+      "type": "condition",
+      "variable": "player.heldstack",
+      "isValue": "damagedarmor",
+      "thenJumpTo": "takegears-small",
+      "elseJumpTo": "takegears-small"
+    },
+    {
+      "code": "testrepair-full",
+      "owner": "npc",
+      "type": "condition",
+      "variable": "player.heldstack",
+      "isValue": "damagedtool",
+      "thenJumpTo": "takegears-full",
+      "elseJumpTo": "testrepair-full-other"
+    },
+    {
+      "code": "testrepair-full-other",
+      "owner": "npc",
+      "type": "condition",
+      "variable": "player.heldstack",
+      "isValue": "damagedarmor",
+      "thenJumpTo": "takegears-full",
+      "elseJumpTo": "takegears-full"
+    },
+    {
+      "code": "norepair",
+      "owner": "npc",
+      "type": "talk",
+      "text": [
+        { "value": "albase:dialogue-warlord-repair-nothing" }
+      ],
+      "jumpTo": "main"
+    },
+    {
+      "code": "takegears-small",
+      "owner": "npc",
+      "type": "talk",
+      "trigger": "takefrominventory",
+      "triggerdata": { "type": "item", "code": "gear-rusty", "quantity": 10 },
+      "text": [
+        { "value": "albase:dialogue-warlord-repair-working" }
+      ],
+      "jumpTo": "dorepair-small"
+    },
+    {
+      "code": "takegears-full",
+      "owner": "npc",
+      "type": "talk",
+      "trigger": "takefrominventory",
+      "triggerdata": { "type": "item", "code": "gear-rusty", "quantity": 36 },
+      "text": [
+        { "value": "albase:dialogue-warlord-repair-working-full" }
+      ],
+      "jumpTo": "dorepair-full"
+    },
+    {
+      "code": "dorepair-small",
+      "owner": "npc",
+      "type": "talk",
+      "trigger": "repairheldany 500",
+      "text": [
+        { "value": "albase:dialogue-warlord-repair-done" }
+      ],
+      "jumpTo": "repairchoice"
+    },
+    {
+      "code": "dorepair-full",
+      "owner": "npc",
+      "type": "talk",
+      "trigger": "repairheldany 2000",
+      "text": [
+        { "value": "albase:dialogue-warlord-repair-done-full" }
+      ],
+      "jumpTo": "repairchoice"
+    },
+
     {
       "code": "close",
       "owner": "npc",

@@ -32,13 +32,20 @@
       "color": "#9CA3AF",
       "chance": 0.50,
       "minBonusPercent": 0,
-      "maxBonusPercent": 0,
+      "maxBonusPercent": 5,
       "bonusMode": "all",
-      "perAttribute": false,
+      "perAttribute": true,
       "exclusive": false,
-      "actionItemOverride": "albase:trial-reward-voidbow",
       "applicableItems": [
-        "albase:trial-reward-voidbow"
+        "albase:trial-bow",
+        "albase:trial-shadow-earring",
+        "albase:trial-rift-bracelet",
+        "albase:trial-void-pendant",
+        "albase:trial-void-cloak",
+        "albase:trial-abyss-belt",
+        "albase:trial-deep-sigil",
+        "albase:trial-abyss-pendant",
+        "albase:trial-void-ring"
       ]
     },
     {
@@ -46,14 +53,21 @@
       "name": "МЕРЦАЮЩЕЕ",
       "color": "#60A5FA",
       "chance": 0.30,
-      "minBonusPercent": 0,
-      "maxBonusPercent": 0,
+      "minBonusPercent": 10,
+      "maxBonusPercent": 25,
       "bonusMode": "all",
-      "perAttribute": false,
+      "perAttribute": true,
       "exclusive": false,
-      "actionItemOverride": "albase:trial-reward-voidbow-shimmer",
       "applicableItems": [
-        "albase:trial-reward-voidbow"
+        "albase:trial-bow",
+        "albase:trial-shadow-earring",
+        "albase:trial-rift-bracelet",
+        "albase:trial-void-pendant",
+        "albase:trial-void-cloak",
+        "albase:trial-abyss-belt",
+        "albase:trial-deep-sigil",
+        "albase:trial-abyss-pendant",
+        "albase:trial-void-ring"
       ]
     },
     {
@@ -61,14 +75,21 @@
       "name": "СИЯЮЩЕЕ",
       "color": "#A78BFA",
       "chance": 0.15,
-      "minBonusPercent": 0,
-      "maxBonusPercent": 0,
+      "minBonusPercent": 25,
+      "maxBonusPercent": 50,
       "bonusMode": "all",
-      "perAttribute": false,
+      "perAttribute": true,
       "exclusive": false,
-      "actionItemOverride": "albase:trial-reward-voidbow-radiant",
       "applicableItems": [
-        "albase:trial-reward-voidbow"
+        "albase:trial-bow",
+        "albase:trial-shadow-earring",
+        "albase:trial-rift-bracelet",
+        "albase:trial-void-pendant",
+        "albase:trial-void-cloak",
+        "albase:trial-abyss-belt",
+        "albase:trial-deep-sigil",
+        "albase:trial-abyss-pendant",
+        "albase:trial-void-ring"
       ]
     },
     {
@@ -76,14 +97,21 @@
       "name": "БЕЗДОННОЕ",
       "color": "#F59E0B",
       "chance": 0.05,
-      "minBonusPercent": 0,
-      "maxBonusPercent": 0,
+      "minBonusPercent": 50,
+      "maxBonusPercent": 80,
       "bonusMode": "all",
-      "perAttribute": false,
+      "perAttribute": true,
       "exclusive": false,
-      "actionItemOverride": "albase:trial-reward-voidbow-abyssal",
       "applicableItems": [
-        "albase:trial-reward-voidbow"
+        "albase:trial-bow",
+        "albase:trial-shadow-earring",
+        "albase:trial-rift-bracelet",
+        "albase:trial-void-pendant",
+        "albase:trial-void-cloak",
+        "albase:trial-abyss-belt",
+        "albase:trial-deep-sigil",
+        "albase:trial-abyss-pendant",
+        "albase:trial-void-ring"
       ]
     }
   ]

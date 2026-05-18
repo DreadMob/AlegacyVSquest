@@ -108,11 +108,16 @@ namespace VsQuest
             actionRegistry.Add("markentityinteraction", new MarkEntityInteractionAction());
             actionRegistry.Add("markduelparticipation", new MarkDuelParticipationAction());
             actionRegistry.Add("trackboss", new TrackBossAction());
+            actionRegistry.Add("repairheldany", new RepairHeldItemAction());
 
             // Hollow Trials actions
             actionRegistry.Add("trialchallengebonuses", new TrialChallengeBonusesAction());
             actionRegistry.Add("tracktrialboss", new TrackTrialBossAction());
             actionRegistry.Add("openshop", new OpenTrialShopAction());
+
+            // [EXPERIMENTAL] Timer and reset actions
+            actionRegistry.Add("resettimer", new ResetTimerAction());
+            actionRegistry.Add("resetexperimentalobjective", new ResetExperimentalObjectiveAction());
         }
     }
 }

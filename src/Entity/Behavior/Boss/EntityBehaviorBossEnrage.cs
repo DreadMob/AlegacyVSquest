@@ -129,8 +129,8 @@ namespace VsQuest
             var sapi = entity.Api as ICoreServerAPI;
             if (sapi != null)
             {
-                ParticleUtils.SpawnShockwave(sapi, entity.Pos.XYZ, 4f, ParticleUtils.Colors.Fire, 30, 0.5f);
-                ParticleUtils.SpawnEntityAura(sapi, entity, ParticleUtils.Colors.Fire, 12, 0.5f, 0.8f);
+                ParticleUtils.SpawnShockwave(sapi, entity.Pos.XYZ, 4f, ParticleUtils.Colors.FireDark, 30, 0.5f);
+                ParticleUtils.SpawnEntityAura(sapi, entity, ParticleUtils.Colors.FireDark, 12, 0.5f, 0.8f);
             }
         }
 

@@ -171,6 +171,16 @@ namespace VsQuest
                     tracker.MaxArmorTierByPlayer.TryGetValue(playerUid, out prevMaxTier);
                     tracker.RecordArmorTier(playerUid, armorTier);
 
+                    // Max HP tracking (for lowdiet challenge)
+                    var playerHealth = player.Entity?.GetBehavior<Vintagestory.GameContent.EntityBehaviorHealth>();
+                    if (playerHealth != null && playerHealth.MaxHealth > 0)
+                    {
+                        if (!tracker.MaxHpByPlayer.ContainsKey(playerUid) || playerHealth.MaxHealth > tracker.MaxHpByPlayer[playerUid])
+                        {
+                            tracker.MaxHpByPlayer[playerUid] = playerHealth.MaxHealth;
+                        }
+                    }
+
                     // Notify if armor tier just exceeded a common threshold (tier 3 = plate)
                     if (armorTier > prevMaxTier && armorTier >= 3 && prevMaxTier < 3)
                     {

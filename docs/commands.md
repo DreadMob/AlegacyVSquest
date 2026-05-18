@@ -91,6 +91,23 @@ Player attributes are persistent flags used for quest progress tracking.
 
 ---
 
+### Debug Boss Abilities
+
+Debug mode for testing individual boss abilities. When enabled, only the selected ability will fire on the boss. Use `next`/`prev` to cycle through abilities.
+
+| Command | Arguments | Description |
+|---------|-----------|-------------|
+| `/avq debugba` | — | Toggle debug mode on/off for the nearest boss |
+| `/avq debugba next` | — | Switch to the next ability |
+| `/avq debugba prev` | — | Switch to the previous ability |
+| `/avq debugba set` | `<abilityName>` | Set a specific ability by name (e.g. `bossdash`) |
+| `/avq debugba fire` | — | Force-fire the currently selected ability immediately |
+| `/avq debugba list` | — | List all abilities on the nearest boss |
+| `/avq debugba resetcd` | — | Reset all cooldowns on the nearest boss |
+| `/avq debugba enrage` | — | Toggle enrage on the nearest boss |
+
+---
+
 ## Examples
 
 ```

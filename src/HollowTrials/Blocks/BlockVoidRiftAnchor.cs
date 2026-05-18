@@ -16,10 +16,25 @@ namespace VsQuest
             if (world.Side == EnumAppSide.Server)
             {
                 var sp = byPlayer as IServerPlayer;
-                if (sp == null || !sp.HasPrivilege(Privilege.controlserver)) return true;
+                if (sp == null) return true;
+
+                // Shift+click with admin privilege opens config GUI
+                if (sp.HasPrivilege(Privilege.controlserver) && byPlayer.Entity?.Controls?.ShiftKey == true)
+                {
+                    be.OnInteract(byPlayer);
+                    return true;
+                }
+
+                // Any player RMB: summon boss
+                be.OnPlayerSummonRequest(byPlayer);
+                return true;
             }
 
-            be.OnInteract(byPlayer);
+            // Client side: admin shift+click opens GUI
+            if (byPlayer.Entity?.Controls?.ShiftKey == true)
+            {
+                be.OnInteract(byPlayer);
+            }
             return true;
         }
 

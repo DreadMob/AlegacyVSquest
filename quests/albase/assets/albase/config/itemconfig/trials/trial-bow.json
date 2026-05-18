@@ -1,0 +1,16 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:trial-bow",
+      "itemCode": "albase:trial-bow",
+      "name": "<font color=\"#A78BFA\">Лук Пустоты</font>",
+      "description": "<font color=\"#9CA3AF\">Оружие, выкованное в сердце разлома. Стрелы пронзают любую броню.</font>",
+      "actions": [],
+      "attributes": {
+        "attackpower": 4.5
+      },
+      "showAttributes": ["attackpower"],
+      "hideVanillaTooltips": ["modsource"]
+    }
+  ]
+}

@@ -3,7 +3,7 @@
   "class": "EntityDrifter",
   "tags": ["alegacy-boss"],
   "canClimb": true,
-  "hitboxSize": { "x": 0.8, "y": 2.1 },
+  "hitboxSize": { "x": 0.9, "y": 2.4 },
   "deadHitboxSize": { "x": 0.8, "y": 0.4 },
   "eyeHeight": 1.7,
   "attributes": {
@@ -18,7 +18,7 @@
     "pitchStep": false,
     "size": 1.4,
     "shape": { "base": "game:entity/lore/drifter/knife" },
-    "texture": { "base": "game:entity/lore/drifter/deep1" },
+    "texture": { "base": "game:entity/lore/drifter/deep1", "overlays": ["albase:entity/overlay/void-purple"] },
     "glowLevel": 60,
     "behaviors": [
       { "code": "repulseagents" },
@@ -59,8 +59,11 @@
       { "code": "bossenrage", "enrageTimerSeconds": 240 },
       { "code": "bossvulnerabilitywindow", "damageMultiplier": 2.0, "durationSeconds": 2.5, "triggerAbilities": ["bosssoulchain"] },
       { "code": "bosssoulchain", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 14, "maxTargetRange": 20, "chainDurationSec": 4, "slowFactor": 0.5, "breakDistance": 12, "breakDamage": 25, "sound": "block/meteoriciron", "soundRange": 24 }] },
-      { "code": "bossretaliation", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 16, "maxTargetRange": 30, "damageThreshold": 35, "retaliationMultiplier": 0.6, "retaliationRadius": 7, "windowDurationSec": 3.5, "sound": "effect/reverbhit", "soundRange": 32 }] },
-      { "code": "bossphaseshift", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 12, "maxTargetRange": 25, "shiftRadius": 6, "durationMs": 1200, "sound": "block/meteoriciron", "soundRange": 32 }] },
+      { "code": "bossretaliation", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 16, "maxTargetRange": 30, "damageThreshold": 16, "retaliationMultiplier": 0.6, "retaliationRadius": 7, "windowDurationSec": 3.5, "sound": "effect/reverbhit", "soundRange": 32 }] },
+      { "code": "bossdash", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 10, "maxTargetRange": 20, "windupMs": 200, "dashDistance": 7, "dashSpeed": 0.5, "damage": 12, "damageTier": 3, "sound": "block/meteoriciron", "soundRange": 24 }] },
+      { "code": "bossdebuff", "stages": [{ "whenHealthRelBelow": 0.6, "cooldownSeconds": 14, "maxTargetRange": 15, "debuffType": "disarm", "durationSec": 2.5 }] },
+      { "code": "bossgroundslam", "stages": [{ "whenHealthRelBelow": 0.3, "cooldownSeconds": 10, "maxTargetRange": 18, "radius": 5, "damage": 16, "windupMs": 1000, "knockbackStrength": 1.5, "sound": "environment/largerock1", "soundRange": 32 }] },
+      { "code": "bosscursestack", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 0, "maxTargetRange": 30, "maxStacks": 4, "effectType": "stun", "stackDecaySeconds": 4, "stunDurationMs": 4000, "slowFactor": 0.5, "slowDurationMs": 4000 }] },
       {
         "code": "taskai",
         "inheritedTasks": false,

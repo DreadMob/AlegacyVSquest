@@ -19,7 +19,8 @@ namespace VsQuest.Harmony
             "giveitemstack",
             "playanimation",
             "takefrominventory",
-            "repairheld",
+            "repairheldtool",
+            "repairheldarmor",
             "spawnentity",
             "attack",
         };

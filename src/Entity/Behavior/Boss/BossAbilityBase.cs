@@ -219,6 +219,9 @@ namespace VsQuest
             // Universal check: never activate abilities on boss clones
             if (IsBossClone) return;
 
+            // Debug mode: only allow the selected ability to activate
+            if (IsDebugModeActive && !IsDebugSelectedAbility) return;
+
             if (!ShouldCheckAbility())
             {
                 // Log why ShouldCheckAbility returned false
@@ -284,6 +287,7 @@ namespace VsQuest
         {
             StopAbility();
             abilityActive = false;
+            CleanupPlayerDebuffs();
             base.OnEntityDeath(damageSourceForDeath);
         }
 
@@ -291,8 +295,66 @@ namespace VsQuest
         {
             StopAbility();
             abilityActive = false;
+            CleanupPlayerDebuffs();
             UnregisterAllTrackedCallbacks();
             base.OnEntityDespawn(despawn);
+        }
+
+        /// <summary>
+        /// Remove all boss-applied debuffs from nearby players on death/despawn.
+        /// Ensures players are never stuck with permanent debuffs.
+        /// </summary>
+        private void CleanupPlayerDebuffs()
+        {
+            if (Sapi == null) return;
+
+            try
+            {
+                var players = Sapi.World.AllOnlinePlayers;
+                if (players == null) return;
+
+                for (int i = 0; i < players.Length; i++)
+                {
+                    if (players[i] is not IServerPlayer sp) continue;
+                    var pe = sp.Entity;
+                    if (pe == null) continue;
+
+                    // Remove all boss-applied stat modifiers
+                    pe.Stats?.Remove("walkspeed", "cursestun");
+                    pe.Stats?.Remove("walkspeed", "curseslow");
+                    pe.Stats?.Remove("walkspeed", "gravitystun");
+                    pe.Stats?.Remove("walkspeed", "projchain");
+                    pe.Stats?.Remove("rangedWeaponsAcc", "bossblind");
+
+                    // Remove all boss-applied WatchedAttributes flags
+                    if (pe.WatchedAttributes != null)
+                    {
+                        bool changed = false;
+                        if (pe.WatchedAttributes.GetBool("alegacyvsquest:blinded", false))
+                        {
+                            pe.WatchedAttributes.SetBool("alegacyvsquest:blinded", false);
+                            changed = true;
+                        }
+                        if (pe.WatchedAttributes.GetBool("alegacyvsquest:disarmed", false))
+                        {
+                            pe.WatchedAttributes.SetBool("alegacyvsquest:disarmed", false);
+                            changed = true;
+                        }
+                        if (pe.WatchedAttributes.GetBool("alegacyvsquest:silenced", false))
+                        {
+                            pe.WatchedAttributes.SetBool("alegacyvsquest:silenced", false);
+                            changed = true;
+                        }
+                        if (changed)
+                        {
+                            pe.WatchedAttributes.MarkPathDirty("alegacyvsquest:blinded");
+                            pe.WatchedAttributes.MarkPathDirty("alegacyvsquest:disarmed");
+                            pe.WatchedAttributes.MarkPathDirty("alegacyvsquest:silenced");
+                        }
+                    }
+                }
+            }
+            catch { }
         }
 
         /// <summary>
@@ -387,7 +449,7 @@ namespace VsQuest
             }
             catch { }
 
-            float finalRange = range > 0f ? range : 32f;
+            float finalRange = range > 0f ? range : 64f;
             float finalVolume = volume * 1.5f; // Boost volume 1.5x
 
             if (startDelayMs > 0)
@@ -507,6 +569,45 @@ namespace VsQuest
         }
 
         /// <summary>
+        /// Force-activate this ability for debugging purposes.
+        /// Bypasses cooldown, health threshold, and range checks.
+        /// </summary>
+        /// <param name="target">Target player (can be null for abilities that don't require a target).</param>
+        /// <param name="stageIndex">Stage index to use (default 0).</param>
+        /// <returns>True if ability was activated, false if preconditions failed.</returns>
+        public bool ForceActivate(EntityPlayer target, int stageIndex = 0)
+        {
+            if (Sapi == null || entity == null || !entity.Alive) return false;
+
+            // Reset cooldown so ability can fire immediately
+            CooldownSystem?.ResetCooldown(CooldownKey);
+
+            if (stageIndex < 0) stageIndex = 0;
+            if (stageIndex >= GetStageCount()) stageIndex = GetStageCount() - 1;
+
+            object stage = GetStageCount() > 0 ? GetStage(stageIndex) : null;
+
+            if (stage == null && UseHealthBasedStages()) return false;
+
+            if (RequiresTarget() && target == null)
+            {
+                // Try to find any target in extended range
+                if (TargetingSystem != null && TargetingSystem.TryFindTarget(100f, 0f, out target, out _))
+                {
+                    // found
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            abilityActive = true;
+            ActivateAbility(stage, stageIndex, target);
+            return true;
+        }
+
+        /// <summary>
         /// Set ability active state.
         /// </summary>
         protected void SetAbilityActive(bool active)
@@ -523,6 +624,28 @@ namespace VsQuest
         /// Check if this entity is a boss clone (should not activate abilities).
         /// </summary>
         protected bool IsBossClone => entity?.WatchedAttributes?.GetBool("alegacyvsquest:bossclone", false) ?? false;
+
+        // ========================================
+        // DEBUG MODE SUPPORT
+        // ========================================
+
+        /// <summary>
+        /// Check if debug boss ability mode is active on this entity.
+        /// </summary>
+        private bool IsDebugModeActive =>
+            entity?.WatchedAttributes?.GetBool("alegacyvsquest:debugba:active", false) ?? false;
+
+        /// <summary>
+        /// Check if this ability is the currently selected debug ability.
+        /// </summary>
+        private bool IsDebugSelectedAbility
+        {
+            get
+            {
+                string selected = entity?.WatchedAttributes?.GetString("alegacyvsquest:debugba:ability", null);
+                return string.Equals(selected, PropertyName(), StringComparison.OrdinalIgnoreCase);
+            }
+        }
 
         // ========================================
         // ABILITY MODIFIER SYSTEM

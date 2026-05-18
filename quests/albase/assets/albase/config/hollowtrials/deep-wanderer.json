@@ -3,7 +3,7 @@
   "entityCode": "albase:deep-wanderer",
   "respawnInGameHours": 168,
   "activationRange": 120,
-  "softResetIdleHours": 2.0,
+  "softResetIdleHours": 1.0,
   "tiers": {
     "1": {
       "questId": "albase:trial-tier1",

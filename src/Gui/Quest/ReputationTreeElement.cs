@@ -32,9 +32,9 @@ namespace VsQuest
         private string selectedNodeId;
         private readonly Dictionary<string, ItemStack> iconStacks = new Dictionary<string, ItemStack>(StringComparer.OrdinalIgnoreCase);
 
-        private double NodeIconSize => GuiElement.scaled(22.0);
+        private double NodeIconSize => GuiElement.scaled(36.0);
         // Ensure the circle fully contains the square icon: radius >= (size/2) * sqrt(2), plus a small padding.
-        private double NodeRadius => (NodeIconSize / 2.0) * Math.Sqrt(2.0) + GuiElement.scaled(6.0);
+        private double NodeRadius => (NodeIconSize / 2.0) * Math.Sqrt(2.0) + GuiElement.scaled(14.0);
 
         public ReputationTreeElement(ICoreClientAPI capi, ElementBounds bounds, List<ReputationTreeNode> nodes, Action<string> onNodeClicked)
             : base(capi, bounds)
@@ -113,11 +113,10 @@ namespace VsQuest
 
                 var slot = new DummySlot(stack);
 
-                double iconOffset = GuiElement.scaled(10.0);
-                double drawX = NodeX(node.X) - size / 2.0 + iconOffset;
-                double drawY = NodeY(node.Y) - size / 2.0 + iconOffset;
+                double drawX = NodeX(node.X);
+                double drawY = NodeY(node.Y);
 
-                api.Render.RenderItemstackToGui(slot, drawX, drawY, 500, (float)size, -1, false, false, false);
+                api.Render.RenderItemstackToGui(slot, drawX, drawY, 500, (float)size, -1, true, false, false);
             }
         }
 
@@ -270,7 +269,7 @@ namespace VsQuest
             double NodeY(float y) => pad + plotHeight * y;
 
             context.SelectFontFace("Sans", Cairo.FontSlant.Normal, Cairo.FontWeight.Normal);
-            context.SetFontSize(GuiElement.scaled(14.0));
+            context.SetFontSize(GuiElement.scaled(17.0));
 
             foreach (var node in nodes)
             {
@@ -302,7 +301,7 @@ namespace VsQuest
                     string label = FitLabelText(context, node.Title, GuiElement.scaled(180.0));
                     var extents = context.TextExtents(label);
                     double textX = x - extents.Width / 2.0;
-                    double textY = y + radius + GuiElement.scaled(16.0);
+                    double textY = y + radius + GuiElement.scaled(20.0);
 
                     context.SetSourceRGBA(1.0, 1.0, 1.0, 0.95);
                     context.MoveTo(textX, textY);

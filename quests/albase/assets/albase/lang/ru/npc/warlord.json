@@ -5,18 +5,31 @@
   "dialogue-warlord-whoareyou": "Кто ты такой?",
   "dialogue-warlord-whoareyou-answer": "Я — Кассий Железный. Когда-то сам ходил в походы, сам ломал копья о чужие щиты. Теперь я судья арены. Те, кто проходят через мои испытания — становятся легендами. Остальные — пыль на ветру.",
   "dialogue-warlord-aboutarena": "Расскажи об арене",
-  "dialogue-warlord-aboutarena-answer": "Арена — это не просто место для боя. Это испытание духа, силы и мастерства. Здесь закаляются легенды, и здесь же ломаются слабые. Каждый воин, ступающий на эти камни, пишет свою историю. Вопрос лишь в том, будет ли она достойной.",
+  "dialogue-warlord-aboutarena-answer": "Арена — это не просто место для боя. Это испытание духа, силы и мастерства. Здесь закаляются легенды, и здесь же ломаются слабые. Каждый воин, ступающий на эти камни, пишет свою историю. Вопрос лишь в том — будет ли она достойной.",
   "dialogue-warlord-leaderboard-confirm": "Вот имена величайших воинов арены:",
   "dialogue-warlord-leaderboard": "Кто сильнейшие воители?",
-  "dialogue-warlord-quests-confirm": "Время испытаний. Выбери свой путь:",
-  "dialogue-warlord-quests": "Дай задание, Кассий",
   "dialogue-warlord-stats-confirm": "Вот твоя боевая летопись:",
-  "dialogue-warlord-stats": "Расскажи о моих победах",
+  "dialogue-warlord-stats": "Моя боевая статистика",
   "dialogue-warlord-close-answer": "Ступай. Арена ждёт.",
   "dialogue-warlord-close": "До встречи",
 
-  "no-quest-available-warlord": "У меня нет для тебя заданий. Продолжай тренироваться, воин.",
-  "no-quest-available-warlord-cooldown": "Ты ещё не готов к новому испытанию. Подожди немного.",
+  "dialogue-warlord-reputation": "Моя репутация",
+  "dialogue-warlord-reputation-confirm": "Посмотрим, чего ты стоишь на арене:",
+
+  "dialogue-warlord-repair": "Почини моё снаряжение",
+  "dialogue-warlord-repair-info": "Хорошее оружие заслуживает заботы. Принеси ржавые шестерёнки — и я верну твоему клинку остроту. Возьми предмет в правую руку и выбери, что чинить.",
+  "dialogue-warlord-repair-full": "Основательный ремонт (36 шестерёнок, +2000)",
+  "dialogue-warlord-repair-small": "Подлатать (10 шестерёнок, +500)",
+  "dialogue-warlord-repair-cantafford": "У меня не хватает шестерёнок...",
+  "dialogue-warlord-repair-cantafford-answer": "Без шестерёнок — без починки. Возвращайся, когда найдёшь.",
+  "dialogue-warlord-repair-nothing": "Возьми повреждённый предмет в правую руку. Чинить воздух я не умею.",
+  "dialogue-warlord-repair-working": "Дай-ка взглянуть... Хорошая сталь. Сейчас поправлю.",
+  "dialogue-warlord-repair-working-full": "Серьёзная работа. Подожди — верну как новый.",
+  "dialogue-warlord-repair-done": "Готово. Послужит ещё. Береги снаряжение — оно бережёт тебя.",
+  "dialogue-warlord-repair-done-full": "Как с наковальни. Полная починка — ни царапины.",
+
+  "no-quest-available-warlord": "Репутация растёт в бою. Побеждай на арене — и я это запомню.",
   "tradingwindow-warlord": "Кассий Железный",
-  "warlord-randomkill-notify": "Жатва: {0}x {1}"
+  "game:tradingwindow-warlord": "Кассий Железный",
+  "albase:tradingwindow-warlord": "Кассий Железный"
 }

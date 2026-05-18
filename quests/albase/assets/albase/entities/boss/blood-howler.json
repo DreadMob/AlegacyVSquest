@@ -3,13 +3,14 @@
   "class": "EntityDrifter",
   "tags": ["alegacy-boss"],
   "canClimb": true,
-  "hitboxSize": { "x": 0.7, "y": 1.7 },
+  "hitboxSize": { "x": 0.8, "y": 2.2 },
   "deadHitboxSize": { "x": 0.7, "y": 0.3 },
-  "eyeHeight": 1.4,
+  "eyeHeight": 1.5,
   "attributes": {
-    "knockbackResistance": 0.7,
+    "knockbackResistance": 0.6,
     "killedByInfoText": "deadcreature-vile",
-    "reckless": true,"vsquestSoundPitchMul": 1.4,
+    "reckless": true,
+    "vsquestSoundPitchMul": 1.3,
     "alegacyvsquestHideInfoText": true
   },
   "drops": [],
@@ -18,7 +19,7 @@
     "pitchStep": false,
     "size": 1.8,
     "shape": { "base": "game:entity/lore/drifter/surface" },
-    "texture": { "base": "game:entity/lore/drifter/deep1" },
+    "texture": { "base": "game:entity/lore/drifter/deep1", "overlays": ["albase:entity/overlay/void-blood"] },
     "glowLevel": 60,
     "behaviors": [
       { "code": "repulseagents" },
@@ -43,7 +44,7 @@
     "behaviors": [
       { "code": "repulseagents" },
       { "code": "controlledphysics", "stepHeight": 1.01 },
-      { "code": "health", "currenthealth": 600, "maxhealth": 600 },
+      { "code": "health", "currenthealth": 550, "maxhealth": 550 },
       { "code": "bosspassiveregen", "regenPerSecond": 0.5, "outOfCombatRegenMult": 0.8 },
       { "code": "bosscombatmarker", "trackCombatTime": true },
       { "code": "bosshastargetsync" },
@@ -55,11 +56,13 @@
           { "code": "blood-frenzy", "duration": 999999, "chance": 1, "slot": 1, "priority": 1, "accumType": "noaccum", "whenHealthRelBelow": 0.4 }
         ]
       },
-      { "code": "bossenrage", "enrageTimerSeconds": 180 },
+      { "code": "bossenrage", "enrageTimerSeconds": 240 },
       { "code": "bossvulnerabilitywindow", "damageMultiplier": 2.0, "durationSeconds": 3.0, "triggerAbilities": ["bossbloodprice"] },
-      { "code": "bossbloodprice", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 10, "maxTargetRange": 30, "healPercent": 0.3, "minVulnMs": 1500, "maxVulnMs": 3500, "healThreshold": 6 }] },
-      { "code": "bosssoulchain", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 12, "maxTargetRange": 20, "chainDurationSec": 3.5, "slowFactor": 0.45, "breakDistance": 10, "breakDamage": 20, "sound": "block/meteoriciron", "soundRange": 24 }] },
-      { "code": "bossphaseshift", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 9, "maxTargetRange": 25, "shiftRadius": 7, "durationMs": 1000, "sound": "block/meteoriciron", "soundRange": 32 }] },
+      { "code": "bossbloodprice", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 10, "maxTargetRange": 30, "healPercent": 0.40, "minVulnMs": 1500, "maxVulnMs": 3500, "healThreshold": 6 }] },
+      { "code": "bosssoulchain", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 14, "maxTargetRange": 20, "chainDurationSec": 4, "slowFactor": 0.45, "breakDistance": 10, "breakDamage": 20, "sound": "block/meteoriciron", "soundRange": 24 }] },
+      { "code": "bosshook", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 16, "maxTargetRange": 18, "windupMs": 300, "damage": 5, "damageTier": 3, "sound": "albase:dark-magic-charge-up", "soundRange": 24, "soundVolume": 0.3 }] },
+      { "code": "bossprojectile", "stages": [{ "whenHealthRelBelow": 0.4, "cooldownSeconds": 5, "maxTargetRange": 20, "damage": 8, "speed": 10, "variant": "blood", "shape": "ball", "damageTier": 3 }] },
+      { "code": "bosscursestack", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 0, "maxTargetRange": 30, "maxStacks": 4, "effectType": "stun", "stackDecaySeconds": 4, "stunDurationMs": 4000, "slowFactor": 0.5, "slowDurationMs": 4000 }] },
       {
         "code": "taskai",
         "inheritedTasks": false,
@@ -68,7 +71,7 @@
             "code": "seekentity",
             "entityCodes": ["player"],
             "priority": 2.0,
-            "movespeed": 0.06,
+            "movespeed": 0.04,
             "seekingRange": 35,
             "maxFollowTime": 120,
             "animation": "standrun",
@@ -78,12 +81,12 @@
             "code": "meleeattack",
             "entityCodes": ["player"],
             "priority": 2.5,
-            "damage": 12,
+            "damage": 14,
             "damageTier": 3,
             "minDist": 2.5,
             "minVerDist": 2.5,
-            "mincooldown": 800,
-            "maxcooldown": 1300,
+            "mincooldown": 1200,
+            "maxcooldown": 1800,
             "damagePlayerAtMs": 300,
             "attackDurationMs": 600,
             "animation": "standattack",
@@ -95,16 +98,16 @@
             "code": "meleeattack",
             "entityCodes": ["player"],
             "priority": 2.35,
-            "damage": 18,
+            "damage": 20,
             "damageTier": 3,
             "minDist": 2.5,
             "minVerDist": 2.5,
-            "mincooldown": 400,
-            "maxcooldown": 700,
+            "mincooldown": 600,
+            "maxcooldown": 1000,
             "damagePlayerAtMs": 250,
             "attackDurationMs": 500,
             "animation": "standattack",
-            "animationSpeed": 1.8,
+            "animationSpeed": 2.0,
             "sound": "game:sounds/creature/drifter-hit",
             "soundStartMs": 250,
             "whenInEmotionState": "blood-frenzy"
@@ -119,7 +122,8 @@
           { "code": "lookaround", "priority": 0.5 }
         ]
       },
-      { "code": "deaddecay", "hoursToDecay": 999999 },{ "code": "bossrespawn", "respawnInGameHours": 168, "spawnNewBoss": false },
+      { "code": "deaddecay", "hoursToDecay": 999999 },
+      { "code": "bossrespawn", "respawnInGameHours": 168, "spawnNewBoss": false },
       { "code": "floatupwhenstuck", "onlyWhenDead": true }
     ]
   },
@@ -129,4 +133,3 @@
     "idle": "game:sounds/creature/drifter-idle"
   }
 }
-

@@ -1,6 +1,6 @@
 ﻿{
-  "albase:trial-system-name": "Полые Испытания",
-  "albase:trial-rotation-reset-chat": "<font color=\"#A78BFA\"><strong>[Полые Испытания]</strong></font> <font color=\"#C4B5FD\"> Разломы сместились. Новые порождения пробудились.</font>",
+  "albase:trial-system-name": "Испытания Пустоты",
+  "albase:trial-rotation-reset-chat": "<font color=\"#A78BFA\"><strong>[Испытания Пустоты]</strong></font> <font color=\"#C4B5FD\"> Разломы сместились. Новые порождения пробудились.</font>",
 
   "albase:trial-rotation-discord": "Разломы сместились. Новые порождения пробудились.\nМодификатор: {0}",
   "albase:trial-rotation-discord-nomod": "Разломы сместились. Новые порождения пробудились.",
@@ -26,6 +26,9 @@
 
   "albase:trial-warden-name": "Вестник Разломов",
   "albase:trial-warden-title": "Падший Исследователь",
+  "tradingwindow-trialwarden": "Вестник Разломов",
+  "game:tradingwindow-trialwarden": "Вестник Разломов",
+  "albase:tradingwindow-trialwarden": "Вестник Разломов",
 
   "albase:trial-warden-greeting": "Ты чувствуешь это? Холод из разломов... Они снова открылись. Я знаю, где они. Я всегда знаю.",
   "albase:trial-warden-greeting-rank1": "Ты вернулся. Разломы не ждут — порождения крепнут с каждым днём.",
@@ -53,14 +56,14 @@
   "albase:trial-warden-whoareyou-answer": "Я был исследователем. Изучал разломы. Слишком близко подошёл. Теперь я... между. Не живой, не мёртвый. Пустота не отпускает тех, кто заглянул слишком глубоко.",
   "albase:trial-warden-aboutrifts-answer": "Разломы — это места, где ткань мира истончилась. Через них просачиваются порождения Бездны. Они не охотятся — просто существуют. Но если подойти... они воспринимают это как вторжение. Убить их можно. Но они вернутся. Всегда возвращаются.",
 
-  "albase:trial-tier1-name": "Полое Испытание",
+  "albase:trial-tier1-name": "Испытание Пустоты",
   "albase:trial-tier2-name": "Глубинное Испытание",
   "albase:trial-tier3-name": "Бездонное Испытание",
 
   "albase:trial-intro-title": "Первый Разлом",
   "albase:trial-intro-desc": "Вестник Разломов предлагает тебе осколок Пустоты — инструмент для поиска порождений. Прими его и начни путь Испытаний.",
 
-  "albase:trial-tier1-title": "Полое Испытание",
+  "albase:trial-tier1-title": "Испытание Пустоты",
   "albase:trial-tier1-desc": "Уничтожить порождение в полом разломе. Используй Эхо Пустоты для поиска цели. Награда: Осколки Пустоты и случайная реликвия.",
   "albase:trial-tier2-title": "Глубинное Испытание",
   "albase:trial-tier2-desc": "Уничтожить порождение в глубинном разломе. Эти существа сильнее и обладают несколькими фазами боя. Награда: больше Осколков и более ценная реликвия.",
@@ -162,9 +165,9 @@
   "item-albase:trial-void-ring-radiant": "Кольцо Пустоты (Сияющее)",
   "item-albase:trial-void-ring-abyssal": "Кольцо Пустоты (Бездонное)",
 
-  "albase:trial-quest-accepted-tier1": "<font color=\"#A78BFA\">[Полые Испытания]</font> Контракт принят: Полое Испытание. Используй Эхо Пустоты для поиска.",
-  "albase:trial-quest-accepted-tier2": "<font color=\"#A78BFA\">[Полые Испытания]</font> Контракт принят: Глубинное Испытание. Используй Эхо Пустоты для поиска.",
-  "albase:trial-quest-accepted-tier3": "<font color=\"#A78BFA\">[Полые Испытания]</font> Контракт принят: Бездонное Испытание. Используй Эхо Пустоты для поиска.",
+  "albase:trial-quest-accepted-tier1": "<font color=\"#A78BFA\">[Испытания Пустоты]</font> Контракт принят: Испытание Пустоты. Используй Эхо Пустоты для поиска.",
+  "albase:trial-quest-accepted-tier2": "<font color=\"#A78BFA\">[Испытания Пустоты]</font> Контракт принят: Глубинное Испытание. Используй Эхо Пустоты для поиска.",
+  "albase:trial-quest-accepted-tier3": "<font color=\"#A78BFA\">[Испытания Пустоты]</font> Контракт принят: Бездонное Испытание. Используй Эхо Пустоты для поиска.",
 
   "albase:trial-case-tier1": "Осколок Разлома (Полый)",
   "albase:trial-case-tier2": "Осколок Разлома (Глубинный)",
@@ -173,8 +176,8 @@
   "albase:trial-currency-name": "Осколки Пустоты",
   "albase:trial-reputation-label": "Репутация",
 
-  "albase:trial-boss-killed-chat": "<font color=\"#A78BFA\">[Полые Испытания]</font> {0} уничтожил порождение «{1}».",
-  "albase:trial-boss-killed-chat-voided": "<font color=\"#EF4444\">[Полые Испытания]</font> <font color=\"#FCA5A5\">Порождение «{0}» уничтожено, но испытание осквернено — в бою участвовало несколько воинов.</font>",
+  "albase:trial-boss-killed-chat": "<font color=\"#A78BFA\">[Испытания Пустоты]</font> {0} уничтожил порождение «{1}».",
+  "albase:trial-boss-killed-chat-voided": "<font color=\"#EF4444\">[Испытания Пустоты]</font> <font color=\"#FCA5A5\">Порождение «{0}» уничтожено, но испытание осквернено — в бою участвовало несколько воинов.</font>",
   "albase:trial-solo-violated": "<font color=\"#EF4444\">:warning: Испытание осквернено.</font> <font color=\"#FCA5A5\">В бою участвовало несколько воинов — прогресс не засчитан.</font>",
   "albase:trial-first-kill-bonus": "<font color=\"#FFD700\">:star: Первое убийство! +30 репутации/осколков.</font>",
   "albase:trial-challenges-completed": "<font color=\"#A78BFA\">:sparkles: Испытания выполнены:</font> <font color=\"#C4B5FD\">{0}</font> <font color=\"#A78BFA\">(+{1} репутации/осколков)</font>",
@@ -192,6 +195,17 @@
   "alegacyvsquest:attr-critdamage": "Сила крита",
   "alegacyvsquest:attr-bossdamage": "Урон по боссам",
   "alegacyvsquest:attr-pvpdamage": "Урон по игрокам",
-  "alegacyvsquest:attr-fullhpdamage": "Урон при полном HP"
+  "alegacyvsquest:attr-fullhpdamage": "Урон при полном HP",
+  "alegacyvsquest:attr-rangedWeaponsAcc": "Точность стрельбы",
+  "alegacyvsquest:attr-rangedWeaponsSpeed": "Скорость натяжения",
+  "alegacyvsquest:attr-attackpower": "Сила атаки",
+  "alegacyvsquest:attr-attackspeed": "Скорость атаки",
+  "alegacyvsquest:attr-meleeattackpower": "Сила ближнего боя",
+  "alegacyvsquest:attr-rangeddamagemult": "Множитель дальнего урона",
+  "alegacyvsquest:attr-protection": "Защита",
+  "alegacyvsquest:attr-knockbackmult": "Отбрасывание"
 }
+
+
+
 

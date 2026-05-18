@@ -13,7 +13,7 @@ namespace VsQuest
         private EntityBehaviorHealth healthBehavior;
         private int regenIntervalMs = 500;
         private long lastRegenMs;
-        private long combatWindowMs = 30000; // 30 seconds combat window
+        private long combatWindowMs = 240000; // 240 seconds (4 min) before out-of-combat regen starts
 
         public EntityBehaviorBossPassiveRegen(Entity entity) : base(entity)
         {
@@ -26,7 +26,7 @@ namespace VsQuest
             regenPerSecond = attributes["regenPerSecond"].AsFloat(25f);
             outOfCombatRegenMult = attributes["outOfCombatRegenMult"].AsFloat(0f);
             regenIntervalMs = attributes["regenIntervalMs"].AsInt(500);
-            combatWindowMs = attributes["combatWindowMs"].AsInt(30000);
+            combatWindowMs = attributes["combatWindowMs"].AsInt(240000);
             healthBehavior = entity.GetBehavior<EntityBehaviorHealth>();
         }
 

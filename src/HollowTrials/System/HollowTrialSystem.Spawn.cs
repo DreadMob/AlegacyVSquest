@@ -33,6 +33,48 @@ namespace VsQuest
         }
 
         /// <summary>
+        /// Spawn a boss from an anchor block (called by BlockEntityVoidRiftAnchor after summoning animation).
+        /// </summary>
+        public void SpawnBossFromAnchor(string trialKey, Vec3d point, int dim, HollowTrialAnchorPoint anchor, IServerPlayer activatingPlayer, int forceTier = 0)
+        {
+            var cfg = FindConfig(trialKey);
+            if (cfg == null)
+            {
+                sapi?.Logger?.Warning("[HollowTrialSystem] SpawnBossFromAnchor: config not found for '{0}'", trialKey);
+                return;
+            }
+
+            int spawnTier = forceTier > 0 ? forceTier : 1;
+            if (spawnTier < 1) spawnTier = 1;
+            if (spawnTier > 3) spawnTier = 3;
+
+            sapi?.Logger?.Notification("[HollowTrialSystem] SpawnBossFromAnchor: key={0}, tier={1}, pos={2}", trialKey, spawnTier, point);
+            TrySpawnBoss(cfg, point, dim, anchor, spawnTier, activatingPlayer?.PlayerUID);
+        }
+
+        /// <summary>
+        /// Spawn a boss directly from an anchor, skipping the "already alive" check.
+        /// Each anchor is independent — multiple anchors can have the same boss type alive simultaneously.
+        /// Returns the spawned entity ID, or 0 on failure.
+        /// </summary>
+        public long SpawnBossFromAnchorDirect(string trialKey, Vec3d point, int dim, HollowTrialAnchorPoint anchor, IServerPlayer activatingPlayer, int forceTier = 0)
+        {
+            var cfg = FindConfig(trialKey);
+            if (cfg == null)
+            {
+                sapi?.Logger?.Warning("[HollowTrialSystem] SpawnBossFromAnchorDirect: config not found for '{0}'", trialKey);
+                return 0;
+            }
+
+            int spawnTier = forceTier > 0 ? forceTier : 1;
+            if (spawnTier < 1) spawnTier = 1;
+            if (spawnTier > 3) spawnTier = 3;
+
+            sapi?.Logger?.Notification("[HollowTrialSystem] SpawnBossFromAnchorDirect: key={0}, tier={1}, pos={2}", trialKey, spawnTier, point);
+            return SpawnBossDirect(cfg, point, dim, anchor, spawnTier, activatingPlayer?.PlayerUID);
+        }
+
+        /// <summary>
         /// Find the nearest online player within range who has a trial quest for this boss.
         /// Falls back to any player in range if none have a quest.
         /// </summary>
@@ -134,9 +176,21 @@ namespace VsQuest
         {
             if (cfg == null || point == null) return;
 
-            // Don't spawn if already alive
+            // Don't spawn if already alive (global check — used by legacy auto-spawn path)
             var existing = entityTracker?.GetTrackedEntity(cfg.trialKey);
             if (existing != null && existing.Alive) return;
+
+            SpawnBossDirect(cfg, point, dim, anchor, tier, activatingPlayerUid);
+        }
+
+        /// <summary>
+        /// Spawn a boss without checking if one is already alive.
+        /// Used by per-anchor independent spawning (each anchor tracks its own entity).
+        /// Returns the spawned entity ID, or 0 on failure.
+        /// </summary>
+        private long SpawnBossDirect(HollowTrialConfig cfg, Vec3d point, int dim, HollowTrialAnchorPoint anchor, int tier, string activatingPlayerUid = null)
+        {
+            if (cfg == null || point == null) return 0;
 
             try
             {
@@ -145,14 +199,14 @@ namespace VsQuest
                 if (type == null)
                 {
                     DebugLog($"Spawn failed: entity type not found for '{entityCode}'");
-                    return;
+                    return 0;
                 }
 
                 Entity entity = sapi.World.ClassRegistry.CreateEntity(type);
                 if (entity == null)
                 {
                     DebugLog($"Spawn failed: entity create returned null for '{entityCode}'");
-                    return;
+                    return 0;
                 }
 
                 // Set quest target ID so killactiontarget objective works
@@ -182,11 +236,13 @@ namespace VsQuest
 
                 entityTracker?.ForceScan();
 
-                DebugLog($"Spawned trial boss '{cfg.trialKey}' tier={tier} at {point.X:0},{point.Y:0},{point.Z:0} dim={dim}");
+                DebugLog($"Spawned trial boss '{cfg.trialKey}' tier={tier} at {point.X:0},{point.Y:0},{point.Z:0} dim={dim} entityId={entity.EntityId}");
+                return entity.EntityId;
             }
             catch (Exception ex)
             {
                 sapi.Logger.Warning("[HollowTrialSystem] Failed to spawn trial boss '{0}': {1}", cfg.trialKey, ex.Message);
+                return 0;
             }
         }
 
@@ -234,6 +290,14 @@ namespace VsQuest
             {
                 entity.WatchedAttributes.SetFloat("alegacyvsquest:trial:damageMult", damageMult);
                 entity.WatchedAttributes.MarkPathDirty("alegacyvsquest:trial:damageMult");
+            }
+
+            // Apply damage tier bonus based on trial tier (tier 1: +0, tier 2: +1, tier 3: +2)
+            int damageTierBonus = Math.Max(0, tier - 1);
+            if (damageTierBonus > 0)
+            {
+                entity.WatchedAttributes.SetInt("alegacyvsquest:trial:damageTierBonus", damageTierBonus);
+                entity.WatchedAttributes.MarkPathDirty("alegacyvsquest:trial:damageTierBonus");
             }
 
             // Apply speed multiplier (with modifier)
@@ -326,11 +390,15 @@ namespace VsQuest
             // This is a trial boss death
             var entry = GetOrCreateEntry(cfg.trialKey);
             double nowHours = sapi.World.Calendar.TotalHours;
+            double respawnHours = cfg.GetRespawnHours(coreConfig);
 
-            entry.deadUntilTotalHours = nowHours + cfg.GetRespawnHours(coreConfig);
+            entry.deadUntilTotalHours = nowHours + respawnHours;
             stateDirty = true;
 
-            DebugLog($"Trial boss '{cfg.trialKey}' died. Respawn at {entry.deadUntilTotalHours:0.0}h (in {cfg.GetRespawnHours(coreConfig):0.0}h)");
+            DebugLog($"Trial boss '{cfg.trialKey}' died. Respawn at {entry.deadUntilTotalHours:0.0}h (in {respawnHours:0.0}h)");
+
+            // Notify the anchor that spawned this entity — set per-anchor cooldown
+            NotifyAnchorOfBossDeath(entity.EntityId, nowHours + respawnHours);
 
             // Trigger collapse animation on the anchor block(s)
             try
@@ -358,6 +426,62 @@ namespace VsQuest
             catch (Exception ex)
             {
                 sapi.Logger.Warning("[HollowTrialSystem] OnTrialBossKilled failed for '{0}': {1}", cfg.trialKey, ex.Message);
+            }
+
+            // Despawn boss corpse with death particles (no corpse left behind)
+            try
+            {
+                Vec3d deathPos = entity.Pos.XYZ.Clone();
+
+                // Death particles — void explosion + spiral
+                ParticleUtils.SpawnShadowExplosion(sapi, deathPos, 3f, 2);
+                ParticleUtils.SpawnSpiral(sapi, deathPos, 2f, 3f, ParticleUtils.Colors.Void, 24, 0.5f);
+                ParticleUtils.SpawnShockwave(sapi, deathPos, 5f, ParticleUtils.Colors.Shadow, 20, 0.6f);
+
+                // Sound
+                sapi.World.PlaySoundAt(new AssetLocation("game:sounds/effect/translocate-breakdimension"),
+                    deathPos.X, deathPos.Y, deathPos.Z, null, true, 48f, 0.7f);
+
+                // Despawn entity immediately (removes corpse)
+                sapi.World.RegisterCallback(_ =>
+                {
+                    if (entity != null && !entity.Alive)
+                    {
+                        sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
+                    }
+                }, 500); // Small delay so death animation plays briefly
+            }
+            catch (Exception ex)
+            {
+                sapi.Logger.Warning("[HollowTrialSystem] Death despawn failed for '{0}': {1}", cfg.trialKey, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Find the anchor that spawned this entity and set its per-anchor cooldown.
+        /// </summary>
+        private void NotifyAnchorOfBossDeath(long entityId, double deadUntilHours)
+        {
+            if (entityId <= 0 || state?.entries == null) return;
+
+            // Search all registered anchor positions and check their block entities
+            foreach (var entry in state.entries)
+            {
+                if (entry?.anchorPoints == null) continue;
+                foreach (var ap in entry.anchorPoints)
+                {
+                    try
+                    {
+                        var pos = new BlockPos(ap.x, ap.y, ap.z, ap.dim);
+                        var be = sapi.World.BlockAccessor.GetBlockEntity(pos) as BlockEntityVoidRiftAnchor;
+                        if (be != null && be.GetSpawnedEntityId() == entityId)
+                        {
+                            be.OnBossKilled(deadUntilHours);
+                            return;
+                        }
+                    }
+                    catch { }
+                }
             }
         }
 
@@ -601,6 +725,32 @@ namespace VsQuest
                         sapi.World.DespawnEntity(bossEntity, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
                     }
                     break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Unregister an anchor point by its anchorId from ALL entries.
+        /// Used when a block is destroyed and we don't know which trialKey it was registered under.
+        /// </summary>
+        public void UnsetAnchorPointByAnchorId(string anchorId)
+        {
+            if (string.IsNullOrWhiteSpace(anchorId) || state?.entries == null) return;
+
+            for (int e = 0; e < state.entries.Count; e++)
+            {
+                var entry = state.entries[e];
+                if (entry?.anchorPoints == null) continue;
+
+                for (int i = entry.anchorPoints.Count - 1; i >= 0; i--)
+                {
+                    if (string.Equals(entry.anchorPoints[i].anchorId, anchorId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        entry.anchorPoints.RemoveAt(i);
+                        stateDirty = true;
+                        sapi?.Logger?.Notification("[HollowTrials] Unregistered anchor '{0}' from entry '{1}'", anchorId, entry.trialKey);
+                        return; // anchorId is unique, only one match possible
+                    }
                 }
             }
         }

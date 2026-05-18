@@ -395,6 +395,12 @@ namespace VsQuest
         {
             if (string.IsNullOrWhiteSpace(langKey)) return langKey ?? "";
 
+            // For NPC dialogue window titles, just use the NPC display name directly
+            if (langKey.StartsWith("tradingwindow-") && args != null && args.Length > 0 && args[0] is string npcName && !string.IsNullOrWhiteSpace(npcName))
+            {
+                return npcName;
+            }
+
             string domain = null;
             int colon = langKey.IndexOf(':');
             if (colon > 0)

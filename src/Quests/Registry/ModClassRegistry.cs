@@ -95,6 +95,19 @@ namespace VsQuest
             api.RegisterEntityBehaviorClass("bossretaliation", typeof(EntityBehaviorBossRetaliation));
             api.RegisterEntityBehaviorClass("bossmovementstyle", typeof(EntityBehaviorBossMovementStyle));
             api.RegisterEntityBehaviorClass("bossghostflight", typeof(EntityBehaviorBossGhostFlight));
+
+            // New trial abilities
+            api.RegisterEntityBehaviorClass("bosstrail", typeof(EntityBehaviorBossTrail));
+            api.RegisterEntityBehaviorClass("bossarena", typeof(EntityBehaviorBossArena));
+            api.RegisterEntityBehaviorClass("bossgravity", typeof(EntityBehaviorBossGravity));
+            api.RegisterEntityBehaviorClass("bossabsorb", typeof(EntityBehaviorBossAbsorb));
+            api.RegisterEntityBehaviorClass("bossprojectile", typeof(EntityBehaviorBossProjectile));
+            api.RegisterEntityBehaviorClass("bossexecute", typeof(EntityBehaviorBossExecute));
+            api.RegisterEntityBehaviorClass("bossmimicattack", typeof(EntityBehaviorBossMimicAttack));
+            api.RegisterEntityBehaviorClass("bossdebuff", typeof(EntityBehaviorBossDebuff));
+            api.RegisterEntityBehaviorClass("bosshazardzone", typeof(EntityBehaviorBossHazardZone));
+            api.RegisterEntityBehaviorClass("bosssplit", typeof(EntityBehaviorBossSplit));
+            api.RegisterEntityBehaviorClass("bossshieldphase", typeof(EntityBehaviorBossShieldPhase));
         }
 
         private static void RegisterItems(ICoreAPI api)

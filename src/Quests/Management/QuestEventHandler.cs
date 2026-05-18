@@ -271,6 +271,16 @@ namespace VsQuest
             var playerQuests = persistenceManager.GetPlayerQuests(byPlayer.PlayerUID);
             if (playerQuests == null || playerQuests.Count == 0) return;
 
+            // [EXPERIMENTAL] Dispatch to mineblock/harvestcrop objectives
+            try
+            {
+                ExperimentalObjectiveDispatcher.OnBlockBroken(sapi, byPlayer, blockCode, playerQuests);
+            }
+            catch (Exception ex)
+            {
+                sapi.Logger.Warning("[QuestEventHandler] Experimental OnBlockBroken failed: {0}", ex.Message);
+            }
+
             QuestSystem qs = null;
             try
             {
@@ -315,6 +325,16 @@ namespace VsQuest
             var position = new int[] { blockSel.Position.X, blockSel.Position.Y, blockSel.Position.Z };
             var playerQuests = persistenceManager.GetPlayerQuests(byPlayer.PlayerUID);
             if (playerQuests == null || playerQuests.Count == 0) return;
+
+            // [EXPERIMENTAL] Dispatch to placeblock objectives
+            try
+            {
+                ExperimentalObjectiveDispatcher.OnBlockPlaced(sapi, byPlayer, blockCode, playerQuests);
+            }
+            catch (Exception ex)
+            {
+                sapi.Logger.Warning("[QuestEventHandler] Experimental OnBlockPlaced failed: {0}", ex.Message);
+            }
 
             QuestSystem qs = null;
             try

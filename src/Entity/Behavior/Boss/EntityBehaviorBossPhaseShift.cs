@@ -63,12 +63,13 @@ namespace VsQuest
                 entity.Pos.Z + Math.Sin(angle) * dist
             );
 
-            // Particles at old position
-            ParticleUtils.SpawnAuraSphere(Sapi, oldPos, 1f, ParticleUtils.Colors.Lightning, 16, 0.3f);
-            ParticleUtils.SpawnSpiral(Sapi, oldPos, 0.8f, 2f, ParticleUtils.Colors.Lightning, 20, 0.2f);
+            // Particles at old position (departure burst)
+            ParticleUtils.SpawnShadowExplosion(Sapi, oldPos, 1.5f, 2);
+            ParticleUtils.SpawnSpiral(Sapi, oldPos, 1f, 2.5f, ParticleUtils.Colors.Void, 24, 0.3f);
+            ParticleUtils.SpawnShockwave(Sapi, oldPos, 2.5f, ParticleUtils.Colors.Shadow, 16, 0.4f);
 
-            // Sound at departure (reduced volume)
-            TryPlaySound(stage.sound, stage.soundRange, 0, 0.4f);
+            // Sound at departure
+            TryPlaySound(stage.sound, stage.soundRange, 0, 0.5f);
 
             // Delayed teleport after durationMs
             RegisterCallbackTracked(_ =>
@@ -77,11 +78,13 @@ namespace VsQuest
 
                 entity.TeleportTo(newPos);
 
-                // Particles at new position
-                ParticleUtils.SpawnAuraSphere(Sapi, newPos, 1f, ParticleUtils.Colors.Lightning, 16, 0.3f);
+                // Particles at new position (arrival burst)
+                ParticleUtils.SpawnShadowExplosion(Sapi, newPos, 1.5f, 2);
+                ParticleUtils.SpawnSpiral(Sapi, newPos, 1f, 2.5f, ParticleUtils.Colors.Void, 24, 0.3f);
+                ParticleUtils.SpawnShockwave(Sapi, newPos, 2.5f, ParticleUtils.Colors.Shadow, 16, 0.4f);
 
-                // Sound at arrival (reduced volume)
-                TryPlaySound(stage.sound, stage.soundRange, 0, 0.4f);
+                // Sound at arrival
+                TryPlaySound(stage.sound, stage.soundRange, 0, 0.5f);
 
                 SetAbilityActive(false);
             }, (int)stage.durationMs);

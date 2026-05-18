@@ -1,11 +1,11 @@
 {
   "code": "trial-tracker",
-  "class": "ItemTemporalGear",
   "maxstacksize": 1,
-  "storageFlags": 257,
   "materialDensity": 4000,
+  "storageFlags": 3,
   "creativeinventory": {
-    "general": ["*"]
+    "general": ["*"],
+    "items": ["*"]
   },
   "attributes": {
     "handbook": { "exclude": true },
@@ -19,7 +19,10 @@
     "base": "game:item/gear-temporal"
   },
   "textures": {
-    "temporal": {
+    "all": {
+      "base": "game:block/stone/obsidian"
+    },
+    "metal": {
       "base": "game:block/stone/obsidian"
     }
   },

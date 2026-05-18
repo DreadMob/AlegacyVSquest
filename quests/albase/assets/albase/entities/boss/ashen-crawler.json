@@ -1,6 +1,6 @@
 ﻿{
   "code": "ashen-crawler",
-  "class": "EntityAgent",
+  "class": "EntityLocust",
   "tags": ["alegacy-boss"],
   "canClimb": true,
   "hitboxSize": { "x": 0.8, "y": 3.0 },
@@ -16,9 +16,9 @@
   "client": {
     "renderer": "Shape",
     "pitchStep": false,
-    "size": 1.4,
-    "shape": { "base": "game:entity/lore/bowtorn/gearfoot" },
-    "texture": { "base": "game:entity/lore/bowtorn/gearfoot" },
+    "size": 2.2,
+    "shape": { "base": "game:entity/lore/locust/locust-corrupt" },
+    "texture": { "base": "game:entity/lore/locust/corrupt", "overlays": ["albase:entity/overlay/void-ash"] },
     "glowLevel": 80,
     "behaviors": [
       { "code": "repulseagents" },
@@ -33,10 +33,9 @@
     "animations": [
       { "code": "hurt", "animation": "hurt", "animationSpeed": 2.0, "weight": 10, "blendMode": "AddAverage" },
       { "code": "die", "animation": "die", "animationSpeed": 1.0, "weight": 10, "blendMode": "Average", "triggeredBy": { "onControls": ["dead"] } },
-      { "code": "idle", "animation": "idle", "blendMode": "Average", "triggeredBy": { "defaultAnim": true } },
-      { "code": "walk", "animation": "walk", "blendMode": "Average" },
+      { "code": "idle", "animation": "idlecalm", "blendMode": "Average", "triggeredBy": { "defaultAnim": true } },
       { "code": "run", "animation": "run", "blendMode": "Average" },
-      { "code": "stab", "animation": "stab", "animationSpeed": 1.5, "blendMode": "Average", "weight": 100 }
+      { "code": "attack", "animation": "attack", "animationSpeed": 1.5, "blendMode": "Average", "weight": 100 }
     ]
   },
   "server": {
@@ -61,7 +60,10 @@
       { "code": "bossvoidzone", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 6, "maxTargetRange": 20, "maxRadius": 5, "growDurationSec": 2, "dpsInZone": 5, "lifetimeSec": 8, "maxActiveZones": 3, "sound": "effect/translocate-idle", "soundRange": 24 }] },
       { "code": "bossgroundslam", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 8, "maxTargetRange": 20, "radius": 5, "damage": 12, "windupMs": 1100, "knockbackStrength": 1.8, "sound": "environment/largerock1", "soundRange": 32 }] },
       { "code": "bossphaseshift", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 9, "maxTargetRange": 25, "shiftRadius": 8, "durationMs": 1000, "sound": "block/meteoriciron", "soundRange": 32 }] },
-      { "code": "bosscursestack", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 0, "maxTargetRange": 30, "maxStacks": 4, "effectType": "teleport", "stackDecaySeconds": 4, "stunDurationMs": 2000, "slowFactor": 0.5, "slowDurationMs": 3000 }] },
+      { "code": "bosscursestack", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 0, "maxTargetRange": 30, "maxStacks": 4, "effectType": "teleport", "stackDecaySeconds": 4, "stunDurationMs": 4000, "slowFactor": 0.5, "slowDurationMs": 4000 }] },
+      { "code": "bossretaliation", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 14, "maxTargetRange": 30, "damageThreshold": 16, "retaliationMultiplier": 0.6, "retaliationRadius": 7, "windowDurationSec": 4, "sound": "effect/reverbhit", "soundRange": 32 }] },
+      { "code": "bosshazardzone", "stages": [{ "whenHealthRelBelow": 0.5, "cooldownSeconds": 10, "maxTargetRange": 18, "zoneType": "ember", "radius": 4, "dpsInZone": 5, "dotDps": 3, "dotDurationSec": 3, "lifetimeSec": 7, "maxActiveZones": 2 }] },
+      { "code": "bossdash", "stages": [{ "whenHealthRelBelow": 0.5, "cooldownSeconds": 8, "maxTargetRange": 20, "windupMs": 200, "dashDistance": 8, "dashSpeed": 0.5, "damage": 10, "damageTier": 3, "sound": "block/meteoriciron", "soundRange": 24 }] },
       {
         "code": "taskai",
         "inheritedTasks": false,
@@ -88,7 +90,7 @@
             "maxcooldown": 1800,
             "damagePlayerAtMs": 400,
             "attackDurationMs": 700,
-            "animation": "stab",
+            "animation": "attack",
             "animationSpeed": 1.3,
             "sound": "game:sounds/creature/drifter-hit",
             "soundStartMs": 400
@@ -105,7 +107,7 @@
             "maxcooldown": 1200,
             "damagePlayerAtMs": 350,
             "attackDurationMs": 600,
-            "animation": "stab",
+            "animation": "attack",
             "animationSpeed": 1.5,
             "sound": "game:sounds/creature/drifter-hit",
             "soundStartMs": 350,
@@ -123,7 +125,7 @@
             "maxcooldown": 800,
             "damagePlayerAtMs": 300,
             "attackDurationMs": 500,
-            "animation": "stab",
+            "animation": "attack",
             "animationSpeed": 1.8,
             "sound": "game:sounds/creature/drifter-hit",
             "soundStartMs": 300,
@@ -133,7 +135,7 @@
             "code": "wander",
             "priority": 1.0,
             "movespeed": 0.02,
-            "animation": "walk",
+            "animation": "idlecalm",
             "animationSpeed": 1.0
           },
           { "code": "lookaround", "priority": 0.5 }
@@ -144,9 +146,9 @@
     ]
   },
   "sounds": {
-    "hurt": "game:sounds/creature/drifter-hurt",
-    "death": "game:sounds/creature/drifter-death",
-    "idle": "game:sounds/creature/drifter-idle"
+    "hurt": "game:sounds/creature/locust-hurt",
+    "death": "game:sounds/creature/locust-death",
+    "idle": "game:sounds/creature/locust-idle"
   }
 }
 

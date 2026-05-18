@@ -3,13 +3,14 @@
   "class": "EntityDrifter",
   "tags": ["alegacy-boss"],
   "canClimb": true,
-  "hitboxSize": { "x": 0.7, "y": 1.9 },
+  "hitboxSize": { "x": 0.9, "y": 2.2 },
   "deadHitboxSize": { "x": 0.7, "y": 0.3 },
   "eyeHeight": 1.6,
   "attributes": {
-    "knockbackResistance": 0.7,
+    "knockbackResistance": 0.6,
     "killedByInfoText": "deadcreature-vile",
-    "reckless": true,"vsquestSoundPitchMul": 1.4,
+    "reckless": true,
+    "vsquestSoundPitchMul": 1.4,
     "alegacyvsquestHideInfoText": true
   },
   "drops": [],
@@ -18,7 +19,7 @@
     "pitchStep": false,
     "size": 1.45,
     "shape": { "base": "game:entity/lore/drifter/knife" },
-    "texture": { "base": "game:entity/lore/drifter/deep2" },
+    "texture": { "base": "game:entity/lore/drifter/deep2", "overlays": ["albase:entity/overlay/void-deep"] },
     "glowLevel": 60,
     "behaviors": [
       { "code": "repulseagents" },
@@ -43,7 +44,7 @@
     "behaviors": [
       { "code": "repulseagents" },
       { "code": "controlledphysics", "stepHeight": 1.01 },
-      { "code": "health", "currenthealth": 650, "maxhealth": 650 },
+      { "code": "health", "currenthealth": 600, "maxhealth": 600 },
       { "code": "bosspassiveregen", "regenPerSecond": 0.5, "outOfCombatRegenMult": 0.8 },
       { "code": "bosscombatmarker", "trackCombatTime": true },
       { "code": "bosshastargetsync" },
@@ -55,11 +56,13 @@
           { "code": "void-channeling", "duration": 999999, "chance": 1, "slot": 1, "priority": 1, "accumType": "noaccum", "whenHealthRelBelow": 0.5 }
         ]
       },
-      { "code": "bossenrage", "enrageTimerSeconds": 270 },
-      { "code": "bossvulnerabilitywindow", "damageMultiplier": 2.0, "durationSeconds": 2.5, "triggerAbilities": ["bosstelegraph"] },
-      { "code": "bossvoidzone", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 7, "maxTargetRange": 20, "maxRadius": 5, "growDurationSec": 2.5, "dpsInZone": 4, "lifetimeSec": 9, "maxActiveZones": 3, "sound": "effect/translocate-idle", "soundRange": 24 }] },
-      { "code": "bosstelegraph", "windupMs": 1100, "shape": "line", "length": 14, "width": 3 },
-      { "code": "bosscursemark", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 15, "maxTargetRange": 20, "markDelaySec": 3.5, "baseDamage": 12, "safeDistance": 12, "sound": "environment/thunder1", "soundRange": 32 }] },
+      { "code": "bossenrage", "enrageTimerSeconds": 240 },
+      { "code": "bossvulnerabilitywindow", "damageMultiplier": 2.0, "durationSeconds": 2.5, "triggerAbilities": ["bosscursemark"] },
+      { "code": "bossvoidzone", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 6, "maxTargetRange": 22, "maxRadius": 5, "growDurationSec": 2, "dpsInZone": 4, "lifetimeSec": 9, "maxActiveZones": 4, "sound": "effect/translocate-idle", "soundRange": 24 }] },
+      { "code": "bosshazardzone", "stages": [{ "whenHealthRelBelow": 0.5, "cooldownSeconds": 10, "maxTargetRange": 20, "zoneType": "void", "radius": 5, "dpsInZone": 2, "dotDps": 0, "dotDurationSec": 0, "slowFactor": 0.5, "lifetimeSec": 8, "maxActiveZones": 2 }] },
+      { "code": "bosscursemark", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 14, "maxTargetRange": 22, "markDelaySec": 3.5, "baseDamage": 12, "safeDistance": 12, "sound": "environment/thunder1", "soundRange": 32 }] },
+      { "code": "bossprojectile", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 5, "maxTargetRange": 25, "damage": 8, "speed": 10, "variant": "shadow", "shape": "ball", "damageTier": 3 }] },
+      { "code": "bossarena", "stages": [{ "whenHealthRelBelow": 0.5, "cooldownSeconds": 30, "maxTargetRange": 25, "arenaRadius": 14, "arenaDurationSec": 15, "boundaryDps": 6 }] },
       {
         "code": "taskai",
         "inheritedTasks": false,
@@ -68,7 +71,7 @@
             "code": "seekentity",
             "entityCodes": ["player"],
             "priority": 2.0,
-            "movespeed": 0.04,
+            "movespeed": 0.03,
             "seekingRange": 40,
             "maxFollowTime": 120,
             "animation": "standrun",
@@ -119,7 +122,8 @@
           { "code": "lookaround", "priority": 0.5 }
         ]
       },
-      { "code": "deaddecay", "hoursToDecay": 999999 },{ "code": "bossrespawn", "respawnInGameHours": 168, "spawnNewBoss": false },
+      { "code": "deaddecay", "hoursToDecay": 999999 },
+      { "code": "bossrespawn", "respawnInGameHours": 168, "spawnNewBoss": false },
       { "code": "floatupwhenstuck", "onlyWhenDead": true }
     ]
   },

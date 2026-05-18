@@ -3,23 +3,24 @@
   "class": "EntityDrifter",
   "tags": ["alegacy-boss"],
   "canClimb": true,
-  "hitboxSize": { "x": 0.9, "y": 2.2 },
-  "deadHitboxSize": { "x": 0.9, "y": 0.4 },
-  "eyeHeight": 1.8,
+  "hitboxSize": { "x": 2.0, "y": 4.8 },
+  "deadHitboxSize": { "x": 2.0, "y": 1.0 },
+  "eyeHeight": 4.0,
   "attributes": {
-    "knockbackResistance": 0.5,
+    "knockbackResistance": 0.8,
     "killedByInfoText": "deadcreature-vile",
-    "reckless": true,"vsquestSoundPitchMul": 1.4,
+    "reckless": true,
+    "vsquestSoundPitchMul": 0.8,
     "alegacyvsquestHideInfoText": true
   },
   "drops": [],
   "client": {
     "renderer": "Shape",
     "pitchStep": false,
-    "size": 1.5,
+    "size": 3.2,
     "shape": { "base": "game:entity/lore/drifter/deerhorn" },
-    "texture": { "base": "game:entity/lore/drifter/deerhorn" },
-    "glowLevel": 50,
+    "texture": { "base": "game:entity/lore/drifter/deerhorn", "overlays": ["albase:entity/overlay/void-purple"] },
+    "glowLevel": 40,
     "behaviors": [
       { "code": "repulseagents" },
       { "code": "controlledphysics", "stepHeight": 1.01 },
@@ -31,22 +32,22 @@
       { "code": "bossnametag", "nameLangKey": "albase:trial-iron-warden-title", "color": "#A78BFA", "backgroundColor": "#000000", "backgroundOpacity": 0.35, "renderRange": 60 }
     ],
     "animations": [
-      { "code": "crawlhurt", "animation": "crawlhurt", "animationSpeed": 2.0, "weight": 10, "blendMode": "AddAverage" },
+      { "code": "crawlhurt", "animation": "crawlhurt", "animationSpeed": 1.5, "weight": 10, "blendMode": "AddAverage" },
       { "code": "crawldie", "animation": "crawldie", "animationSpeed": 0.7, "weight": 10, "blendMode": "Average", "triggeredBy": { "onControls": ["dead"] } },
       { "code": "idle", "animation": "crawlidle", "blendMode": "Average", "triggeredBy": { "defaultAnim": true } },
       { "code": "crawlwalk", "animation": "crawlwalk", "blendMode": "Average" },
       { "code": "crawlrun", "animation": "crawlrun", "blendMode": "Average" },
-      { "code": "crawlattack", "animation": "crawlattack", "animationSpeed": 1.5, "blendMode": "Average", "weight": 100 }
+      { "code": "crawlattack", "animation": "crawlattack", "animationSpeed": 1.2, "blendMode": "Average", "weight": 100 }
     ]
   },
   "server": {
     "behaviors": [
       { "code": "repulseagents" },
       { "code": "controlledphysics", "stepHeight": 1.01 },
-      { "code": "health", "currenthealth": 500, "maxhealth": 500 },
+      { "code": "health", "currenthealth": 400, "maxhealth": 400 },
       { "code": "bosscombatmarker", "trackCombatTime": true },
       { "code": "bosshastargetsync" },
-      { "code": "questtarget", "targetId": "albase:trial:iron-warden", "leashRange": 60, "returnMoveSpeed": 0.05, "leashCheckMs": 1000 },
+      { "code": "questtarget", "targetId": "albase:trial:iron-warden", "leashRange": 60, "returnMoveSpeed": 0.04, "leashCheckMs": 1000 },
       {
         "code": "emotionstates",
         "states": [
@@ -54,10 +55,11 @@
           { "code": "iron-fury", "duration": 999999, "chance": 1, "slot": 1, "priority": 1, "accumType": "noaccum", "whenHealthRelBelow": 0.4 }
         ]
       },
-      { "code": "bossenrage", "enrageTimerSeconds": 270 },
+      { "code": "bossenrage", "enrageTimerSeconds": 300 },
       { "code": "bossvulnerabilitywindow", "damageMultiplier": 2.0, "durationSeconds": 3.0, "triggerAbilities": ["bossgroundslam"] },
-      { "code": "bossgroundslam", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 9, "maxTargetRange": 20, "radius": 5, "damage": 10, "windupMs": 1400, "knockbackStrength": 2.0, "sound": "environment/largerock1", "soundRange": 32 }] },
-      { "code": "bossretaliation", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 14, "maxTargetRange": 30, "damageThreshold": 25, "retaliationMultiplier": 0.5, "retaliationRadius": 6, "windowDurationSec": 4, "sound": "effect/reverbhit", "soundRange": 32 }] },
+      { "code": "bossgroundslam", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 10, "maxTargetRange": 20, "radius": 6, "damage": 10, "windupMs": 1500, "knockbackStrength": 2.0, "sound": "environment/largerock1", "soundRange": 32 }] },
+      { "code": "bosscursestack", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 0, "maxTargetRange": 30, "maxStacks": 4, "effectType": "slow", "stackDecaySeconds": 5, "stunDurationMs": 4000, "slowFactor": 0.4, "slowDurationMs": 4000 }] },
+      { "code": "bossretaliation", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 16, "maxTargetRange": 30, "damageThreshold": 16, "retaliationMultiplier": 0.5, "retaliationRadius": 6, "windowDurationSec": 4, "sound": "effect/reverbhit", "soundRange": 32 }] },
       {
         "code": "taskai",
         "inheritedTasks": false,
@@ -66,7 +68,7 @@
             "code": "seekentity",
             "entityCodes": ["player"],
             "priority": 2.0,
-            "movespeed": 0.03,
+            "movespeed": 0.025,
             "seekingRange": 40,
             "maxFollowTime": 120,
             "animation": "crawlrun",
@@ -76,37 +78,37 @@
             "code": "meleeattack",
             "entityCodes": ["player"],
             "priority": 2.5,
-            "damage": 18,
-            "damageTier": 3,
+            "damage": 10,
+            "damageTier": 2,
             "minDist": 6.0,
             "minVerDist": 3.0,
-            "mincooldown": 2500,
+            "mincooldown": 3000,
             "maxcooldown": 4000,
-            "damagePlayerAtMs": 600,
-            "attackDurationMs": 1200,
+            "damagePlayerAtMs": 700,
+            "attackDurationMs": 1300,
             "attackAngleDeg": 180,
             "animation": "crawlattack",
-            "animationSpeed": 1.0,
+            "animationSpeed": 0.9,
             "sound": "game:sounds/creature/drifter-hit",
-            "soundStartMs": 600
+            "soundStartMs": 700
           },
           {
             "code": "meleeattack",
             "entityCodes": ["player"],
             "priority": 2.35,
-            "damage": 25,
-            "damageTier": 3,
+            "damage": 14,
+            "damageTier": 2,
             "minDist": 6.0,
             "minVerDist": 3.0,
-            "mincooldown": 1800,
+            "mincooldown": 2000,
             "maxcooldown": 3000,
-            "damagePlayerAtMs": 500,
-            "attackDurationMs": 1000,
+            "damagePlayerAtMs": 600,
+            "attackDurationMs": 1100,
             "attackAngleDeg": 180,
             "animation": "crawlattack",
-            "animationSpeed": 1.2,
+            "animationSpeed": 1.1,
             "sound": "game:sounds/creature/drifter-hit",
-            "soundStartMs": 500,
+            "soundStartMs": 600,
             "whenInEmotionState": "iron-fury"
           },
           {
@@ -119,7 +121,8 @@
           { "code": "lookaround", "priority": 0.5 }
         ]
       },
-      { "code": "deaddecay", "hoursToDecay": 999999 },{ "code": "bossrespawn", "respawnInGameHours": 168, "spawnNewBoss": false },
+      { "code": "deaddecay", "hoursToDecay": 999999 },
+      { "code": "bossrespawn", "respawnInGameHours": 168, "spawnNewBoss": false },
       { "code": "floatupwhenstuck", "onlyWhenDead": true }
     ]
   },

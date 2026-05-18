@@ -21,6 +21,7 @@ namespace VsQuest
             var debugDamageHandler = new DebugDamageCommandHandler(sapi);
             var questExecActionStringHandler = new QuestExecActionStringCommandHandler(sapi);
             var setItemQualityHandler = new SetItemQualityCommandHandler(sapi);
+            var reputationHandler = new ReputationCommandHandler(sapi);
 
             avq.BeginSubCommand("reload")
                 .WithDescription("Reloads mod configs (questconfig.json, alegacy-vsquest-config.json). Does not reload assets.")
@@ -105,6 +106,42 @@ namespace VsQuest
                 .RequiresPrivilege(Privilege.give)
                 .WithArgs(sapi.ChatCommands.Parsers.OptionalWord("playerName"))
                 .HandleWith(setItemQualityHandler.HandleRerollQuality)
+            .EndSubCommand()
+            .BeginSubCommand("rep")
+                .WithDescription("Manage NPC/faction reputation for players")
+                .RequiresPrivilege(Privilege.give)
+                .BeginSubCommand("add")
+                    .WithDescription("Add reputation. Usage: /avq rep add <player> <npc|faction> <id> <amount>")
+                    .RequiresPrivilege(Privilege.give)
+                    .WithArgs(
+                        sapi.ChatCommands.Parsers.Word("playerName"),
+                        sapi.ChatCommands.Parsers.Word("scope"),
+                        sapi.ChatCommands.Parsers.Word("id"),
+                        sapi.ChatCommands.Parsers.Word("amount")
+                    )
+                    .HandleWith(reputationHandler.HandleAdd)
+                .EndSubCommand()
+                .BeginSubCommand("set")
+                    .WithDescription("Set reputation. Usage: /avq rep set <player> <npc|faction> <id> <value>")
+                    .RequiresPrivilege(Privilege.give)
+                    .WithArgs(
+                        sapi.ChatCommands.Parsers.Word("playerName"),
+                        sapi.ChatCommands.Parsers.Word("scope"),
+                        sapi.ChatCommands.Parsers.Word("id"),
+                        sapi.ChatCommands.Parsers.Word("value")
+                    )
+                    .HandleWith(reputationHandler.HandleSet)
+                .EndSubCommand()
+                .BeginSubCommand("get")
+                    .WithDescription("Get reputation. Usage: /avq rep get <player> <npc|faction> <id>")
+                    .RequiresPrivilege(Privilege.give)
+                    .WithArgs(
+                        sapi.ChatCommands.Parsers.Word("playerName"),
+                        sapi.ChatCommands.Parsers.Word("scope"),
+                        sapi.ChatCommands.Parsers.Word("id")
+                    )
+                    .HandleWith(reputationHandler.HandleGet)
+                .EndSubCommand()
             .EndSubCommand();
         }
     }

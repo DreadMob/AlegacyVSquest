@@ -140,8 +140,20 @@ namespace VsQuest
 
             int delayMs = Math.Max(0, stage.warningDelayMs);
 
-            // Warning telegraph - ring on ground before strike
-            ParticleUtils.SpawnAuraRing(Sapi, strikePos, 1.5f, ParticleUtils.Colors.LightningBlue, 8, 0.25f);
+            // Warning telegraph - bright ring + pillar particles on ground before strike
+            ParticleUtils.SpawnAuraRing(Sapi, strikePos, 2.5f, ParticleUtils.Colors.LightningBlue, 16, 0.6f);
+
+            // Additional vertical pillar particles for visibility
+            for (int p = 0; p < 6; p++)
+            {
+                Vec3d pillarPos = strikePos.AddCopy(0, p * 0.5, 0);
+                Sapi.World.SpawnParticles(new SimpleParticleProperties(
+                    2, 4, ColorUtil.ToRgba(220, 100, 180, 255),
+                    pillarPos.AddCopy(-0.2, 0, -0.2), pillarPos.AddCopy(0.2, 0.3, 0.2),
+                    new Vec3f(0, 0.3f, 0), new Vec3f(0, 0.6f, 0),
+                    1.0f, -0.01f, 0.4f, 0.8f, EnumParticleModel.Quad
+                ));
+            }
 
             // Loop warning sound until the strike happens.
             // This gives players a continuous cue without relying on stacking/overlapping sounds.
@@ -185,9 +197,8 @@ namespace VsQuest
             float volume = stage.warningSoundVolume;
             if (volume <= 0f) volume = 1f;
 
-            // Warning should be very local to the strike position.
-            float range = stage.warningSoundRange > 0f ? stage.warningSoundRange : 2.5f;
-            if (range > 2.5f) range = 2.5f;
+            // Warning should be audible near the strike position.
+            float range = stage.warningSoundRange > 0f ? stage.warningSoundRange : 32f;
 
             float pitch = (float)Sapi.World.Rand.NextDouble() * 0.5f + 0.75f;
             Sapi.World.PlaySoundAt(soundLoc, strikePos.X, strikePos.Y, strikePos.Z, null, pitch, volume);

@@ -29,6 +29,8 @@ namespace VsQuest
                     "speedkill" => EvaluateSpeedkill(tracker, challenge),
                     "deathless" => EvaluateDeathless(tracker, playerUid),
                     "nofood" => EvaluateNoFood(tracker, playerUid),
+                    "nopotions" => EvaluateNoPotions(tracker, playerUid),
+                    "lowmaxhp" => EvaluateLowMaxHp(tracker, playerUid),
                     "lowgear" => EvaluateLowGear(tracker, playerUid, challenge),
                     "perfectdodge" => EvaluatePerfectDodge(tracker, playerUid, challenge),
                     _ => false
@@ -84,6 +86,32 @@ namespace VsQuest
                 return true; // No ability damage recorded = perfect dodge
 
             return !abilities.Contains(challenge.abilityCode);
+        }
+
+        /// <summary>
+        /// No potions: player did not heal during the fight (no health increase from items).
+        /// Uses the same saturation tracking — if player healed, they likely used a potion.
+        /// For now, tracks via a separate flag in combat tracker.
+        /// </summary>
+        private static bool EvaluateNoPotions(TrialCombatTracker tracker, string playerUid)
+        {
+            if (!tracker.PotionUsedByPlayer.TryGetValue(playerUid, out bool used))
+                return true; // No potion use recorded
+
+            return !used;
+        }
+
+        /// <summary>
+        /// Low diet: player's max HP must be 16 or below (poor nutrition = low max health).
+        /// In VS, diet affects max HP — bad diet means fewer hearts.
+        /// </summary>
+        private static bool EvaluateLowMaxHp(TrialCombatTracker tracker, string playerUid)
+        {
+            // Check max HP recorded during fight — must be <= 16
+            if (!tracker.MaxHpByPlayer.TryGetValue(playerUid, out float maxHp))
+                return true; // No data = assume passed
+
+            return maxHp <= 16f;
         }
 
         /// <summary>

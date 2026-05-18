@@ -3,15 +3,7 @@
   "tags": ["weapon", "weapon-ranged", "weapon-bow"],
   "class": "ItemBow",
   "maxstacksize": 1,
-  "variantgroups": [
-    { "code": "quality", "states": ["dim", "shimmer", "radiant", "abyssal"] }
-  ],
-  "durabilityByType": {
-    "trial-bow-dim": 600,
-    "trial-bow-shimmer": 700,
-    "trial-bow-radiant": 800,
-    "trial-bow-abyssal": 900
-  },
+  "durability": 700,
   "shape": {
     "base": "game:item/tool/bow/recurve",
     "alternates": [
@@ -32,57 +24,14 @@
     "arrow": { "base": "game:block/metal/ingot/meteoriciron" },
     "stick": { "base": "game:block/metal/ingot/bismuthbronze" }
   },
-  "texturesByType": {
-    "trial-bow-dim": {
-      "aged": { "base": "game:block/metal/ingot/bismuthbronze" },
-      "string": { "base": "albase:item/bowstring-dark" },
-      "leather": { "base": "game:block/leather/dark" },
-      "iron": { "base": "game:block/metal/ingot/meteoriciron" },
-      "bone": { "base": "game:block/metal/ingot/meteoriciron" },
-      "feather2": { "base": "albase:item/bowstring-dark" },
-      "beeswax": { "base": "game:block/metal/ingot/bismuthbronze" },
-      "arrow": { "base": "game:block/metal/ingot/meteoriciron" },
-      "stick": { "base": "game:block/metal/ingot/bismuthbronze" }
-    },
-    "trial-bow-shimmer": {
-      "aged": { "base": "game:block/metal/ingot/silver" },
-      "string": { "base": "albase:item/bowstring-dark" },
-      "leather": { "base": "game:block/leather/medium" },
-      "iron": { "base": "game:block/metal/ingot/meteoriciron" },
-      "bone": { "base": "game:block/metal/ingot/silver" },
-      "feather2": { "base": "albase:item/bowstring-dark" },
-      "beeswax": { "base": "game:block/metal/ingot/silver" },
-      "arrow": { "base": "game:block/metal/ingot/meteoriciron" },
-      "stick": { "base": "game:block/metal/ingot/silver" }
-    },
-    "trial-bow-radiant": {
-      "aged": { "base": "game:block/metal/ingot/electrum" },
-      "string": { "base": "albase:item/bowstring-dark" },
-      "leather": { "base": "game:block/leather/medium" },
-      "iron": { "base": "game:block/metal/ingot/electrum" },
-      "bone": { "base": "game:block/metal/ingot/electrum" },
-      "feather2": { "base": "albase:item/bowstring-dark" },
-      "beeswax": { "base": "game:block/metal/ingot/electrum" },
-      "arrow": { "base": "game:block/metal/ingot/electrum" },
-      "stick": { "base": "game:block/metal/ingot/electrum" }
-    },
-    "trial-bow-abyssal": {
-      "aged": { "base": "game:block/metal/ingot/gold" },
-      "string": { "base": "albase:item/bowstring-dark" },
-      "leather": { "base": "game:block/leather/light" },
-      "iron": { "base": "game:block/metal/ingot/gold" },
-      "bone": { "base": "game:block/metal/ingot/gold" },
-      "feather2": { "base": "albase:item/bowstring-dark" },
-      "beeswax": { "base": "game:block/stone/cinnabar" },
-      "arrow": { "base": "game:block/metal/ingot/gold" },
-      "stick": { "base": "game:block/metal/ingot/gold" }
-    }
-  },
   "creativeinventory": { "general": ["*"], "items": ["*"], "tools": ["*"] },
   "attributes": {
     "heldItemPitchFollow": 1,
     "aimAnimation": "bowaimrecurve",
     "handbook": { "exclude": true },
+    "damage": 4.5,
+    "damageTier": 3,
+    "statModifier": { "rangedWeaponsAcc": 0.28, "rangedWeaponsSpeed": 0.11 },
     "toolrackTransform": {
       "translation": { "x": 0.14, "y": 0.93 },
       "rotation": { "x": 2, "y": 5, "z": 0 },
@@ -99,28 +48,6 @@
         "frontrightside": { "base": "game:item/wearable/hooved/elk/weaponr-bow-recurve" },
         "frontleftside": { "base": "game:item/wearable/hooved/elk/weaponl-bow-recurve" }
       }
-    }
-  },
-  "attributesByType": {
-    "trial-bow-dim": {
-      "damage": 3.75,
-      "damageTier": 2,
-      "statModifier": { "rangedWeaponsAcc": 0.23, "rangedWeaponsSpeed": 0.09 }
-    },
-    "trial-bow-shimmer": {
-      "damage": 4.5,
-      "damageTier": 2,
-      "statModifier": { "rangedWeaponsAcc": 0.28, "rangedWeaponsSpeed": 0.11 }
-    },
-    "trial-bow-radiant": {
-      "damage": 5.5,
-      "damageTier": 3,
-      "statModifier": { "rangedWeaponsAcc": 0.34, "rangedWeaponsSpeed": 0.13 }
-    },
-    "trial-bow-abyssal": {
-      "damage": 6.5,
-      "damageTier": 3,
-      "statModifier": { "rangedWeaponsAcc": 0.40, "rangedWeaponsSpeed": 0.15 }
     }
   },
   "behaviors": [{

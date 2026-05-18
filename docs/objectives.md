@@ -319,3 +319,142 @@ Counts temporal storms survived. A storm is counted when it transitions from act
 - `<questId>` — Quest ID used for tracking (required)
 - `<objectiveId>` — Must match `actionObjective.objectiveId` (required)
 - `<needStorms>` — Required storms survived (required)
+
+---
+
+## Experimental Objectives
+
+> [!WARNING]
+> Objectives ниже помечены как **экспериментальные**. Их API может измениться или они могут быть удалены в будущих версиях.
+
+---
+
+### `killwithweapon`
+
+Counts kills made while holding a specific weapon type.
+
+**Arguments:**
+- `<questId>` — Quest ID used for tracking (required)
+- `<objectiveId>` — Must match `actionObjective.objectiveId` (required)
+- `<weaponCode>` — Weapon item code, supports `*` suffix wildcard (required). Example: `blade-*`, `spear-*`, `bow-*`
+- `<need>` — Required kill count (required)
+
+---
+
+### `harvestcrop`
+
+Counts crop blocks harvested (broken crop blocks containing "crop-" in code).
+
+**Arguments:**
+- `<questId>` — Quest ID used for tracking (required)
+- `<objectiveId>` — Must match `actionObjective.objectiveId` (required)
+- `<cropCode>` — Crop code filter, supports `*` suffix wildcard (required). Example: `crop-flax*`, `crop-spelt*`, `*` for any crop
+- `<need>` — Required harvest count (required)
+
+---
+
+### `mineblock`
+
+Counts blocks mined/broken matching a code pattern.
+
+**Arguments:**
+- `<questId>` — Quest ID used for tracking (required)
+- `<objectiveId>` — Must match `actionObjective.objectiveId` (required)
+- `<blockCode>` — Block code filter, supports `*` suffix wildcard (required). Example: `ore-*`, `rock-*`, `*`
+- `<need>` — Required blocks mined (required)
+
+---
+
+### `placeblock`
+
+Counts blocks placed matching a code pattern.
+
+**Arguments:**
+- `<questId>` — Quest ID used for tracking (required)
+- `<objectiveId>` — Must match `actionObjective.objectiveId` (required)
+- `<blockCode>` — Block code filter, supports `*` suffix wildcard (required). Example: `fence-*`, `planks-*`, `*`
+- `<need>` — Required blocks placed (required)
+
+---
+
+### `fishcatch`
+
+Counts fish caught. Uses heuristic detection (item code contains "fish", "bass", "perch", etc).
+
+**Arguments:**
+- `<questId>` — Quest ID used for tracking (required)
+- `<objectiveId>` — Must match `actionObjective.objectiveId` (required)
+- `<fishCode>` — Fish code filter, supports `*` suffix wildcard (required). `*` = any fish item
+- `<need>` — Required fish caught (required)
+
+> [!NOTE]
+> Requires external hook to call `FishCatchObjective.TryIncrement` when a fishing catch event occurs.
+
+---
+
+### `timer`
+
+Time-limit gate: completes while elapsed time is within the limit. Fails when time runs out.
+
+Use as a gate objective alongside other objectives to create timed challenges.
+
+**Arguments:**
+- `<questId>` — Quest ID used for tracking (required)
+- `<objectiveId>` — Must match `actionObjective.objectiveId` (required)
+- `<timeLimitSeconds>` — Time limit in seconds (required)
+
+> [!NOTE]
+> Use `resettimer` action in `onAcceptedActions` to start the timer when quest is accepted.
+
+---
+
+### `craftitem`
+
+Counts items crafted matching a code pattern.
+
+**Arguments:**
+- `<questId>` — Quest ID used for tracking (required)
+- `<objectiveId>` — Must match `actionObjective.objectiveId` (required)
+- `<itemCode>` — Item code filter, supports `*` suffix wildcard (required). Example: `plank-*`, `ingot-*`
+- `<need>` — Required items crafted (required)
+
+> [!NOTE]
+> Requires external hook to call `CraftItemObjective.TryIncrement` when a craft event occurs.
+
+---
+
+### `smeltitem`
+
+Counts items smelted/produced in a furnace or crucible.
+
+**Arguments:**
+- `<questId>` — Quest ID used for tracking (required)
+- `<objectiveId>` — Must match `actionObjective.objectiveId` (required)
+- `<itemCode>` — Item code filter, supports `*` suffix wildcard (required). Example: `ingot-*`, `glass-*`
+- `<need>` — Required items smelted (required)
+
+> [!NOTE]
+> Requires external hook to call `SmeltItemObjective.TryIncrement` when a smelt output is obtained.
+
+---
+
+## Experimental Objective Helper Actions
+
+### `resettimer` (action)
+
+Starts/resets the timer for a `timer` objective.
+
+**Arguments:**
+- `<questId>` — Quest ID (required)
+- `<objectiveId>` — Timer objective id (required)
+
+---
+
+### `resetexperimentalobjective` (action)
+
+Resets progress for any experimental objective.
+
+**Arguments:**
+- `<objectiveType>` — One of: `mineblock`, `placeblock`, `harvestcrop`, `fishcatch`, `killwithweapon`, `craftitem`, `smeltitem` (required)
+- `<questId>` — Quest ID (required)
+- `<objectiveId>` — Objective id (required)

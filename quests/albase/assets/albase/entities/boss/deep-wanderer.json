@@ -3,7 +3,7 @@
   "class": "EntityDrifter",
   "tags": ["alegacy-boss"],
   "canClimb": true,
-  "hitboxSize": { "x": 0.8, "y": 2.0 },
+  "hitboxSize": { "x": 0.9, "y": 2.4 },
   "deadHitboxSize": { "x": 0.8, "y": 0.4 },
   "eyeHeight": 1.7,
   "attributes": {
@@ -18,7 +18,7 @@
     "pitchStep": false,
     "size": 1.45,
     "shape": { "base": "game:entity/lore/drifter/knife" },
-    "texture": { "base": "game:entity/lore/drifter/deep1" },
+    "texture": { "base": "game:entity/lore/drifter/deep1", "overlays": ["albase:entity/overlay/void-deep"] },
     "glowLevel": 80,
     "behaviors": [
       { "code": "repulseagents" },
@@ -62,6 +62,9 @@
       { "code": "bossbloodprice", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 12, "maxTargetRange": 30, "healPercent": 0.25, "minVulnMs": 2000, "maxVulnMs": 4000, "healThreshold": 8 }] },
       { "code": "bosscursemark", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 14, "maxTargetRange": 20, "markDelaySec": 3, "baseDamage": 14, "safeDistance": 11, "sound": "environment/thunder1", "soundRange": 32 }] },
       { "code": "bossphaseshift", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 11, "maxTargetRange": 25, "shiftRadius": 9, "durationMs": 1300, "sound": "block/meteoriciron", "soundRange": 32 }] },
+      { "code": "bossgravity", "stages": [{ "whenHealthRelBelow": 0.6, "cooldownSeconds": 20, "maxTargetRange": 25, "pullRadius": 8, "pullDurationSec": 5, "pullStrength": 0.1, "centerDamage": 15 }] },
+      { "code": "bossabsorb", "stages": [{ "whenHealthRelBelow": 0.3, "cooldownSeconds": 25, "maxTargetRange": 30, "absorbHitCount": 6, "absorbDurationSec": 6, "explosionDamage": 22, "explosionRadius": 8 }] },
+      { "code": "bosshazardzone", "stages": [{ "whenHealthRelBelow": 0.6, "cooldownSeconds": 12, "maxTargetRange": 20, "zoneType": "void", "radius": 5, "dpsInZone": 3, "dotDps": 0, "dotDurationSec": 0, "slowFactor": 0.4, "lifetimeSec": 10, "maxActiveZones": 2 }] },
       {
         "code": "taskai",
         "inheritedTasks": false,

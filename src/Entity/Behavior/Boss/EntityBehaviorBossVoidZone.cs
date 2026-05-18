@@ -58,35 +58,56 @@ namespace VsQuest
 
         protected override void ActivateAbility(object stageObj, int stageIndex, EntityPlayer target)
         {
+            // Zone creation is handled in OnPeriodicTick directly (since UsePeriodicTick bypasses CheckAbility)
+        }
+
+        protected override void OnPeriodicTick(float dt)
+        {
+            if (Sapi == null) return;
+
+            long nowMs = Sapi.World.ElapsedMilliseconds;
+
+            // Process existing active zones (damage + particles + cleanup)
+            ProcessActiveZones(dt, nowMs);
+
+            // Try to spawn new zone if cooldown ready and target in range
+            if (!entity.Alive) return;
+            if (IsBossClone) return;
+            if (stages.Count == 0) return;
+
+            if (!entity.TryGetHealthFraction(out float frac)) return;
+            var (stageObj, stageIndex) = FindStageForHealth(frac);
             if (stageObj is not Stage stage) return;
-            if (target == null) return;
+
             if (activeZones.Count >= stage.maxActiveZones) return;
+            if (!IsCooldownReady(stageObj)) return;
 
+            // Find target
+            if (!TargetingSystem.TryFindTarget(stage.maxTargetRange, 0, out EntityPlayer target, out float dist)) return;
+
+            // Spawn new zone
             MarkCooldownStart();
-
             Vec3d zonePos = target.Pos.XYZ.Clone();
 
             activeZones.Add(new VoidZoneInstance
             {
                 center = zonePos,
-                spawnedAtMs = Sapi.World.ElapsedMilliseconds,
+                spawnedAtMs = nowMs,
                 dim = entity.Pos.Dimension,
                 stageIndex = stageIndex
             });
 
             // Spawn initial poison burst on zone creation
-            ParticleUtils.SpawnPoisonExplosion(Sapi, zonePos, 1.5f, 1);
-            ParticleUtils.SpawnAuraRing(Sapi, zonePos, 1f, ParticleUtils.Colors.Shadow, 10, 0.3f);
+            ParticleUtils.SpawnShadowExplosion(Sapi, zonePos, 2.5f, 2);
+            ParticleUtils.SpawnAuraRing(Sapi, zonePos, 1.5f, ParticleUtils.Colors.Void, 16, 0.6f);
 
             // Sound
             TryPlaySound(stage.sound, stage.soundRange);
         }
 
-        protected override void OnPeriodicTick(float dt)
+        private void ProcessActiveZones(float dt, long nowMs)
         {
-            if (Sapi == null || activeZones.Count == 0) return;
-
-            long nowMs = Sapi.World.ElapsedMilliseconds;
+            if (activeZones.Count == 0) return;
 
             for (int i = activeZones.Count - 1; i >= 0; i--)
             {
@@ -114,8 +135,8 @@ namespace VsQuest
                 // Spawn aura ring while active
                 if (currentRadius >= 1f)
                 {
-                    ParticleUtils.SpawnAuraRing(Sapi, zone.center, currentRadius, ParticleUtils.Colors.Poison, (int)(currentRadius * 3), 0.25f);
-                    ParticleUtils.SpawnFalling(Sapi, zone.center, currentRadius, 2f, ParticleUtils.Colors.Shadow, (int)(currentRadius * 2), 0.2f);
+                    ParticleUtils.SpawnAuraRing(Sapi, zone.center, currentRadius, ParticleUtils.Colors.Void, (int)(currentRadius * 4), 0.6f);
+                    ParticleUtils.SpawnFalling(Sapi, zone.center, currentRadius, 2f, ParticleUtils.Colors.Void, (int)(currentRadius * 3), 0.5f);
                 }
 
                 // Damage players in zone

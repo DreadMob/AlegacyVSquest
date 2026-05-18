@@ -4,7 +4,7 @@
       "id": "albase:bosshunt-reward-bloodthirsty",
       "itemCode": "albase:bosshunt-bloodthirsty-bracelet",
       "name": "<font color=\"#DC2626\">Кандалы Оссуария</font>",
-      "description": "<font color=\"#FCA5A5\">Железо помнит каждую рану, которую нанесло.</font>",
+      "description": "<font color=\"#FCA5A5\">Кандалы с порванной цепью. Тот, кто их носил, отстоял своё право на личное пространство.</font>",
       "actions": [],
       "attributes": {
         "attackpower": 1,

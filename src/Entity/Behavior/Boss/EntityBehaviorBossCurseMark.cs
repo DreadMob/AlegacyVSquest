@@ -25,6 +25,7 @@ namespace VsQuest
             public float safeDistance;
             public string sound;
             public float soundRange;
+            public int damageTier;
 
             public override void FromJson(JsonObject json)
             {
@@ -34,6 +35,7 @@ namespace VsQuest
                 safeDistance = json["safeDistance"].AsFloat(10f);
                 sound = json["sound"].AsString("environment/thunder1");
                 soundRange = json["soundRange"].AsFloat(32f);
+                damageTier = json["damageTier"].AsInt(3);
             }
         }
 
@@ -59,7 +61,7 @@ namespace VsQuest
             markedPlayerUid = target.PlayerUID;
 
             // Pillar particles on marked player as warning
-            ParticleUtils.SpawnPillar(Sapi, target.Pos.XYZ, 3f, 0.8f, ParticleUtils.Colors.Shadow, 20);
+            ParticleUtils.SpawnPillar(Sapi, target.Pos.XYZ, 3f, 0.8f, ParticleUtils.Colors.ShadowDeep, 20);
 
             // Warning sound on mark
             TryPlaySound(stage.sound, stage.soundRange);
@@ -108,7 +110,8 @@ namespace VsQuest
                 {
                     Source = EnumDamageSource.Entity,
                     SourceEntity = entity,
-                    Type = EnumDamageType.Injury
+                    Type = EnumDamageType.Injury,
+                    DamageTier = stage.damageTier
                 }, finalDamage);
             }
 

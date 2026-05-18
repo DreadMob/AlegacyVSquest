@@ -1,0 +1,32 @@
+{
+  "_comment": "Reputation — Kassiy the Iron (Warlord)",
+
+  "reputation-npc-warlord-title": "Warlord",
+  "game:reputation-npc-warlord-title": "Warlord",
+  "albase:reputation-npc-warlord-title": "Warlord",
+
+  "reputation-warlord-rank-0": "Recruit",
+  "game:reputation-warlord-rank-0": "Recruit",
+  "albase:reputation-warlord-rank-0": "Recruit",
+  "reputation-warlord-rank-50": "Fighter",
+  "game:reputation-warlord-rank-50": "Fighter",
+  "albase:reputation-warlord-rank-50": "Fighter",
+  "reputation-warlord-rank-150": "Warrior",
+  "game:reputation-warlord-rank-150": "Warrior",
+  "albase:reputation-warlord-rank-150": "Warrior",
+  "reputation-warlord-rank-300": "Veteran",
+  "game:reputation-warlord-rank-300": "Veteran",
+  "albase:reputation-warlord-rank-300": "Veteran",
+  "reputation-warlord-rank-500": "Champion",
+  "game:reputation-warlord-rank-500": "Champion",
+  "albase:reputation-warlord-rank-500": "Champion",
+  "reputation-warlord-rank-1000": "Arena Legend",
+  "game:reputation-warlord-rank-1000": "Arena Legend",
+  "albase:reputation-warlord-rank-1000": "Arena Legend",
+
+  "reputation-reward-title-albase-warlord-50": "Fighter",
+  "reputation-reward-title-albase-warlord-150": "Warrior",
+  "reputation-reward-title-albase-warlord-300": "Veteran",
+  "reputation-reward-title-albase-warlord-500": "Champion",
+  "reputation-reward-title-albase-warlord-1000": "Arena Legend"
+}

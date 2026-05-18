@@ -354,6 +354,12 @@ namespace VsQuest
             trialModifierName = message.trialModifierName;
             trialChallengeNames = message.trialChallengeNames;
 
+            if (hasTrialShop)
+            {
+                capi?.Logger?.Debug("[TrialShop] Client received: hasShop={0}, shards={1}, rep={2}, rank='{3}', items={4}",
+                    hasTrialShop, trialShopShards, trialShopReputation, trialShopRankName, trialShopItems?.Count ?? 0);
+            }
+
             lastRewardStatuses = BuildRewardStatuses();
 
             if (HasAnyRewardTransitionedToClaimed(prevStatuses, lastRewardStatuses))
@@ -577,10 +583,13 @@ namespace VsQuest
 
 
             // GuiElementVerticalTabs constructor forces tabs[0].Active = true.
-
             // Force the correct active tab for visual highlight.
-
-            SingleComposer.GetVerticalTab("tabs").SetValue(curTab, false);
+            // SetValue expects array index, not DataInt — find the correct index.
+            int tabIndex = Array.FindIndex(tabs, t => t.DataInt == curTab);
+            if (tabIndex >= 0)
+            {
+                SingleComposer.GetVerticalTab("tabs").SetValue(tabIndex, false);
+            }
 
 
 
@@ -825,26 +834,26 @@ namespace VsQuest
             }
             else if (curTab == 3 && hasTrialShop)
             {
-                // Trial Shop tab — uses ReputationTreeElement for icon-based display
-                string repLabel = LocalizationUtils.GetSafe("albase:trial-reputation-label");
+                // Trial Shop tab — vertical item list with large icons in circles
                 string currLabel = LocalizationUtils.GetSafe("albase:trial-currency-name");
-                string headerText = $"{trialShopRankName ?? ""}  |  {repLabel}: {trialShopReputation}  |  {currLabel}: {trialShopShards}";
+                string rankDisplay = trialShopRankName ?? "-";
+
+                string headerText = $"{rankDisplay}  |  {trialShopShards} {currLabel}";
                 if (!string.IsNullOrWhiteSpace(trialModifierName))
                 {
-                    headerText += $"\n{LocalizationUtils.GetSafe("albase:trial-modifier-gui-label")}: {trialModifierName}";
+                    headerText += $"\n{trialModifierName}";
                 }
 
-                var levelBounds = ElementBounds.Fixed(0, 20, mainWidth, 25);
-                var mapBounds = ElementBounds.Fixed(0, 60, mainWidth, 500);
-                mapBounds.WithParent(bgBounds);
+                var shopRows = BuildTrialShopListRows();
+                var levelBounds = ElementBounds.Fixed(0, 20, mainWidth, 55);
+                var listBounds = ElementBounds.Fixed(0, 80, mainWidth, 480);
+                listBounds.WithParent(bgBounds);
                 var closeCenteredBounds2 = ElementBounds.FixedOffseted(EnumDialogArea.CenterBottom, 0, -10, 200, 20);
 
-                var shopNodes = BuildTrialShopNodes();
-
                 SingleComposer
-                    .AddStaticText(headerText, CairoFont.WhiteSmallishText(), levelBounds)
+                    .AddStaticText(headerText, CairoFont.WhiteSmallishText().WithFontSize(20), levelBounds)
                     .AddButton(Lang.Get("alegacyvsquest:button-cancel"), TryClose, closeCenteredBounds2)
-                    .AddInteractiveElement(new ReputationTreeElement(capi, mapBounds, shopNodes, OnTrialShopNodeClicked), "shopnodes");
+                    .AddInteractiveElement(new ItemListElement(capi, listBounds, shopRows, OnTrialShopRowClicked), "shoplist");
             }
 
             SingleComposer.EndChildElements().Compose();
@@ -870,6 +879,42 @@ namespace VsQuest
         }
 
 
+
+        private string BuildTrialShopRichtext()
+        {
+            if (trialShopItems == null || trialShopItems.Count == 0)
+                return "<font color=\"#6B7280\">Магазин пуст.</font>";
+
+            var sb = new System.Text.StringBuilder();
+
+            for (int i = 0; i < trialShopItems.Count; i++)
+            {
+                var item = trialShopItems[i];
+                if (item == null) continue;
+
+                string name = !string.IsNullOrWhiteSpace(item.NameKey)
+                    ? LocalizationUtils.GetSafe(item.NameKey)
+                    : item.ItemCode;
+
+                bool canBuy = !item.IsLocked && trialShopShards >= item.Cost;
+                bool soldOut = item.MaxPurchases > 0 && item.PurchasesMade >= item.MaxPurchases;
+
+                string nameColor = item.IsLocked ? "#666666" : (soldOut ? "#888888" : "#FFFFFF");
+                string costColor = canBuy ? "#60A5FA" : "#CD5C5C";
+
+                sb.Append($"<font color=\"{nameColor}\">{name}</font>");
+                sb.Append($"  <font color=\"{costColor}\">{item.Cost}◆</font>");
+
+                if (item.IsLocked)
+                    sb.Append($"  <font color=\"#666666\">[{item.RequiredReputation} реп.]</font>");
+                else if (soldOut)
+                    sb.Append("  <font color=\"#888888\">[куплено]</font>");
+
+                sb.AppendLine();
+            }
+
+            return sb.ToString();
+        }
 
         private List<ReputationTreeNode> BuildTrialShopNodes()
         {
@@ -942,12 +987,18 @@ namespace VsQuest
 
             string indexStr = nodeId.Substring(5);
             if (!int.TryParse(indexStr, out int index)) return;
-            if (trialShopItems == null || index < 0 || index >= trialShopItems.Count) return;
+
+            OnShopBuyClicked(index);
+        }
+
+        private bool OnShopBuyClicked(int index)
+        {
+            if (trialShopItems == null || index < 0 || index >= trialShopItems.Count) return false;
 
             var item = trialShopItems[index];
-            if (item == null || item.IsLocked) return;
-            if (item.MaxPurchases > 0 && item.PurchasesMade >= item.MaxPurchases) return;
-            if (trialShopShards < item.Cost) return;
+            if (item == null || item.IsLocked) return false;
+            if (item.MaxPurchases > 0 && item.PurchasesMade >= item.MaxPurchases) return false;
+            if (trialShopShards < item.Cost) return false;
 
             // Send buy request via trial shop channel
             capi.Network.GetChannel(TrialShopNetworkHandler.ChannelName).SendPacket(new BuyTrialShopItemMessage
@@ -965,6 +1016,79 @@ namespace VsQuest
                     Trigger = "openquests"
                 });
             }
+
+            return true;
+        }
+
+        private List<ItemListRow> BuildTrialShopListRows()
+        {
+            var result = new List<ItemListRow>();
+            if (trialShopItems == null) return result;
+
+            for (int i = 0; i < trialShopItems.Count; i++)
+            {
+                var item = trialShopItems[i];
+                if (item == null) continue;
+
+                string name = !string.IsNullOrWhiteSpace(item.NameKey)
+                    ? LocalizationUtils.GetSafe(item.NameKey)
+                    : item.ItemCode;
+
+                bool canBuy = !item.IsLocked && trialShopShards >= item.Cost;
+                bool soldOut = item.MaxPurchases > 0 && item.PurchasesMade >= item.MaxPurchases;
+
+                ItemRowStatus status;
+                string subtitle;
+
+                if (item.IsLocked)
+                {
+                    status = ItemRowStatus.Locked;
+                    subtitle = $"{item.Cost} осколков  |  Требуется {item.RequiredReputation} реп.";
+                }
+                else if (soldOut)
+                {
+                    status = ItemRowStatus.Owned;
+                    subtitle = $"{item.Cost} осколков  |  Куплено";
+                }
+                else if (canBuy)
+                {
+                    status = ItemRowStatus.Available;
+                    subtitle = $"{item.Cost} осколков  |  Нажмите для покупки";
+                }
+                else
+                {
+                    status = ItemRowStatus.Locked;
+                    subtitle = $"{item.Cost} осколков  |  Недостаточно";
+                }
+
+                string iconCode = item.ItemCode;
+                if (iconCode.StartsWith("case:", StringComparison.OrdinalIgnoreCase))
+                {
+                    iconCode = "game:gear-temporal";
+                }
+
+                result.Add(new ItemListRow
+                {
+                    Id = "shop:" + i,
+                    IconItemCode = iconCode,
+                    Title = name,
+                    Subtitle = subtitle,
+                    Status = status
+                });
+            }
+
+            return result;
+        }
+
+        private void OnTrialShopRowClicked(string rowId)
+        {
+            if (string.IsNullOrWhiteSpace(rowId)) return;
+            if (!rowId.StartsWith("shop:", StringComparison.OrdinalIgnoreCase)) return;
+
+            string indexStr = rowId.Substring(5);
+            if (!int.TryParse(indexStr, out int index)) return;
+
+            OnShopBuyClicked(index);
         }
 
 
@@ -987,15 +1111,10 @@ namespace VsQuest
 
 
         private void OnTabClicked(int id, GuiTab tab)
-
         {
-
             CloseOpenedDropDown();
-
-            curTab = id;
-
+            curTab = tab.DataInt;
             RequestRecompose();
-
         }
 
 

@@ -1,0 +1,26 @@
+{
+  "actionItems": [
+    {
+      "id": "albase:trial-tracker",
+      "itemCode": "albase:trial-tracker",
+      "name": "<font color=\"#A78BFA\">Эхо Пустоты</font>",
+      "description": "<font color=\"#9CA3AF\">Осколок разлома, настроенный на след порождений Пустоты. Указывает расстояние до ближайшего активного босса испытаний. Каждое использование стоит каплю крови.</font>",
+      "actions": [
+        {
+          "id": "tracktrialboss",
+          "args": []
+        }
+      ],
+      "blockMove": false,
+      "blockEquip": true,
+      "blockDrop": true,
+      "blockDeath": false,
+      "blockGroundStorage": false,
+      "showAttributes": [],
+      "hideVanillaTooltips": [
+        "durability",
+        "modsource"
+      ]
+    }
+  ]
+}

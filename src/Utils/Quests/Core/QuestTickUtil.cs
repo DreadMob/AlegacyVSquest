@@ -118,7 +118,7 @@ namespace VsQuest
                             {
                                 var objective = questDef.actionObjectives[i];
                                 if (objective == null) continue;
-                                if (objective.id == "walkdistance" || objective.id == "temporalstorm")
+                                if (objective.id == "walkdistance" || objective.id == "temporalstorm" || objective.id == "timer")
                                 {
                                     hasTickObjectives = true;
                                     break;
@@ -215,6 +215,14 @@ namespace VsQuest
                 if (ao.id == "interactwithentity") continue;
                 if (ao.id == "interactat") continue;
                 if (ao.id == "interactcount") continue;
+                // [EXPERIMENTAL] Skip event-driven experimental objectives
+                if (ao.id == "killwithweapon") continue;
+                if (ao.id == "mineblock") continue;
+                if (ao.id == "placeblock") continue;
+                if (ao.id == "harvestcrop") continue;
+                if (ao.id == "fishcatch") continue;
+                if (ao.id == "craftitem") continue;
+                if (ao.id == "smeltitem") continue;
 
                 sapi.Logger.Debug($"[QuestTickUtil] Processing action objective: {ao.id}");
                 if (!actionObjectiveRegistry.TryGetValue(ao.id, out var impl) || impl == null) 

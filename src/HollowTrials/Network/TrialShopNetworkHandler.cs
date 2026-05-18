@@ -228,21 +228,26 @@ namespace VsQuest
         /// </summary>
         public List<TrialShopItemData> BuildShopItemsForMessage(string playerUid)
         {
-            if (sapi == null || string.IsNullOrWhiteSpace(playerUid)) return null;
+            if (sapi == null || string.IsNullOrWhiteSpace(playerUid)) return new List<TrialShopItemData>();
 
             var trialSystem = sapi.ModLoader.GetModSystem<HollowTrialSystem>();
             var repManager = trialSystem?.GetReputationManager();
-            if (repManager == null) return null;
 
-            int reputation = repManager.GetReputation(playerUid);
+            int reputation = repManager?.GetReputation(playerUid) ?? 0;
             var arr = BuildShopItems(reputation, playerUid);
-            return arr != null ? new List<TrialShopItemData>(arr) : null;
+            return arr != null && arr.Length > 0 ? new List<TrialShopItemData>(arr) : new List<TrialShopItemData>();
         }
 
         private void OnBuyRequest(IServerPlayer player, BuyTrialShopItemMessage message)
         {
             if (sapi == null || player == null || message == null) return;
-            if (string.IsNullOrWhiteSpace(message.ItemCode)) return;
+
+            // Empty ItemCode = "open shop" request
+            if (string.IsNullOrWhiteSpace(message.ItemCode))
+            {
+                SendShopToPlayer(player);
+                return;
+            }
 
             var trialSystem = sapi.ModLoader.GetModSystem<HollowTrialSystem>();
             if (trialSystem == null) return;

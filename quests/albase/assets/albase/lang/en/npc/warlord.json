@@ -1,0 +1,35 @@
+{
+  "_comment": "Warlord (Kassiy the Iron) - NPC dialogues and general strings",
+
+  "dialogue-warlord-intro": "You stand before Kassiy the Iron. I remember every warrior who set foot in the arena. Some with honor, some with shame.",
+  "dialogue-warlord-whoareyou": "Who are you?",
+  "dialogue-warlord-whoareyou-answer": "I am Kassiy the Iron. Once I marched into battle myself, broke spears against enemy shields. Now I judge the arena. Those who pass my trials become legends. The rest are dust in the wind.",
+  "dialogue-warlord-aboutarena": "Tell me about the arena",
+  "dialogue-warlord-aboutarena-answer": "The arena is not just a place for combat. It is a trial of spirit, strength, and mastery. Legends are forged here, and the weak are broken. Every warrior who steps on these stones writes their own story. The question is — will it be worthy?",
+  "dialogue-warlord-leaderboard-confirm": "Here are the names of the greatest arena warriors:",
+  "dialogue-warlord-leaderboard": "Who are the strongest warriors?",
+  "dialogue-warlord-stats-confirm": "Here is your battle record:",
+  "dialogue-warlord-stats": "My combat stats",
+  "dialogue-warlord-close-answer": "Go. The arena awaits.",
+  "dialogue-warlord-close": "Farewell",
+
+  "dialogue-warlord-reputation": "My reputation",
+  "dialogue-warlord-reputation-confirm": "Let's see what you're worth in the arena:",
+
+  "dialogue-warlord-repair": "Repair my gear",
+  "dialogue-warlord-repair-info": "Good weapons deserve care. Bring me rusty gears and I'll restore your blade's edge. Hold the item in your right hand and choose what to repair.",
+  "dialogue-warlord-repair-full": "Full repair (36 gears, +2000)",
+  "dialogue-warlord-repair-small": "Patch up (10 gears, +500)",
+  "dialogue-warlord-repair-cantafford": "I don't have enough gears...",
+  "dialogue-warlord-repair-cantafford-answer": "No gears, no repair. Come back when you find some.",
+  "dialogue-warlord-repair-nothing": "Hold a damaged item in your right hand. I can't repair thin air.",
+  "dialogue-warlord-repair-working": "Let me take a look... Good steel. I'll fix it up.",
+  "dialogue-warlord-repair-working-full": "Serious work. Hold on — I'll make it good as new.",
+  "dialogue-warlord-repair-done": "Done. It'll serve you well. Take care of your gear — it takes care of you.",
+  "dialogue-warlord-repair-done-full": "Fresh off the anvil. Full repair — not a scratch left.",
+
+  "no-quest-available-warlord": "Reputation grows in battle. Win in the arena — and I'll remember it.",
+  "tradingwindow-warlord": "Kassiy the Iron",
+  "game:tradingwindow-warlord": "Kassiy the Iron",
+  "albase:tradingwindow-warlord": "Kassiy the Iron"
+}

@@ -233,20 +233,20 @@ namespace VsQuest
             float progress = (float)Math.Min(1.0, elapsed / windupMs);
 
             // More particles as telegraph progresses (builds urgency)
-            int baseCount = shape == "circle" ? (int)(radius * 4) : (int)(length * 3);
-            int count = (int)(baseCount * (0.5f + progress * 0.5f));
+            int baseCount = shape == "circle" ? (int)(radius * 6) : (int)(length * 5);
+            int count = (int)(baseCount * (0.6f + progress * 0.4f));
             var rand = entity.World.Rand;
 
             // Color shifts from yellow (warning) to bright red (danger!) as progress increases
             int r = (int)(255 * Math.Min(1f, 0.6f + progress * 0.4f));
             int g = (int)(200 * (1f - progress * 0.8f));
             int b = 30;
-            int alpha = (int)(180 + progress * 75);
+            int alpha = (int)(200 + progress * 55);
             int color = ColorUtil.ToRgba(alpha, r, g, b);
 
-            // Particle size grows with progress
-            float minSize = 0.3f + progress * 0.3f;
-            float maxSize = 0.5f + progress * 0.5f;
+            // Particle size grows with progress — larger for readability
+            float minSize = 0.5f + progress * 0.5f;
+            float maxSize = 0.9f + progress * 0.7f;
 
             for (int i = 0; i < count; i++)
             {
@@ -254,13 +254,13 @@ namespace VsQuest
                 if (particlePos == null) continue;
 
                 entity.World.SpawnParticles(new SimpleParticleProperties(
-                    minQuantity: 1, maxQuantity: 2,
+                    minQuantity: 1, maxQuantity: 3,
                     color: color,
                     minPos: particlePos.AddCopy(0, 0.05, 0),
-                    maxPos: particlePos.AddCopy(0, 0.2, 0),
-                    minVelocity: new Vec3f(0, 0.1f + progress * 0.3f, 0),
-                    maxVelocity: new Vec3f(0, 0.3f + progress * 0.4f, 0),
-                    lifeLength: 0.5f + progress * 0.3f,
+                    maxPos: particlePos.AddCopy(0, 0.3, 0),
+                    minVelocity: new Vec3f(0, 0.15f + progress * 0.4f, 0),
+                    maxVelocity: new Vec3f(0, 0.4f + progress * 0.5f, 0),
+                    lifeLength: 0.6f + progress * 0.4f,
                     gravityEffect: -0.02f,
                     minSize: minSize, maxSize: maxSize,
                     model: EnumParticleModel.Quad
@@ -273,7 +273,7 @@ namespace VsQuest
                 entity.World.PlaySoundAt(
                     new AssetLocation("game:sounds/effect/translocate-active"),
                     telegraphCenter.X, telegraphCenter.Y, telegraphCenter.Z,
-                    null, true, 20f, 0.4f + progress * 0.3f);
+                    null, true, 48f, 0.5f + progress * 0.3f);
             }
         }
 

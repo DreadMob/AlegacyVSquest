@@ -130,8 +130,35 @@ namespace VsQuest
                     double dist = Math.Sqrt(player.Entity.Pos.SquareDistanceTo(entity.Pos.XYZ));
                     if (dist >= stage.breakDistance)
                     {
+                        // Break chain and deal break damage
+                        player.Entity.ReceiveDamage(new DamageSource
+                        {
+                            Source = EnumDamageSource.Entity,
+                            SourceEntity = entity,
+                            Type = EnumDamageType.Injury,
+                            DamageTier = 3
+                        }, stage.breakDamage);
+                        ParticleUtils.SpawnImpact(Sapi, player.Entity, ParticleUtils.Colors.Chain, 12, 0.4f);
+                        entity.World.PlaySoundAt(new AssetLocation("game:sounds/effect/reverbhit"), player.Entity.Pos.X, player.Entity.Pos.Y, player.Entity.Pos.Z, null, true, 56, 0.5f);
                         BreakChain();
                         return;
+                    }
+
+                    // Pull force: when player is beyond 70% of break distance, pull toward boss
+                    double pullThreshold = stage.breakDistance * 0.7;
+                    if (dist > pullThreshold)
+                    {
+                        Vec3d dir = entity.Pos.XYZ.SubCopy(player.Entity.Pos.XYZ);
+                        dir.Normalize();
+                        double pullStrength = 0.08 * ((dist - pullThreshold) / (stage.breakDistance - pullThreshold));
+                        player.Entity.Pos.Motion.Add(dir.X * pullStrength, 0, dir.Z * pullStrength);
+
+                        // Sound when chain pulls player (every 1 sec)
+                        double chainElapsed = (nowMs - chainStartMs) / 1000.0;
+                        if ((int)(chainElapsed * 1000) % 1000 < (int)(dt * 1000) + 50)
+                        {
+                            entity.World.PlaySoundAt(new AssetLocation("game:sounds/block/metalhit"), entity.Pos.X, entity.Pos.Y, entity.Pos.Z, null, true, 40, 0.2f);
+                        }
                     }
 
                     // Spawn chain line particles between boss and player

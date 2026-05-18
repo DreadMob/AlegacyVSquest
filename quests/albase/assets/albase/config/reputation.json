@@ -19,6 +19,17 @@
         { "min": 1500, "rankLangKey": "albase:reputation-innkeeper-rank-1500", "rewardAction": "giveitem game:poultice-linen-honey-sulfur 8" },
         { "min": 2000, "rankLangKey": "albase:reputation-innkeeper-rank-2000", "rewardAction": "giveitem game:crystalizedore-rich-uranium-chalk 1" }
       ]
+    },
+    "albase:warlord": {
+      "titleLangKey": "albase:reputation-npc-warlord-title",
+      "ranks": [
+        { "min": 0, "rankLangKey": "albase:reputation-warlord-rank-0" },
+        { "min": 50, "rankLangKey": "albase:reputation-warlord-rank-50", "rewardAction": "giveitem game:gear-rusty 8" },
+        { "min": 150, "rankLangKey": "albase:reputation-warlord-rank-150", "rewardAction": "giveitem game:nugget-rhodochrosite 4" },
+        { "min": 300, "rankLangKey": "albase:reputation-warlord-rank-300", "rewardAction": "giveitem game:ore-phosphorite 4" },
+        { "min": 500, "rankLangKey": "albase:reputation-warlord-rank-500", "rewardAction": "giveitem game:ingot-gold 4" },
+        { "min": 1000, "rankLangKey": "albase:reputation-warlord-rank-1000", "rewardAction": "giveitem game:crystalizedore-rich-uranium-chalk 1" }
+      ]
     }
   }
 }

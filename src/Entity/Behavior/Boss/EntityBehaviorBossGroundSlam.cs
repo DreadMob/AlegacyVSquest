@@ -101,16 +101,16 @@ namespace VsQuest
                     {
                         float kbX = (float)(dx / dist) * stage.knockbackStrength;
                         float kbZ = (float)(dz / dist) * stage.knockbackStrength;
-                        pe.SidedPos.Motion.Add(kbX, 0.3f * stage.knockbackStrength, kbZ);
+                        pe.Pos.Motion.Add(kbX, 0.3f * stage.knockbackStrength, kbZ);
                     }
                 }
             }
 
             // Shockwave particles on impact
-            ParticleUtils.SpawnShockwave(Sapi, slamCenter, stage.radius, ParticleUtils.Colors.Fire, (int)(stage.radius * 6), 0.5f);
+            ParticleUtils.SpawnShockwave(Sapi, slamCenter, stage.radius, ParticleUtils.Colors.Smoke, (int)(stage.radius * 6), 0.5f);
 
             // Secondary shockwave for visual impact
-            ParticleUtils.SpawnShockwave(Sapi, slamCenter, stage.radius * 0.5f, ParticleUtils.Colors.Smoke, (int)(stage.radius * 3), 0.3f);
+            ParticleUtils.SpawnShockwave(Sapi, slamCenter, stage.radius * 0.5f, ParticleUtils.Colors.SmokeDark, (int)(stage.radius * 3), 0.3f);
 
             // Sound
             TryPlaySound(stage.sound, stage.soundRange);
@@ -122,7 +122,7 @@ namespace VsQuest
         {
             if (Sapi == null || center == null) return;
 
-            ParticleUtils.SpawnAuraRing(Sapi, center, radius, ParticleUtils.Colors.Fire, (int)(radius * 4), 0.25f);
+            ParticleUtils.SpawnAuraRing(Sapi, center, radius, ParticleUtils.Colors.Smoke, (int)(radius * 4), 0.25f);
         }
 
         protected override void StopAbility() { }

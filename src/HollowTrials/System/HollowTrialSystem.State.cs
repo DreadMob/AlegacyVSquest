@@ -57,7 +57,7 @@ namespace VsQuest
             stateDirty = false;
         }
 
-        private HollowTrialStateEntry GetOrCreateEntry(string trialKey)
+        internal HollowTrialStateEntry GetOrCreateEntry(string trialKey)
         {
             if (string.IsNullOrWhiteSpace(trialKey)) return null;
 

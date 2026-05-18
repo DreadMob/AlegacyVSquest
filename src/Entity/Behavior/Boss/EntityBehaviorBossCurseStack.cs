@@ -98,6 +98,7 @@ namespace VsQuest
 
             // Particles per stack
             ParticleUtils.SpawnEntityAura(Sapi, target.Entity, ParticleUtils.Colors.Shadow, 4, 0.3f, 0.4f);
+            entity.World.PlaySoundAt(new AssetLocation("game:sounds/player/projectilehit"), target.Entity.Pos.X, target.Entity.Pos.Y, target.Entity.Pos.Z, null, true, 32, 0.2f);
 
             // Trigger effect at max stacks
             if (data.stacks >= stage.maxStacks)
@@ -145,11 +146,12 @@ namespace VsQuest
             switch (stage.effectType.ToLowerInvariant())
             {
                 case "stun":
+                    float stunMs = Math.Max(5000f, stage.stunDurationMs);
                     pe.Stats.Set("walkspeed", "cursestun", -0.95f, false);
                     RegisterCallbackTracked(_ =>
                     {
-                        pe.Stats.Remove("walkspeed", "cursestun");
-                    }, (int)stage.stunDurationMs);
+                        pe?.Stats?.Remove("walkspeed", "cursestun");
+                    }, (int)stunMs);
                     break;
 
                 case "teleport":
@@ -158,11 +160,12 @@ namespace VsQuest
                     break;
 
                 case "slow":
+                    float slowMs = Math.Max(4000f, stage.slowDurationMs);
                     pe.Stats.Set("walkspeed", "curseslow", -stage.slowFactor, false);
                     RegisterCallbackTracked(_ =>
                     {
-                        pe.Stats.Remove("walkspeed", "curseslow");
-                    }, (int)stage.slowDurationMs);
+                        pe?.Stats?.Remove("walkspeed", "curseslow");
+                    }, (int)slowMs);
                     break;
             }
 

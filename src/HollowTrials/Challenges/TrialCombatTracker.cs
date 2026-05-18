@@ -38,6 +38,16 @@ namespace VsQuest
         public Dictionary<string, bool> SaturationGainedByPlayer { get; } = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
+        /// Per-player: whether a potion/healing item was used during the fight (for "nopotions" challenge).
+        /// </summary>
+        public Dictionary<string, bool> PotionUsedByPlayer { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Per-player: max HP recorded during the fight (for "lowdiet" challenge).
+        /// </summary>
+        public Dictionary<string, float> MaxHpByPlayer { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
         /// Per-player: saturation value recorded at fight start (first damage by that player).
         /// </summary>
         public Dictionary<string, float> InitialSaturationByPlayer { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -229,6 +239,8 @@ namespace VsQuest
             DamageByPlayer.Clear();
             DeathsByPlayer.Clear();
             SaturationGainedByPlayer.Clear();
+            PotionUsedByPlayer.Clear();
+            MaxHpByPlayer.Clear();
             InitialSaturationByPlayer.Clear();
             MaxArmorTierByPlayer.Clear();
             AbilityDamageByPlayer.Clear();

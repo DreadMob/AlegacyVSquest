@@ -4,7 +4,7 @@
       "id": "albase:bosshunt-tracker",
       "itemCode": "albase:gear-bosshunt",
       "name": "<font color=\"#D97706\">Кровемер</font>",
-      "description": "<font color=\"#F59E0B\">Кровемер — тусклый осколок, что откликается на след древнего стража. Он не укажет дорогу — лишь назовёт расстояние. За каждый ответ он берёт плату кровью.</font>",
+      "description": "<font color=\"#F59E0B\">Крипта берёт плату кровью даже за знание. Это лишь предзнаменование того, что ждёт впереди.</font>",
       "actions": [
         {
           "id": "trackboss",

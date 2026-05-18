@@ -200,6 +200,13 @@ namespace VsQuest.Harmony.Players
                     {
                         damage *= trialDamageMult;
                     }
+
+                    // Trial tier damage tier bonus (tier 2: +1, tier 3: +2)
+                    int trialDamageTierBonus = sourceWatchedAttrs.GetInt("alegacyvsquest:trial:damageTierBonus", 0);
+                    if (trialDamageTierBonus > 0 && damageSource != null)
+                    {
+                        damageSource.DamageTier += trialDamageTierBonus;
+                    }
                 }
             }
 
@@ -246,6 +253,14 @@ namespace VsQuest.Harmony.Players
             }
 
             // Continue to original method
+            // Track boss-to-player damage for CurseStack ability
+            if (__instance is EntityPlayer && sourceEntity is EntityAgent sourceAgent && BossDetection.IsBossTargetFast(sourceAgent) && damage > 0)
+            {
+                long nowTrack = __instance.World?.ElapsedMilliseconds ?? 0;
+                watchedAttrs.SetLong("lastDamageByEntityMs", nowTrack);
+                watchedAttrs.SetLong("lastDamageByEntityId", sourceEntity.EntityId);
+            }
+
             return true;
         }
 

@@ -15,18 +15,22 @@ namespace VsQuest
         public TrialShopNetworkHandler GetShopHandler() => shopNetworkHandler;
 
         /// <summary>
+        /// Get all loaded trial configs (for anchor boss assignment).
+        /// </summary>
+        public List<HollowTrialConfig> GetAllConfigs() => allConfigs;
+
+        /// <summary>
         /// Get the currently active weekly modifier.
         /// </summary>
         public int GetActiveModifier() => state?.activeModifier ?? 0;
 
         /// <summary>
         /// Reload trial configs from disk (hot-reload). Returns number of configs loaded.
-        /// Also clears all registered anchor points so they re-register on next block tick.
+        /// Anchor points are preserved — they re-register periodically on their own.
         /// </summary>
         public int ReloadConfigs()
         {
             LoadConfigs();
-            ClearAllAnchors();
             return allConfigs.Count;
         }
 
@@ -38,16 +42,77 @@ namespace VsQuest
         {
             if (state?.entries == null) return;
 
-            foreach (var kvp in state.entries)
+            for (int i = 0; i < state.entries.Count; i++)
             {
-                if (kvp.Value?.anchorPoints != null)
+                var entry = state.entries[i];
+                if (entry?.anchorPoints != null)
                 {
-                    kvp.Value.anchorPoints.Clear();
+                    entry.anchorPoints.Clear();
                 }
             }
 
             stateDirty = true;
             sapi?.Logger?.Notification("[HollowTrials] All anchor points cleared. They will re-register on next tick.");
+        }
+
+        /// <summary>
+        /// Reassign random bosses to all placed VoidRiftAnchor block entities in the world.
+        /// Called after rotation/skip. Picks a new random boss for each anchor immediately.
+        /// </summary>
+        public void ReassignAllAnchors()
+        {
+            if (sapi == null) return;
+
+            // Collect all anchor positions from state entries
+            var anchorPositions = new List<(BlockPos pos, string oldKey)>();
+            if (state?.entries != null)
+            {
+                foreach (var entry in state.entries)
+                {
+                    if (entry?.anchorPoints == null) continue;
+                    foreach (var ap in entry.anchorPoints)
+                    {
+                        anchorPositions.Add((new BlockPos(ap.x, ap.y, ap.z, ap.dim), entry.trialKey));
+                    }
+                }
+            }
+
+            foreach (var (pos, oldKey) in anchorPositions)
+            {
+                try
+                {
+                    var be = sapi.World.BlockAccessor.GetBlockEntity(pos) as BlockEntityVoidRiftAnchor;
+                    if (be == null) continue;
+
+                    be.ClearAssignedBoss();
+                    be.OnBossKilled(0); // Reset cooldown
+                    be.AssignRandomBoss(); // Immediately assign new boss
+                }
+                catch { }
+            }
+
+            sapi.Logger.Notification("[HollowTrials] Rotation complete. All anchors reassigned with new bosses.");
+        }
+
+        /// <summary>
+        /// Get all state entries (for status command to enumerate all anchors).
+        /// </summary>
+        public List<HollowTrialStateEntry> GetAllEntries()
+        {
+            return state?.entries;
+        }
+
+        /// <summary>
+        /// Clear all state entries (anchor registrations, cooldowns, rotation state).
+        /// Used by /avq trials clear command.
+        /// </summary>
+        public void ClearAllEntries()
+        {
+            if (state != null)
+            {
+                state.entries?.Clear();
+                stateDirty = true;
+            }
         }
 
         /// <summary>

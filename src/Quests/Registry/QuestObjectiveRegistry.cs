@@ -35,6 +35,16 @@ namespace VsQuest
             objectiveRegistry.Add("walkdistance", new WalkDistanceObjective());
             objectiveRegistry.Add("timeofday", new TimeOfDayObjective());
             objectiveRegistry.Add("killactivetrial", new KillActiveTrialObjective());
+
+            // [EXPERIMENTAL] New objectives — may change or be removed in future versions
+            objectiveRegistry.Add("killwithweapon", new KillWithWeaponObjective());
+            objectiveRegistry.Add("harvestcrop", new HarvestCropObjective());
+            objectiveRegistry.Add("mineblock", new MineBlockObjective());
+            objectiveRegistry.Add("placeblock", new PlaceBlockObjective());
+            objectiveRegistry.Add("fishcatch", new FishCatchObjective());
+            objectiveRegistry.Add("timer", new TimerObjective());
+            objectiveRegistry.Add("craftitem", new CraftItemObjective());
+            objectiveRegistry.Add("smeltitem", new SmeltItemObjective());
         }
     }
 }

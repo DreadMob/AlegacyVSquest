@@ -71,7 +71,7 @@ namespace VsQuest
 
                 string rotationMsg = LocalizationUtils.GetSafe("albase:trial-rotation-reset-chat");
                 string discordRotationMsg = modType != TrialModifierType.None
-                    ? LocalizationUtils.GetSafe("albase:trial-rotation-discord", modName)
+                    ? LocalizationUtils.GetSafe("albase:trial-rotation-discord", "⚡ " + modName)
                     : LocalizationUtils.GetSafe("albase:trial-rotation-discord-nomod");
 
                 GlobalChatBroadcastUtil.BroadcastGeneralChatWithDiscord(

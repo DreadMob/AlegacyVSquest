@@ -167,7 +167,7 @@ namespace VsQuest
             int groundY = ey;
             for (int y = ey; y > ey - 10; y--)
             {
-                var block = blockAccess.GetBlock(ex, y, ez);
+                var block = blockAccess.GetBlock(new BlockPos(ex, y, ez, entity.Pos.Dimension));
                 if (block != null && block.SideSolid[BlockFacing.UP.Index])
                 {
                     groundY = y + 1;
@@ -181,26 +181,22 @@ namespace VsQuest
 
             // Always cancel gravity — this entity flies
             entity.Pos.Motion.Y = 0;
-            entity.ServerPos.Motion.Y = 0;
 
             // Strong correction to maintain hover height
             if (diff > 0.1)
             {
                 double lift = Math.Min(0.15, diff * 0.2);
                 entity.Pos.Motion.Y = lift;
-                entity.ServerPos.Motion.Y = lift;
             }
             else if (diff < -0.1)
             {
                 double sink = Math.Max(-0.08, diff * 0.15);
                 entity.Pos.Motion.Y = sink;
-                entity.ServerPos.Motion.Y = sink;
             }
 
             // If entity is way too low, teleport up
             if (diff > 1.0)
             {
-                entity.ServerPos.Y = targetY;
                 entity.Pos.Y = targetY;
             }
         }
@@ -225,7 +221,7 @@ namespace VsQuest
             }
 
             // Vanish sound
-            entity.World.PlaySoundAt(new AssetLocation("game:sounds/effect/translocate-active"), entity, null, true, 24);
+            entity.World.PlaySoundAt(new AssetLocation("game:sounds/effect/translocate-active"), entity, null, true, 56);
         }
 
         private void Reappear(ICoreServerAPI sapi)
@@ -254,8 +250,8 @@ namespace VsQuest
             }
 
             // Reappear sound
-            entity.World.PlaySoundAt(new AssetLocation("game:sounds/effect/translocate-active"), entity, null, true, 24);
-            entity.World.PlaySoundAt(new AssetLocation("game:sounds/creature/drifter-hurt"), entity, null, true, 16);
+            entity.World.PlaySoundAt(new AssetLocation("game:sounds/effect/translocate-active"), entity, null, true, 56);
+            entity.World.PlaySoundAt(new AssetLocation("game:sounds/creature/drifter-hurt"), entity, null, true, 40);
         }
 
         private void MoveTowardBehindPlayer(EntityPlayer target)

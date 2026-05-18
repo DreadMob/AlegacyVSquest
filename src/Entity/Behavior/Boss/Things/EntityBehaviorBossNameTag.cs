@@ -68,6 +68,9 @@ namespace VsQuest
         {
             if (capi == null) return;
 
+            // Don't show boss bar for mirror image clones
+            if (entity.WatchedAttributes.GetBool("alegacyvsquest:bossclone", false)) return;
+
             long nowMs = capi.World.ElapsedMilliseconds;
             if (nowMs - lastUpdateMs >= 1000)
             {

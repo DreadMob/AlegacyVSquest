@@ -4,7 +4,7 @@
       "id": "albase:bosshunt-reward-ultrawarm-coat",
       "itemCode": "albase:psary-fur-coat",
       "name": "<font color=\"#F8FAFC\">Шкура Псаря</font>",
-      "description": "<font color=\"#E2E8F0\">Шерсть пахнет кровью и снегом. Тем, кто внутри — тепло.</font>",
+      "description": "<font color=\"#E2E8F0\">Овечью шкуру наденет волк, но кто осмелится надевать волчью?..</font>",
       "actions": [],
       "chargeMode": "partial",
       "chargeGatedAttrs": ["warmth"],

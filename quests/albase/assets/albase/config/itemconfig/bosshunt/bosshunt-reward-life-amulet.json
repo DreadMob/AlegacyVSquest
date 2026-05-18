@@ -4,7 +4,7 @@
       "id": "albase:bosshunt-reward-life-amulet",
       "itemCode": "albase:bosshunt-life-amulet",
       "name": "<font color=\"#34D399\">Талисман стаи</font>",
-      "description": "<font color=\"#6EE7B7\">Вожак мёртв. Стая — нет.</font>",
+      "description": "<font color=\"#6EE7B7\">Вожак мёртв. Да здравствует вожак!</font>",
       "actions": [],
       "attributes": {
         "healonkill": 0.05,

@@ -4,7 +4,7 @@
       "id": "albase:bosshunt-reward-miner-belt",
       "itemCode": "albase:bosshunt-miner-belt",
       "name": "<font color=\"#F59E0B\">Пояс Оссуария</font>",
-      "description": "<font color=\"#FBBF24\">Чем глубже копаешь, тем тише становится наверху.</font>",
+      "description": "<font color=\"#FBBF24\">Пояс из чрева разрушения. Он лишь сменил хозяина — или это ты нашёл нового.</font>",
       "actions": [],
       "attributes": {
         "maxhealthflat": -4.0,
