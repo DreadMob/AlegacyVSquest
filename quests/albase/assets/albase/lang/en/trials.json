@@ -1,23 +1,51 @@
 ﻿{
-    "actionItems":  [
-                        {
-                            "id":  "albase:trial-void-pendant",
-                            "itemCode":  "albase:trial-void-pendant",
-                            "name":  "\u003cfont color=\"#A78BFA\"\u003eРџРѕРґРІРµСЃРєР° РџСѓСЃС‚РѕС‚С‹\u003c/font\u003e",
-                            "description":  "\u003cfont color=\"#9CA3AF\"\u003eРљР°РјРµРЅСЊ РёР· СЃРµСЂРґС†Р° СЂР°Р·Р»РѕРјР°. РџРѕРєР° С‚С‹ С†РµР» вЂ” РџСѓСЃС‚РѕС‚Р° СѓСЃРёР»РёРІР°РµС‚ СѓРґР°СЂС‹.\u003c/font\u003e",
-                            "actions":  [
+  "albase:trial-system-name": "Hollow Trials",
 
-                                        ],
-                            "attributes":  {
-                                               "fullhpdamage":  0.08
-                                           },
-                            "showAttributes":  [
-                                                   "fullhpdamage"
-                                               ],
-                            "hideVanillaTooltips":  [
-                                                        "warmth",
-                                                        "modsource"
-                                                    ]
-                        }
-                    ]
+  "albase:trial-tracker-name": "Echo of the Void",
+  "albase:trial-tracker-desc": "A shard resonating with Abyss spawn. When used, creates a particle trail toward the nearest active rift. Each use costs a sliver of life.",
+  "albase:trial-tracker-no-target": "<font color=\"#9CA3AF\">[Echo of the Void] No target found. No active contract.</font>",
+  "albase:trial-tracker-no-hp": "<font color=\"#CD5C5C\">[Echo of the Void] Not enough health.</font>",
+  "albase:trial-tracker-cooldown": "<font color=\"#9CA3AF\">[Echo of the Void] Shard recharging... ({0} min.)</font>",
+  "albase:trial-tracker-charging": "<font color=\"#C4B5FD\">[Echo of the Void] Shard resonating... Charging...</font>",
+  "albase:trial-tracker-activated": "<font color=\"#A78BFA\">[Echo of the Void] The Void responds. Distance: ~{0} blocks. Follow the particles.</font>",
+
+  "item-albase:trial-tracker": "Echo of the Void",
+  "item-albase:trial-shadow-earring-dim": "Madcap Hood (Dim)",
+  "item-albase:trial-shadow-earring-shimmer": "Madcap Hood (Shimmering)",
+  "item-albase:trial-shadow-earring-radiant": "Madcap Hood (Radiant)",
+  "item-albase:trial-shadow-earring-abyssal": "Madcap Hood (Abyssal)",
+  "item-albase:trial-rift-bracelet-dim": "Rift Gauntlets (Dim)",
+  "item-albase:trial-rift-bracelet-shimmer": "Rift Gauntlets (Shimmering)",
+  "item-albase:trial-rift-bracelet-radiant": "Rift Gauntlets (Radiant)",
+  "item-albase:trial-rift-bracelet-abyssal": "Rift Gauntlets (Abyssal)",
+  "item-albase:trial-void-pendant-dim": "Void Nazar (Dim)",
+  "item-albase:trial-void-pendant-shimmer": "Void Nazar (Shimmering)",
+  "item-albase:trial-void-pendant-radiant": "Void Nazar (Radiant)",
+  "item-albase:trial-void-pendant-abyssal": "Void Nazar (Abyssal)",
+  "item-albase:trial-void-cloak-dim": "Void Poncho (Dim)",
+  "item-albase:trial-void-cloak-shimmer": "Void Poncho (Shimmering)",
+  "item-albase:trial-void-cloak-radiant": "Void Poncho (Radiant)",
+  "item-albase:trial-void-cloak-abyssal": "Void Poncho (Abyssal)",
+  "item-albase:trial-abyss-belt-dim": "Abyss Sash (Dim)",
+  "item-albase:trial-abyss-belt-shimmer": "Abyss Sash (Shimmering)",
+  "item-albase:trial-abyss-belt-radiant": "Abyss Sash (Radiant)",
+  "item-albase:trial-abyss-belt-abyssal": "Abyss Sash (Abyssal)",
+  "item-albase:trial-deep-sigil-dim": "Deep Cross (Dim)",
+  "item-albase:trial-deep-sigil-shimmer": "Deep Cross (Shimmering)",
+  "item-albase:trial-deep-sigil-radiant": "Deep Cross (Radiant)",
+  "item-albase:trial-deep-sigil-abyssal": "Deep Cross (Abyssal)",
+  "item-albase:trial-abyss-mask": "Abyss Robe",
+  "albase:trial-abyss-mask-name": "Abyss Robe",
+  "item-albase:trial-bow-dim": "Void Bow (Dim)",
+  "item-albase:trial-bow-shimmer": "Void Bow (Shimmering)",
+  "item-albase:trial-bow-radiant": "Void Bow (Radiant)",
+  "item-albase:trial-bow-abyssal": "Void Bow (Abyssal)",
+  "item-albase:trial-abyss-pendant-dim": "Abyss Amulet (Dim)",
+  "item-albase:trial-abyss-pendant-shimmer": "Abyss Amulet (Shimmering)",
+  "item-albase:trial-abyss-pendant-radiant": "Abyss Amulet (Radiant)",
+  "item-albase:trial-abyss-pendant-abyssal": "Abyss Amulet (Abyssal)",
+  "item-albase:trial-void-ring-dim": "Void Necklace (Dim)",
+  "item-albase:trial-void-ring-shimmer": "Void Necklace (Shimmering)",
+  "item-albase:trial-void-ring-radiant": "Void Necklace (Radiant)",
+  "item-albase:trial-void-ring-abyssal": "Void Necklace (Abyssal)"
 }

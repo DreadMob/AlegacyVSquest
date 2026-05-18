@@ -11,7 +11,8 @@
   },
   "shape": { "base": "game:entity/humanoid/seraph/clothing/neck/bronzeamulet" },
   "textures": {
-    "seraph": { "base": "game:block/transparent" }
+    "seraph": { "base": "game:block/transparent" },
+    "bronzeamulet": { "base": "albase:trials/abyss-pendant" }
   },
   "renderAlphaTest": 0.25,
   "guiTransform": {

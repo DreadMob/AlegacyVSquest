@@ -11,7 +11,9 @@
   },
   "shape": { "base": "game:entity/humanoid/seraph/clothing/neck/nazar2" },
   "textures": {
-    "seraph": { "base": "game:block/transparent" }
+    "seraph": { "base": "game:block/transparent" },
+    "nazar2": { "base": "albase:trials/void-pendant" },
+    "metal": { "base": "albase:trials/void-pendant-gold" }
   },
   "renderAlphaTest": 0.25,
   "guiTransform": {

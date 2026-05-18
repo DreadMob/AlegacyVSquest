@@ -11,7 +11,8 @@
   },
   "shape": { "base": "game:entity/humanoid/seraph/clothing/waist/midsummer" },
   "textures": {
-    "seraph": { "base": "game:block/transparent" }
+    "seraph": { "base": "game:block/transparent" },
+    "midsummer": { "base": "albase:trials/abyss-belt" }
   },
   "renderAlphaTest": 0.25,
   "guiTransform": {

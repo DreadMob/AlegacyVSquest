@@ -11,7 +11,10 @@
   },
   "shape": { "base": "game:entity/humanoid/seraph/clothing/neck/simple-cross" },
   "textures": {
-    "seraph": { "base": "game:block/transparent" }
+    "seraph": { "base": "game:block/transparent" },
+    "metal": { "base": "albase:trials/deep-sigil" },
+    "chain": { "base": "albase:trials/deep-sigil" },
+    "gem": { "base": "game:block/transparent" }
   },
   "renderAlphaTest": 0.25,
   "guiTransform": {

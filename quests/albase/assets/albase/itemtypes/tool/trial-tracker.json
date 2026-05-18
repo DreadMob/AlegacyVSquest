@@ -1,5 +1,6 @@
 {
   "code": "trial-tracker",
+  "class": "ItemTemporalGear",
   "maxstacksize": 1,
   "materialDensity": 4000,
   "storageFlags": 3,
@@ -19,11 +20,8 @@
     "base": "game:item/gear-temporal"
   },
   "textures": {
-    "all": {
-      "base": "game:block/stone/obsidian"
-    },
-    "metal": {
-      "base": "game:block/stone/obsidian"
+    "temporal": {
+      "base": "albase:trials/trial-tracker"
     }
   },
   "guiTransform": {
