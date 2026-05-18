@@ -20,26 +20,26 @@ namespace VsQuest
         private const float HpCost = 1f;
         private const int TrailDurationSec = 30;
         private const int RefreshIntervalSec = 5;
-        private const int CooldownMinutes = 3;
+        private const int CooldownMinutes = 2;
         private const float ParticleVisibilityRange = 20f;
 
-        private const string AttrCooldownUntilMs = "alegacyvsquest:trialtracker:cooldownUntilMs";
+        private const string AttrCooldownUntilMs = "alegacyvsquest:trialtracker:cooldownUntilHours";
 
         public void Execute(ICoreServerAPI sapi, QuestMessage message, IServerPlayer player, string[] args)
         {
             if (sapi == null || player?.Entity == null) return;
 
-            long nowMs = sapi.World.ElapsedMilliseconds;
+            double nowHours = sapi.World.Calendar.TotalHours;
 
             // Cooldown check
-            long cooldownUntilMs = player.Entity.WatchedAttributes.GetLong(AttrCooldownUntilMs, 0);
-            if (cooldownUntilMs > nowMs)
+            double cooldownUntilHours = player.Entity.WatchedAttributes.GetDouble(AttrCooldownUntilMs, 0);
+            if (cooldownUntilHours > nowHours)
             {
-                long remainingMs = cooldownUntilMs - nowMs;
-                int remainingMin = (int)Math.Ceiling(remainingMs / 60000.0);
+                double remainingHours = cooldownUntilHours - nowHours;
+                int remainingMin = (int)Math.Ceiling(remainingHours * 60.0);
                 sapi.Network.GetChannel("alegacyvsquest").SendPacket(new ShowDiscoveryMessage
                 {
-                    Notification = Lang.Get("albase:trial-tracker-cooldown", remainingMin)
+                    Notification = LocalizationUtils.GetSafe("albase:trial-tracker-cooldown", remainingMin)
                 }, player);
                 return;
             }
@@ -50,7 +50,7 @@ namespace VsQuest
             {
                 sapi.Network.GetChannel("alegacyvsquest").SendPacket(new ShowDiscoveryMessage
                 {
-                    Notification = Lang.Get("albase:trial-tracker-no-hp")
+                    Notification = LocalizationUtils.GetSafe("albase:trial-tracker-no-hp")
                 }, player);
                 return;
             }
@@ -58,12 +58,13 @@ namespace VsQuest
             var trialSystem = sapi.ModLoader.GetModSystem<HollowTrialSystem>();
             if (trialSystem == null) return;
 
-            string targetTrialKey = FindNearestQuestTrialKey(trialSystem, player, sapi);
-            if (string.IsNullOrWhiteSpace(targetTrialKey))
+            // Find target: live boss first, then nearest anchor
+            Vec3d targetPos = FindTargetPosition(trialSystem, player, sapi);
+            if (targetPos == null)
             {
                 sapi.Network.GetChannel("alegacyvsquest").SendPacket(new ShowDiscoveryMessage
                 {
-                    Notification = Lang.Get("albase:trial-tracker-no-target")
+                    Notification = LocalizationUtils.GetSafe("albase:trial-tracker-no-target")
                 }, player);
                 return;
             }
@@ -78,118 +79,106 @@ namespace VsQuest
                 IgnoreInvFrames = true
             }, HpCost);
 
-            // Play activation sound
-            sapi.World.PlaySoundAt(new AssetLocation("game:sounds/effect/translocate-active"),
-                player.Entity, player, false, 32f, 0.8f);
-
-            // Set cooldown
-            long endMs = nowMs + TrailDurationSec * 1000L + CooldownMinutes * 60L * 1000L;
-            player.Entity.WatchedAttributes.SetLong(AttrCooldownUntilMs, endMs);
+            // Set cooldown (starts after activation, trail runs concurrently)
+            double endHours = nowHours + CooldownMinutes / 60.0;
+            player.Entity.WatchedAttributes.SetDouble(AttrCooldownUntilMs, endHours);
             player.Entity.WatchedAttributes.MarkPathDirty(AttrCooldownUntilMs);
 
             // Calculate distance and show on screen
-            Vec3d bossPos = GetBossPosition(trialSystem, targetTrialKey);
-            if (bossPos != null)
+            double dist = player.Entity.Pos.XYZ.DistanceTo(targetPos);
+            sapi.Network.GetChannel("alegacyvsquest").SendPacket(new ShowDiscoveryMessage
             {
-                double dist = player.Entity.Pos.XYZ.DistanceTo(bossPos);
-                sapi.Network.GetChannel("alegacyvsquest").SendPacket(new ShowDiscoveryMessage
-                {
-                    Notification = Lang.Get("albase:trial-tracker-activated", (int)dist)
-                }, player);
-            }
+                Notification = LocalizationUtils.GetSafe("albase:trial-tracker-activated", (int)dist)
+            }, player);
 
-            // Schedule periodic trail spawns
-            ScheduleTrailRefresh(sapi, player, trialSystem, targetTrialKey, 0);
+            // Schedule periodic trail spawns (pass targetPos directly)
+            ScheduleTrailRefreshToPos(sapi, player, trialSystem, targetPos, 0);
         }
 
-        private Vec3d GetBossPosition(HollowTrialSystem trialSystem, string trialKey)
+        /// <summary>
+        /// Find target position: if a live boss of matching tier exists, target it.
+        /// Otherwise target nearest anchor of matching tier.
+        /// </summary>
+        private Vec3d FindTargetPosition(HollowTrialSystem trialSystem, IServerPlayer player, ICoreServerAPI sapi)
         {
-            var bossEntity = trialSystem.GetTrackedEntity(trialKey);
-            if (bossEntity != null && bossEntity.Alive)
+            var playerPos = player.Entity.Pos.XYZ;
+            int playerTier = GetPlayerQuestTier(player, sapi);
+
+            // First: check if any trial boss of matching tier is alive — target it
+            var allConfigs = trialSystem.GetAllConfigs();
+            if (allConfigs != null)
             {
-                return bossEntity.Pos.XYZ;
+                Vec3d nearestBoss = null;
+                double nearestDistSq = double.MaxValue;
+
+                foreach (var cfg in allConfigs)
+                {
+                    if (cfg == null) continue;
+                    var bossEntity = trialSystem.GetTrackedEntity(cfg.trialKey);
+                    if (bossEntity == null || !bossEntity.Alive) continue;
+
+                    // Check tier matches
+                    int bossTier = bossEntity.WatchedAttributes.GetInt("alegacyvsquest:trial:spawnTier", 0);
+                    if (playerTier > 0 && bossTier != playerTier) continue;
+
+                    double distSq = playerPos.SquareDistanceTo(bossEntity.Pos.XYZ);
+                    if (distSq < nearestDistSq)
+                    {
+                        nearestDistSq = distSq;
+                        nearestBoss = bossEntity.Pos.XYZ;
+                    }
+                }
+
+                if (nearestBoss != null) return nearestBoss;
             }
-            return trialSystem.GetAnchorPosition(trialKey);
+
+            // Fallback: nearest anchor of matching tier
+            return trialSystem.FindNearestAnchorPositionByTier(playerPos, playerTier);
         }
 
-        private void ScheduleTrailRefresh(ICoreServerAPI sapi, IServerPlayer player,
-            HollowTrialSystem trialSystem, string trialKey, int elapsedSec)
+        /// <summary>
+        /// Get the tier of the player's active trial quest (1, 2, or 3). Returns 0 if none.
+        /// </summary>
+        private int GetPlayerQuestTier(IServerPlayer player, ICoreServerAPI sapi)
+        {
+            var questSystem = sapi.ModLoader.GetModSystem<QuestSystem>();
+            if (questSystem == null) return 0;
+
+            var playerQuests = questSystem.GetPlayerQuests(player.PlayerUID);
+            if (playerQuests == null) return 0;
+
+            foreach (var aq in playerQuests)
+            {
+                if (aq?.questId == null) continue;
+                if (aq.questId.Contains("trial-tier3")) return 3;
+                if (aq.questId.Contains("trial-tier2")) return 2;
+                if (aq.questId.Contains("trial-tier1")) return 1;
+            }
+            return 0;
+        }
+
+        private void ScheduleTrailRefreshToPos(ICoreServerAPI sapi, IServerPlayer player,
+            HollowTrialSystem trialSystem, Vec3d targetPos, int elapsedSec)
         {
             if (elapsedSec >= TrailDurationSec) return;
-
-            SpawnTrailNow(sapi, player, trialSystem, trialKey);
-
-            sapi.Event.RegisterCallback(_ =>
-            {
-                if (player?.Entity == null || !player.Entity.Alive) return;
-                if (player.ConnectionState != EnumClientState.Playing) return;
-                ScheduleTrailRefresh(sapi, player, trialSystem, trialKey, elapsedSec + RefreshIntervalSec);
-            }, RefreshIntervalSec * 1000);
-        }
-
-        private void SpawnTrailNow(ICoreServerAPI sapi, IServerPlayer player,
-            HollowTrialSystem trialSystem, string trialKey)
-        {
-            Vec3d targetPos = GetBossPosition(trialSystem, trialKey);
-            if (targetPos == null) return;
 
             SpawnTrailParticles(sapi, player, targetPos);
 
             // Ambient trail sound
             sapi.World.PlaySoundAt(new AssetLocation("game:sounds/effect/translocate-idle"),
                 player.Entity, player, false, 12f, 0.3f);
-        }
 
-        private string FindNearestQuestTrialKey(HollowTrialSystem trialSystem, IServerPlayer player, ICoreServerAPI sapi)
-        {
-            var activeKeys = trialSystem.GetActiveTrialKeys();
-            if (activeKeys == null || activeKeys.Count == 0) return null;
-
-            var questSystem = sapi.ModLoader.GetModSystem<QuestSystem>();
-            if (questSystem == null) return null;
-
-            string playerUid = player.PlayerUID;
-            var playerQuests = questSystem.GetPlayerQuests(playerUid);
-
-            string nearestKey = null;
-            double nearestDistSq = double.MaxValue;
-            var playerPos = player.Entity.Pos.XYZ;
-
-            foreach (var trialKey in activeKeys)
+            sapi.Event.RegisterCallback(_ =>
             {
-                var cfg = trialSystem.FindConfig(trialKey);
-                if (cfg == null) continue;
+                if (player?.Entity == null || !player.Entity.Alive) return;
+                if (player.ConnectionState != EnumClientState.Playing) return;
 
-                bool hasQuest = false;
-                if (playerQuests != null)
-                {
-                    foreach (var aq in playerQuests)
-                    {
-                        foreach (var tierKvp in cfg.tiers)
-                        {
-                            if (string.Equals(aq.questId, tierKvp.Value?.questId, StringComparison.OrdinalIgnoreCase))
-                            {
-                                hasQuest = true;
-                                break;
-                            }
-                        }
-                        if (hasQuest) break;
-                    }
-                }
-                if (!hasQuest) continue;
+                // Re-resolve target (boss may have spawned or moved)
+                Vec3d newTarget = FindTargetPosition(trialSystem, player, sapi);
+                if (newTarget == null) return;
 
-                Vec3d bossPos = GetBossPosition(trialSystem, trialKey);
-                if (bossPos == null) continue;
-
-                double distSq = playerPos.SquareDistanceTo(bossPos);
-                if (distSq < nearestDistSq)
-                {
-                    nearestDistSq = distSq;
-                    nearestKey = trialKey;
-                }
-            }
-
-            return nearestKey;
+                ScheduleTrailRefreshToPos(sapi, player, trialSystem, newTarget, elapsedSec + RefreshIntervalSec);
+            }, RefreshIntervalSec * 1000);
         }
 
         private void SpawnTrailParticles(ICoreServerAPI sapi, IServerPlayer player, Vec3d targetPos)

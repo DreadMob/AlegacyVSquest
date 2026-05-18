@@ -66,5 +66,11 @@ namespace VsQuest
         /// For virtual case items: pool of base items (without quality suffix).
         /// </summary>
         public string[] casePool;
+
+        /// <summary>
+        /// For fixed-quality shop items: quality tier to apply (1=Dim, 2=Shimmering, 3=Radiant, 4=Abyssal).
+        /// 0 = no quality (plain item).
+        /// </summary>
+        public int fixedQuality;
     }
 }

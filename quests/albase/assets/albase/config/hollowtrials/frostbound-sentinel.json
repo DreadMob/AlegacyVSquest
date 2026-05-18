@@ -7,10 +7,10 @@
   "tiers": {
     "1": {
       "questId": "albase:trial-tier1",
-      "maxHealth": 420,
+      "maxHealth": 400,
       "damageMult": 1.0,
       "speedMult": 0.9,
-      "enrageTimerSeconds": 260,
+      "enrageTimerSeconds": 300,
       "challenges": [
         { "type": "speedkill", "thresholdMinutes": 5 },
         { "type": "deathless" }
@@ -18,10 +18,10 @@
     },
     "2": {
       "questId": "albase:trial-tier2",
-      "maxHealth": 850,
+      "maxHealth": 820,
       "damageMult": 1.35,
       "speedMult": 1.0,
-      "enrageTimerSeconds": 250,
+      "enrageTimerSeconds": 270,
       "challenges": [
         { "type": "speedkill", "thresholdMinutes": 6 },
         { "type": "deathless" },
@@ -30,10 +30,10 @@
     },
     "3": {
       "questId": "albase:trial-tier3",
-      "maxHealth": 1700,
+      "maxHealth": 1650,
       "damageMult": 1.7,
       "speedMult": 1.15,
-      "enrageTimerSeconds": 220,
+      "enrageTimerSeconds": 240,
       "challenges": [
         { "type": "speedkill", "thresholdMinutes": 7 },
         { "type": "deathless" },

@@ -358,7 +358,10 @@ namespace VsQuest
                 shortKey == AttrTemporalDrainMult || shortKey == AttrJumpHeightMul ||
                 shortKey == AttrKnockbackMult || shortKey == AttrWeightLimit ||
                 shortKey == AttrViewDistance || shortKey == AttrHealOnKill ||
-                shortKey == AttrStealth)
+                shortKey == AttrStealth ||
+                shortKey == AttrCritChance || shortKey == AttrCritDamage ||
+                shortKey == AttrBossDamage || shortKey == AttrPvpDamage ||
+                shortKey == AttrFullHpDamage || shortKey == AttrAttackSpeed)
             {
                 formattedValue = $"{prefix}{value * 100:0.#}%";
             }
@@ -424,7 +427,10 @@ namespace VsQuest
                 shortKey == AttrTemporalDrainMult || shortKey == AttrJumpHeightMul ||
                 shortKey == AttrKnockbackMult || shortKey == AttrWeightLimit ||
                 shortKey == AttrViewDistance || shortKey == AttrHealOnKill ||
-                shortKey == AttrStealth)
+                shortKey == AttrStealth ||
+                shortKey == AttrCritChance || shortKey == AttrCritDamage ||
+                shortKey == AttrBossDamage || shortKey == AttrPvpDamage ||
+                shortKey == AttrFullHpDamage || shortKey == AttrAttackSpeed)
             {
                 formattedValue = $"{prefix}{value * 100:0.#}%";
                 bonusFormatted = $"<font color=\"{qualityColor}\">({bonusPrefix}{bonus * 100:0.#}%)</font>";

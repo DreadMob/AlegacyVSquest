@@ -7,6 +7,9 @@ namespace VsQuest
         public float BossHuntTrackerCastDurationSec { get; set; } = 3f;
         public float BossHuntTrackerCastSlowdown { get; set; } = -0.5f;
         public string BossHuntTrackerCastSpeedStatKey { get; set; } = "alegacyvsquest:actionitemcast";
+        public string TrialTrackerActionItemId { get; set; } = "albase:trial-tracker";
+        public float TrialTrackerCastDurationSec { get; set; } = 3f;
+        public float TrialTrackerCastSlowdown { get; set; } = -0.5f;
         public int InventoryScanIntervalMs { get; set; } = 1000;
         public int HotbarEnforceIntervalMs { get; set; } = 500;
     }

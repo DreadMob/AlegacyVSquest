@@ -58,9 +58,9 @@
       },
       { "code": "bossenrage", "enrageTimerSeconds": 240 },
       { "code": "bossvulnerabilitywindow", "damageMultiplier": 2.0, "durationSeconds": 3.0, "triggerAbilities": ["bossbloodprice"] },
-      { "code": "bossbloodprice", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 10, "maxTargetRange": 30, "healPercent": 0.40, "minVulnMs": 1500, "maxVulnMs": 3500, "healThreshold": 6 }] },
-      { "code": "bosssoulchain", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 14, "maxTargetRange": 20, "chainDurationSec": 4, "slowFactor": 0.45, "breakDistance": 10, "breakDamage": 20, "sound": "block/meteoriciron", "soundRange": 24 }] },
-      { "code": "bosshook", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 16, "maxTargetRange": 18, "windupMs": 300, "damage": 5, "damageTier": 3, "sound": "albase:dark-magic-charge-up", "soundRange": 24, "soundVolume": 0.3 }] },
+      { "code": "bossbloodprice", "stages": [{ "whenHealthRelBelow": 0.7, "cooldownSeconds": 12, "maxTargetRange": 30, "healPercent": 0.40, "minVulnMs": 1500, "maxVulnMs": 3500, "healThreshold": 6 }] },
+      { "code": "bosssoulchain", "stages": [{ "whenHealthRelBelow": 0.7, "cooldownSeconds": 16, "maxTargetRange": 20, "chainDurationSec": 4, "slowFactor": 0.45, "breakDistance": 10, "breakDamage": 20, "sound": "block/meteoriciron", "soundRange": 24 }] },
+      { "code": "bosshook", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 18, "maxTargetRange": 18, "windupMs": 300, "damage": 5, "damageTier": 3, "sound": "albase:dark-magic-charge-up", "soundRange": 24, "soundVolume": 0.3 }] },
       { "code": "bossprojectile", "stages": [{ "whenHealthRelBelow": 0.4, "cooldownSeconds": 5, "maxTargetRange": 20, "damage": 8, "speed": 10, "variant": "blood", "shape": "ball", "damageTier": 3 }] },
       { "code": "bosscursestack", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 0, "maxTargetRange": 30, "maxStacks": 4, "effectType": "stun", "stackDecaySeconds": 4, "stunDurationMs": 4000, "slowFactor": 0.5, "slowDurationMs": 4000 }] },
       {

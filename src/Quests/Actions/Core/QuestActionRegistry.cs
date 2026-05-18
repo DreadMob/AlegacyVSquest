@@ -113,6 +113,7 @@ namespace VsQuest
             // Hollow Trials actions
             actionRegistry.Add("trialchallengebonuses", new TrialChallengeBonusesAction());
             actionRegistry.Add("tracktrialboss", new TrackTrialBossAction());
+            actionRegistry.Add("resettrialtracker", new ResetTrialTrackersAction());
             actionRegistry.Add("openshop", new OpenTrialShopAction());
 
             // [EXPERIMENTAL] Timer and reset actions

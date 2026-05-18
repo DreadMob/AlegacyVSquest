@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
 
 namespace VsQuest
 {
@@ -154,6 +155,34 @@ namespace VsQuest
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Applies a specific quality by tier number (1=dim, 2=shimmer, 3=radiant, 4=abyssal).
+        /// </summary>
+        public bool TryApplyFixedQuality(ItemStack stack, ActionItem actionItem, int qualityTier)
+        {
+            if (stack?.Attributes == null || actionItem == null) return false;
+            if (stack.Attributes.HasAttribute(ItemAttributeUtils.ItemQualityIdKey)) return false;
+
+            string qualityId = qualityTier switch
+            {
+                1 => "trial-dim",
+                2 => "trial-shimmer",
+                3 => "trial-radiant",
+                4 => "trial-abyssal",
+                _ => "trial-dim"
+            };
+
+            var quality = GetQuality(qualityId);
+            if (quality == null) return false;
+
+            var rand = api.Side == EnumAppSide.Server
+                ? (api as ICoreServerAPI)?.World?.Rand ?? new System.Random()
+                : new System.Random();
+
+            ApplyQuality(stack, actionItem, quality, rand);
+            return true;
         }
 
         /// <summary>

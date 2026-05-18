@@ -19,6 +19,16 @@ namespace VsQuest
 
         [ProtoMember(4)]
         public TrialShopItemData[] ShopItems { get; set; }
+
+        [ProtoMember(5)]
+        public int CompletedTrials { get; set; }
+
+        [ProtoMember(6)]
+        public int TotalTrials { get; set; }
+
+        /// <summary>Per-boss stats for the stats tab. Key format: "BossName|tier|kills|bestTime|deathless"</summary>
+        [ProtoMember(7)]
+        public string[] PlayerStats { get; set; }
     }
 
     /// <summary>
@@ -60,5 +70,11 @@ namespace VsQuest
 
         [ProtoMember(7)]
         public int PurchasesMade { get; set; }
+
+        /// <summary>
+        /// For case items: localized names of items in the pool (for preview tooltip).
+        /// </summary>
+        [ProtoMember(8)]
+        public string[] CasePoolNames { get; set; }
     }
 }

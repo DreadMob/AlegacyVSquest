@@ -261,6 +261,20 @@ namespace VsQuest
         }
 
         /// <summary>
+        /// Get total kill count across all bosses for a player.
+        /// </summary>
+        public int GetTotalKillCount(string playerUid)
+        {
+            var data = GetOrCreate(playerUid);
+            int total = 0;
+            foreach (var kvp in data.killCounts)
+            {
+                total += kvp.Value;
+            }
+            return total;
+        }
+
+        /// <summary>
         /// Increment kill count for a player on a specific boss.
         /// </summary>
         public void IncrementKillCount(string playerUid, string trialKey)

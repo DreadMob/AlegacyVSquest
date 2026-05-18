@@ -9,13 +9,6 @@
     "currencyKey": "albase:trial-currency-name",
     "items": [
       {
-        "itemCode": "albase:trial-tracker",
-        "nameKey": "albase:trial-tracker-name",
-        "cost": 30,
-        "requiredReputation": 0,
-        "maxPurchases": 1
-      },
-      {
         "itemCode": "case:tier1",
         "nameKey": "albase:trial-case-tier1",
         "cost": 20,
@@ -47,7 +40,8 @@
         "nameKey": "item-albase:trial-bow",
         "cost": 150,
         "requiredReputation": 400,
-        "maxPurchases": 1
+        "maxPurchases": 1,
+        "fixedQuality": 2
       },
       {
         "itemCode": "albase:trial-abyss-mask",

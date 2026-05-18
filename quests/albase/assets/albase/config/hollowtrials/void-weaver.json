@@ -10,19 +10,18 @@
       "maxHealth": 350,
       "damageMult": 1.0,
       "speedMult": 1.0,
-      "enrageTimerSeconds": 240,
+      "enrageTimerSeconds": 260,
       "challenges": [
         { "type": "speedkill", "thresholdMinutes": 4.5 },
-        { "type": "deathless" },
-        { "type": "perfectdodge", "abilityCode": "bosstelegraph" }
+        { "type": "deathless" }
       ]
     },
     "2": {
       "questId": "albase:trial-tier2",
-      "maxHealth": 750,
-      "damageMult": 1.4,
-      "speedMult": 1.15,
-      "enrageTimerSeconds": 230,
+      "maxHealth": 720,
+      "damageMult": 1.35,
+      "speedMult": 1.1,
+      "enrageTimerSeconds": 240,
       "challenges": [
         { "type": "speedkill", "thresholdMinutes": 5 },
         { "type": "deathless" },
@@ -32,10 +31,10 @@
     },
     "3": {
       "questId": "albase:trial-tier3",
-      "maxHealth": 1500,
-      "damageMult": 1.8,
-      "speedMult": 1.3,
-      "enrageTimerSeconds": 200,
+      "maxHealth": 1450,
+      "damageMult": 1.75,
+      "speedMult": 1.25,
+      "enrageTimerSeconds": 210,
       "challenges": [
         { "type": "speedkill", "thresholdMinutes": 6 },
         { "type": "deathless" },

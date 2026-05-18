@@ -57,7 +57,7 @@
       { "code": "bossenrage", "enrageTimerSeconds": 180 },
       { "code": "bossvulnerabilitywindow", "damageMultiplier": 2.0, "durationSeconds": 2.5, "triggerAbilities": ["bosshazardzone"] },
       { "code": "bosshazardzone", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 6, "maxTargetRange": 20, "zoneType": "corrupt", "radius": 4, "dpsInZone": 3, "dotDps": 2, "dotDurationSec": 3, "lifetimeSec": 7, "maxActiveZones": 3 }] },
-      { "code": "bosstrail", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 0, "maxTargetRange": 0, "trailDps": 3, "trailRadius": 1.5, "lifetimeSec": 12, "trailIntervalMs": 400, "maxSegments": 15, "trailColor": "poison" }] },
+      { "code": "bosstrail", "stages": [{ "whenHealthRelBelow": 0.6, "cooldownSeconds": 0, "maxTargetRange": 0, "trailDps": 3, "trailRadius": 1.5, "lifetimeSec": 12, "trailIntervalMs": 400, "maxSegments": 15, "trailColor": "poison" }] },
       { "code": "bossdash", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 7, "maxTargetRange": 25, "windupMs": 200, "dashDistance": 10, "dashSpeed": 0.6, "damage": 6, "damageTier": 2, "sound": "block/meteoriciron", "soundRange": 24 }] },
       { "code": "bossdebuff", "stages": [{ "whenHealthRelBelow": 0.5, "cooldownSeconds": 12, "maxTargetRange": 15, "debuffType": "blind", "durationSec": 2 }] },
       {

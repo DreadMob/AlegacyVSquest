@@ -57,9 +57,9 @@
       },
       { "code": "bossenrage", "enrageTimerSeconds": 240 },
       { "code": "bossvulnerabilitywindow", "damageMultiplier": 2.0, "durationSeconds": 2.5, "triggerAbilities": ["bossphaseshift"] },
-      { "code": "bosssoulchain", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 12, "maxTargetRange": 20, "chainDurationSec": 4, "slowFactor": 0.5, "breakDistance": 10, "breakDamage": 18, "sound": "block/meteoriciron", "soundRange": 24 }] },
-      { "code": "bossphaseshift", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 8, "maxTargetRange": 25, "shiftRadius": 8, "durationMs": 1200, "sound": "block/meteoriciron", "soundRange": 32 }] },
-      { "code": "bosscursestack", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 0, "maxTargetRange": 30, "maxStacks": 4, "effectType": "stun", "stackDecaySeconds": 5, "stunDurationMs": 4000, "slowFactor": 0.5, "slowDurationMs": 4000 }] },
+      { "code": "bosssoulchain", "stages": [{ "whenHealthRelBelow": 0.7, "cooldownSeconds": 14, "maxTargetRange": 20, "chainDurationSec": 4, "slowFactor": 0.5, "breakDistance": 10, "breakDamage": 18, "sound": "block/meteoriciron", "soundRange": 24 }] },
+      { "code": "bossphaseshift", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 10, "maxTargetRange": 25, "shiftRadius": 8, "durationMs": 1200, "sound": "block/meteoriciron", "soundRange": 32 }] },
+      { "code": "bosscursestack", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 0, "maxTargetRange": 30, "maxStacks": 3, "effectType": "stun", "stackDecaySeconds": 5, "stunDurationMs": 4000, "slowFactor": 0.5, "slowDurationMs": 4000 }] },
       { "code": "bosstrail", "stages": [{ "whenHealthRelBelow": 0.5, "cooldownSeconds": 0, "maxTargetRange": 0, "trailDps": 3, "trailRadius": 1.2, "lifetimeSec": 3, "trailIntervalMs": 350, "maxSegments": 12, "trailColor": "shadow" }] },
       {
         "code": "taskai",

@@ -87,6 +87,9 @@ namespace VsQuest
             }
 
             DebugLog($"Rotation complete. Active: [{string.Join(", ", state.activeTrialKeys)}]. Next rotation at {state.nextRotationTotalHours:0.0}h");
+
+            // Reassign all anchors to new bosses
+            ReassignAllAnchors();
         }
 
         private void SelectNextBosses(int count, List<string> activeKeys)

@@ -19,6 +19,16 @@ namespace VsQuest
         private ICoreServerAPI sapi;
         private TrialNpcConfig npcConfig;
 
+        // Pending case rewards awaiting client claim
+        private readonly Dictionary<string, PendingCaseReward> pendingRewards = new(StringComparer.OrdinalIgnoreCase);
+
+        private class PendingCaseReward
+        {
+            public string PlayerUid;
+            public ItemStack Stack;
+            public long CreatedMs;
+        }
+
         public void RegisterServer(ICoreServerAPI sapi)
         {
             this.sapi = sapi;
@@ -26,7 +36,10 @@ namespace VsQuest
             sapi.Network.RegisterChannel(ChannelName)
                 .RegisterMessageType<OpenTrialShopMessage>()
                 .RegisterMessageType<BuyTrialShopItemMessage>()
-                .SetMessageHandler<BuyTrialShopItemMessage>(OnBuyRequest);
+                .RegisterMessageType<StartCaseOpenAnimationMessage>()
+                .RegisterMessageType<ClaimCaseRewardMessage>()
+                .SetMessageHandler<BuyTrialShopItemMessage>(OnBuyRequest)
+                .SetMessageHandler<ClaimCaseRewardMessage>(OnClaimCaseReward);
 
             LoadNpcConfig();
 
@@ -48,7 +61,10 @@ namespace VsQuest
             capi.Network.RegisterChannel(ChannelName)
                 .RegisterMessageType<OpenTrialShopMessage>()
                 .SetMessageHandler<OpenTrialShopMessage>(msg => TrialShopGui.ShowFromMessage(msg, capi))
-                .RegisterMessageType<BuyTrialShopItemMessage>();
+                .RegisterMessageType<BuyTrialShopItemMessage>()
+                .RegisterMessageType<StartCaseOpenAnimationMessage>()
+                .SetMessageHandler<StartCaseOpenAnimationMessage>(msg => CaseOpenAnimationGui.Show(msg, capi))
+                .RegisterMessageType<ClaimCaseRewardMessage>();
         }
 
         private void LoadNpcConfig()
@@ -144,11 +160,10 @@ namespace VsQuest
                     currencyKey = "albase:trial-currency-name",
                     items = new List<TrialShopConfigItem>
                     {
-                        new TrialShopConfigItem { itemCode = "albase:trial-tracker", nameKey = "albase:trial-tracker-name", cost = 30, requiredReputation = 0, maxPurchases = 1 },
                         new TrialShopConfigItem { itemCode = "case:tier1", nameKey = "albase:trial-case-tier1", cost = 20, requiredReputation = 0, maxPurchases = -1, caseTier = 1, casePool = new[] { "albase:trial-shadow-earring", "albase:trial-rift-bracelet", "albase:trial-void-pendant" } },
                         new TrialShopConfigItem { itemCode = "case:tier2", nameKey = "albase:trial-case-tier2", cost = 50, requiredReputation = 100, maxPurchases = -1, caseTier = 2, casePool = new[] { "albase:trial-void-cloak", "albase:trial-abyss-belt", "albase:trial-deep-sigil" } },
                         new TrialShopConfigItem { itemCode = "case:tier3", nameKey = "albase:trial-case-tier3", cost = 120, requiredReputation = 300, maxPurchases = -1, caseTier = 3, casePool = new[] { "albase:trial-void-cloak", "albase:trial-abyss-belt", "albase:trial-deep-sigil", "albase:trial-bow", "albase:trial-abyss-pendant", "albase:trial-void-ring" } },
-                        new TrialShopConfigItem { itemCode = "albase:trial-bow", nameKey = "item-albase:trial-bow", cost = 150, requiredReputation = 400, maxPurchases = 1 },
+                        new TrialShopConfigItem { itemCode = "albase:trial-bow", nameKey = "item-albase:trial-bow", cost = 150, requiredReputation = 400, maxPurchases = 1, fixedQuality = 2 },
                         new TrialShopConfigItem { itemCode = "albase:trial-abyss-mask", nameKey = "albase:trial-abyss-mask-name", cost = 200, requiredReputation = 600, maxPurchases = 1 }
                     }
                 }
@@ -175,12 +190,22 @@ namespace VsQuest
 
             var shopItems = BuildShopItems(reputation, playerUid);
 
+            // Count completed trials (unique boss kills across all tiers)
+            int completedTrials = repManager.GetTotalKillCount(playerUid);
+            int totalTrials = trialSystem.GetTotalTrialCount();
+
+            // Build player stats
+            var playerStats = BuildPlayerStats(repManager, trialSystem, playerUid);
+
             sapi.Network.GetChannel(ChannelName).SendPacket(new OpenTrialShopMessage
             {
                 Reputation = reputation,
                 VoidShards = shards,
                 RankName = rankName,
-                ShopItems = shopItems
+                ShopItems = shopItems,
+                CompletedTrials = completedTrials,
+                TotalTrials = totalTrials,
+                PlayerStats = playerStats
             }, player);
         }
 
@@ -208,7 +233,7 @@ namespace VsQuest
 
                 int purchases = repManager?.GetPurchaseCount(playerUid, cfg.itemCode) ?? 0;
 
-                items.Add(new TrialShopItemData
+                var itemData = new TrialShopItemData
                 {
                     ItemCode = cfg.itemCode,
                     NameKey = cfg.nameKey,
@@ -217,10 +242,66 @@ namespace VsQuest
                     IsLocked = playerReputation < cfg.requiredReputation,
                     MaxPurchases = cfg.maxPurchases,
                     PurchasesMade = purchases
-                });
+                };
+
+                // Populate case pool names for preview
+                if (cfg.casePool != null && cfg.casePool.Length > 0)
+                {
+                    var itemSystem = sapi.ModLoader.GetModSystem<ItemSystem>();
+                    var poolNames = new List<string>();
+                    foreach (var poolId in cfg.casePool)
+                    {
+                        if (itemSystem != null && itemSystem.ActionItemRegistry.TryGetValue(poolId, out var actionItem))
+                        {
+                            string name = actionItem.name ?? poolId;
+                            // Strip HTML tags for clean display
+                            name = System.Text.RegularExpressions.Regex.Replace(name, "<[^>]*>", "");
+                            if (string.IsNullOrWhiteSpace(name)) name = poolId;
+                            poolNames.Add(name);
+                        }
+                        else
+                        {
+                            poolNames.Add(poolId);
+                        }
+                    }
+                    itemData.CasePoolNames = poolNames.ToArray();
+                }
+
+                items.Add(itemData);
             }
 
             return items.ToArray();
+        }
+
+        private string[] BuildPlayerStats(TrialReputationManager repManager, HollowTrialSystem trialSystem, string playerUid)
+        {
+            if (repManager == null || trialSystem == null) return Array.Empty<string>();
+
+            var allConfigs = trialSystem.GetAllConfigs();
+            if (allConfigs == null || allConfigs.Count == 0) return Array.Empty<string>();
+
+            var lines = new List<string>();
+            foreach (var cfg in allConfigs)
+            {
+                if (cfg == null) continue;
+                string bossName = LocalizationUtils.GetSafe(cfg.trialKey.Replace("albase:trial:", "albase:trial-") + "-title");
+                if (string.IsNullOrWhiteSpace(bossName) || bossName.StartsWith("albase:"))
+                    bossName = cfg.trialKey;
+
+                int totalKills = repManager.GetKillCount(playerUid, cfg.trialKey);
+
+                for (int tier = 1; tier <= 3; tier++)
+                {
+                    var best = repManager.GetBestResult(playerUid, cfg.trialKey, tier);
+                    if (best == null || best.totalKills == 0) continue;
+
+                    string timeStr = best.bestTimeMinutes < 999 ? $"{best.bestTimeMinutes:0.0}" : "—";
+                    // Format: "BossName|tier|kills|bestTime|deathlessKills|bestChallenges"
+                    lines.Add($"{bossName}|{tier}|{best.totalKills}|{timeStr}|{best.deathlessKills}|{best.bestChallengesCount}");
+                }
+            }
+
+            return lines.ToArray();
         }
 
         /// <summary>
@@ -301,7 +382,7 @@ namespace VsQuest
                 }
                 else
                 {
-                    if (!GivePlainItem(player, itemCfg.itemCode))
+                    if (!GiveFixedQualityItem(player, itemCfg))
                     {
                         repManager.RefundVoidShards(playerUid, itemCfg.cost);
                         return;
@@ -323,6 +404,44 @@ namespace VsQuest
             }
         }
 
+        private bool GiveFixedQualityItem(IServerPlayer player, TrialShopConfigItem itemCfg)
+        {
+            var itemSystem = sapi.ModLoader.GetModSystem<ItemSystem>();
+
+            // If item is an action item, give it with quality
+            if (itemSystem != null && itemSystem.ActionItemRegistry.TryGetValue(itemCfg.itemCode, out var actionItem))
+            {
+                if (!ItemAttributeUtils.TryResolveCollectible(sapi, actionItem.itemCode, out var collectible))
+                {
+                    sapi.Logger.Warning("[TrialShop] Base item not found for actionitem: {0}", actionItem.itemCode);
+                    return false;
+                }
+
+                var stack = new ItemStack(collectible);
+                ItemAttributeUtils.ApplyActionItemAttributes(stack, actionItem);
+
+                if (itemCfg.fixedQuality > 0)
+                {
+                    var qualityService = itemSystem.QualityService;
+                    qualityService?.TryApplyFixedQuality(stack, actionItem, itemCfg.fixedQuality);
+                }
+                else
+                {
+                    var qualityService = itemSystem.QualityService;
+                    qualityService?.TryApplyQuality(stack, actionItem, sapi.World.Rand);
+                }
+
+                if (!player.InventoryManager.TryGiveItemstack(stack))
+                {
+                    sapi.World.SpawnItemEntity(stack, player.Entity.Pos.XYZ);
+                }
+                return true;
+            }
+
+            // Fallback: plain item
+            return GivePlainItem(player, itemCfg.itemCode);
+        }
+
         private bool GivePlainItem(IServerPlayer player, string itemCode)
         {
             var item = sapi.World.GetItem(new AssetLocation(itemCode));
@@ -341,8 +460,8 @@ namespace VsQuest
         }
 
         /// <summary>
-        /// Open a virtual case: roll quality, pick random item from pool, give it.
-        /// Sends the reroll-style animation packet for visual feedback.
+        /// Open a virtual case: roll quality, pick random item from pool, store as pending,
+        /// and send animation to client. Item is given only when client claims.
         /// </summary>
         private bool ProcessCasePurchase(IServerPlayer player, TrialShopConfigItem itemCfg)
         {
@@ -361,17 +480,8 @@ namespace VsQuest
             // Resolve via ActionItemRegistry
             if (!itemSystem.ActionItemRegistry.TryGetValue(actionItemId, out var actionItem))
             {
-                // Fallback: give raw item
-                var rawItem = sapi.World.GetItem(new AssetLocation(actionItemId));
-                if (rawItem == null)
-                {
-                    sapi.Logger.Warning("[TrialShop] Case item not found: {0}", actionItemId);
-                    return false;
-                }
-                var rawStack = new ItemStack(rawItem, 1);
-                if (!player.InventoryManager.TryGiveItemstack(rawStack))
-                    sapi.World.SpawnItemEntity(rawStack, player.Entity.Pos.XYZ);
-                return true;
+                sapi.Logger.Warning("[TrialShop] Case item not in registry: {0}", actionItemId);
+                return false;
             }
 
             // Resolve base collectible
@@ -384,20 +494,85 @@ namespace VsQuest
             var stack = new ItemStack(collectible);
             ItemAttributeUtils.ApplyActionItemAttributes(stack, actionItem);
 
-            // Apply quality via standard quality service
+            // Apply quality
             var qualityService = itemSystem.QualityService;
             qualityService?.TryApplyQuality(stack, actionItem, sapi.World.Rand);
 
-            if (!player.InventoryManager.TryGiveItemstack(stack))
+            // Read quality info from stack
+            string qualityName = stack.Attributes?.GetString(ItemAttributeUtils.ItemQualityNameKey) ?? "";
+            string qualityColor = stack.Attributes?.GetString(ItemAttributeUtils.ItemQualityColorKey) ?? "#9CA3AF";
+
+            // Generate claim token
+            string claimToken = Guid.NewGuid().ToString("N");
+
+            // Store pending reward
+            pendingRewards[claimToken] = new PendingCaseReward
             {
-                sapi.World.SpawnItemEntity(stack, player.Entity.Pos.XYZ);
+                PlayerUid = player.PlayerUID,
+                Stack = stack,
+                CreatedMs = sapi.World.ElapsedMilliseconds
+            };
+
+            // Build pool display data
+            var poolIds = new List<string>();
+            var poolNames = new List<string>();
+            var poolCodes = new List<string>();
+
+            foreach (var poolItemId in itemCfg.casePool)
+            {
+                if (itemSystem.ActionItemRegistry.TryGetValue(poolItemId, out var poolAction))
+                {
+                    poolIds.Add(poolItemId);
+                    poolNames.Add(poolAction.name ?? poolItemId);
+                    poolCodes.Add(poolAction.itemCode ?? "");
+                }
+            }
+
+            // Send animation to client
+            string resultName = collectible.GetHeldItemName(stack);
+
+            sapi.Network.GetChannel(ChannelName).SendPacket(new StartCaseOpenAnimationMessage
+            {
+                PoolItemIds = poolIds.ToArray(),
+                PoolItemNames = poolNames.ToArray(),
+                PoolItemCodes = poolCodes.ToArray(),
+                ResultItemId = actionItemId,
+                ResultItemName = resultName,
+                ResultItemCode = actionItem.itemCode ?? "",
+                ResultQualityName = qualityName,
+                ResultQualityColor = qualityColor,
+                ClaimToken = claimToken
+            }, player);
+
+            return true;
+        }
+
+        private void OnClaimCaseReward(IServerPlayer player, ClaimCaseRewardMessage message)
+        {
+            if (player == null || message == null || string.IsNullOrWhiteSpace(message.ClaimToken)) return;
+
+            if (!pendingRewards.TryGetValue(message.ClaimToken, out var reward))
+            {
+                return; // Already claimed or expired
+            }
+
+            // Verify player matches
+            if (!string.Equals(reward.PlayerUid, player.PlayerUID, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            pendingRewards.Remove(message.ClaimToken);
+
+            // Give item
+            if (!player.InventoryManager.TryGiveItemstack(reward.Stack))
+            {
+                sapi.World.SpawnItemEntity(reward.Stack, player.Entity.Pos.XYZ);
             }
 
             // Notification
-            string itemName = collectible.GetHeldItemName(stack);
+            string itemName = reward.Stack.GetName();
             Msg(player, LocalizationUtils.GetSafe("albase:trial-shard-opened", itemName));
-
-            return true;
         }
 
         private void Msg(IServerPlayer player, string text)

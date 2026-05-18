@@ -1,18 +1,24 @@
 using System;
+using System.Collections.Generic;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.GameContent;
 
 namespace VsQuest
 {
+    public class CastableItemConfig
+    {
+        public string ActionItemId { get; set; }
+        public float CastDurationSec { get; set; }
+        public float CastSlowdown { get; set; }
+    }
+
     public class ActionItemCastController : IDisposable
     {
         private readonly ICoreClientAPI capi;
         private readonly IClientNetworkChannel clientChannel;
         private readonly ActionItemAttributeResolver attributeResolver;
-        private readonly string castActionItemId;
-        private readonly float castDurationSec;
-        private readonly float castSlowdown;
+        private readonly Dictionary<string, CastableItemConfig> castableItems;
         private readonly string castSpeedStatKey;
         private readonly AssetLocation castLoopSound;
         private readonly AssetLocation castCompleteSound;
@@ -24,6 +30,8 @@ namespace VsQuest
         private bool isCastingActionItem;
         private long actionItemCastStartMs;
         private string actionItemCastId;
+        private float activeCastDurationSec;
+        private float activeCastSlowdown;
         private ILoadedSound actionItemCastSound;
         private bool wasRightMouseDown;
         private IProgressBar castProgressBar;
@@ -32,9 +40,7 @@ namespace VsQuest
             ICoreClientAPI capi,
             IClientNetworkChannel clientChannel,
             ActionItemAttributeResolver attributeResolver,
-            string castActionItemId,
-            float castDurationSec,
-            float castSlowdown,
+            Dictionary<string, CastableItemConfig> castableItems,
             string castSpeedStatKey,
             AssetLocation castLoopSound,
             AssetLocation castCompleteSound,
@@ -46,9 +52,7 @@ namespace VsQuest
             this.capi = capi;
             this.clientChannel = clientChannel;
             this.attributeResolver = attributeResolver;
-            this.castActionItemId = castActionItemId;
-            this.castDurationSec = castDurationSec;
-            this.castSlowdown = castSlowdown;
+            this.castableItems = castableItems ?? new Dictionary<string, CastableItemConfig>(StringComparer.OrdinalIgnoreCase);
             this.castSpeedStatKey = castSpeedStatKey;
             this.castLoopSound = castLoopSound;
             this.castCompleteSound = castCompleteSound;
@@ -159,7 +163,7 @@ namespace VsQuest
             }
 
             long elapsedMs = capi.InWorldEllapsedMilliseconds - actionItemCastStartMs;
-            if (elapsedMs >= castDurationSec * 1000f)
+            if (elapsedMs >= activeCastDurationSec * 1000f)
             {
                 CompleteActionItemCast();
                 wasRightMouseDown = rightDown;
@@ -190,7 +194,7 @@ namespace VsQuest
         {
             if (castProgressBar == null) return;
 
-            float progress = castDurationSec <= 0f ? 1f : elapsedMs / (castDurationSec * 1000f);
+            float progress = activeCastDurationSec <= 0f ? 1f : elapsedMs / (activeCastDurationSec * 1000f);
             castProgressBar.Progress = Math.Clamp(progress, 0f, 1f);
         }
 
@@ -207,9 +211,13 @@ namespace VsQuest
         {
             if (isCastingActionItem) return;
 
+            if (!castableItems.TryGetValue(actionItemId, out var config)) return;
+
             isCastingActionItem = true;
             actionItemCastStartMs = capi.InWorldEllapsedMilliseconds;
             actionItemCastId = actionItemId;
+            activeCastDurationSec = config.CastDurationSec;
+            activeCastSlowdown = config.CastSlowdown;
 
             ApplyActionItemCastSlowdown(true);
             StartActionItemCastSound();
@@ -253,7 +261,7 @@ namespace VsQuest
 
             if (enabled)
             {
-                playerEntity.Stats.Set("walkspeed", castSpeedStatKey, castSlowdown, true);
+                playerEntity.Stats.Set("walkspeed", castSpeedStatKey, activeCastSlowdown, true);
             }
             else
             {
@@ -324,7 +332,8 @@ namespace VsQuest
 
         private bool ShouldUseActionItemCast(string actionItemId)
         {
-            return string.Equals(actionItemId, castActionItemId, StringComparison.OrdinalIgnoreCase);
+            if (string.IsNullOrEmpty(actionItemId)) return false;
+            return castableItems.ContainsKey(actionItemId);
         }
 
         public void Dispose()

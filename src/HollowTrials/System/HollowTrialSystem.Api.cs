@@ -25,6 +25,92 @@ namespace VsQuest
         public int GetActiveModifier() => state?.activeModifier ?? 0;
 
         /// <summary>
+        /// Get total number of unique trial bosses configured (for progress display).
+        /// Counts unique bosses × 3 tiers.
+        /// </summary>
+        public int GetTotalTrialCount() => allConfigs.Count * 3;
+
+        /// <summary>
+        /// Find the nearest anchor position from any registered entry.
+        /// Used by the tracker to guide players to the nearest rift anchor.
+        /// </summary>
+        public Vec3d FindNearestAnchorPosition(Vec3d playerPos)
+        {
+            if (playerPos == null || state?.entries == null) return null;
+
+            Vec3d nearest = null;
+            double nearestDistSq = double.MaxValue;
+
+            foreach (var entry in state.entries)
+            {
+                if (entry?.anchorPoints == null) continue;
+                foreach (var ap in entry.anchorPoints)
+                {
+                    double dx = ap.x + 0.5 - playerPos.X;
+                    double dy = ap.y + 0.5 - playerPos.Y;
+                    double dz = ap.z + 0.5 - playerPos.Z;
+                    double distSq = dx * dx + dy * dy + dz * dz;
+
+                    if (distSq < nearestDistSq)
+                    {
+                        nearestDistSq = distSq;
+                        nearest = new Vec3d(ap.x + 0.5, ap.y + ap.yOffset, ap.z + 0.5);
+                    }
+                }
+            }
+
+            return nearest;
+        }
+
+        /// <summary>
+        /// Find the nearest unassigned anchor position (for tracker fallback).
+        /// </summary>
+        public Vec3d FindNearestUnassignedAnchorPosition(Vec3d playerPos)
+        {
+            return FindNearestAnchorPosition(playerPos);
+        }
+
+        /// <summary>
+        /// Find the nearest anchor position that matches a specific tier.
+        /// Looks up BlockEntity to check tier. If tier is 0, returns any anchor.
+        /// </summary>
+        public Vec3d FindNearestAnchorPositionByTier(Vec3d playerPos, int tier)
+        {
+            if (playerPos == null || state?.entries == null || sapi == null) return null;
+
+            Vec3d nearest = null;
+            double nearestDistSq = double.MaxValue;
+
+            foreach (var entry in state.entries)
+            {
+                if (entry?.anchorPoints == null) continue;
+                foreach (var ap in entry.anchorPoints)
+                {
+                    // Check tier by looking up block entity
+                    if (tier > 0)
+                    {
+                        var pos = new BlockPos(ap.x, ap.y, ap.z, ap.dim);
+                        var be = sapi.World.BlockAccessor.GetBlockEntity(pos) as BlockEntityVoidRiftAnchor;
+                        if (be == null || be.Tier != tier) continue;
+                    }
+
+                    double dx = ap.x + 0.5 - playerPos.X;
+                    double dy = ap.y + 0.5 - playerPos.Y;
+                    double dz = ap.z + 0.5 - playerPos.Z;
+                    double distSq = dx * dx + dy * dy + dz * dz;
+
+                    if (distSq < nearestDistSq)
+                    {
+                        nearestDistSq = distSq;
+                        nearest = new Vec3d(ap.x + 0.5, ap.y + ap.yOffset, ap.z + 0.5);
+                    }
+                }
+            }
+
+            return nearest;
+        }
+
+        /// <summary>
         /// Reload trial configs from disk (hot-reload). Returns number of configs loaded.
         /// Anchor points are preserved — they re-register periodically on their own.
         /// </summary>

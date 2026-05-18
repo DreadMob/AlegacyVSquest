@@ -162,6 +162,23 @@ namespace VsQuest
                 text = rawName;
             }
 
+            // Append tier suffix (I, II, III) for trial bosses
+            if (!string.IsNullOrWhiteSpace(text) && entity != null)
+            {
+                int spawnTier = entity.WatchedAttributes.GetInt("alegacyvsquest:trial:spawnTier", 0);
+                if (spawnTier > 0)
+                {
+                    string tierSuffix = spawnTier switch
+                    {
+                        1 => " I",
+                        2 => " II",
+                        3 => " III",
+                        _ => ""
+                    };
+                    text += tierSuffix;
+                }
+            }
+
             if (!string.IsNullOrWhiteSpace(text) && entity != null && !entity.Alive)
             {
                 double respawnAt = entity.WatchedAttributes.GetDouble("alegacyvsquest:bossrespawnAtTotalHours", double.NaN);

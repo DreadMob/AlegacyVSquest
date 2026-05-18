@@ -67,11 +67,24 @@ namespace VsQuest
         /// </summary>
         public string FirstAttackerUid { get; private set; }
 
+        /// <summary>
+        /// The tier at which this boss was spawned (1, 2, or 3).
+        /// </summary>
+        public int SpawnTier { get; private set; }
+
         private bool started;
         private bool finished;
 
         public bool IsStarted => started;
         public bool IsFinished => finished;
+
+        /// <summary>
+        /// Set the spawn tier for this fight.
+        /// </summary>
+        public void SetSpawnTier(int tier)
+        {
+            SpawnTier = tier;
+        }
 
         /// <summary>
         /// Record damage dealt by a player.
@@ -233,6 +246,7 @@ namespace VsQuest
         {
             started = false;
             finished = false;
+            SpawnTier = 0;
             FightStartTotalHours = 0;
             FightEndTotalHours = 0;
             FirstAttackerUid = null;

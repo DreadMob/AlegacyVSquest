@@ -38,6 +38,11 @@ namespace VsQuest
 
             // Record in combat tracker
             var tracker = GetCombatTracker(cfg.trialKey);
+            if (!tracker.IsStarted)
+            {
+                int spawnTier = bossEntity.WatchedAttributes.GetInt("alegacyvsquest:trial:spawnTier", 1);
+                tracker.SetSpawnTier(spawnTier);
+            }
             tracker.RecordDamage(playerUid, damage, nowHours);
 
             // Notify enrage behavior of damage (for timer start)

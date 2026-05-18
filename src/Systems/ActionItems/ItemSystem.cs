@@ -16,6 +16,9 @@ namespace VsQuest
         private float actionItemCastSlowdown = -0.5f;
         private string actionItemCastSpeedStatKey = "alegacyvsquest:actionitemcast";
         private string bloodmeterActionItemId = "albase:bosshunt-tracker";
+        private string trialTrackerActionItemId = "albase:trial-tracker";
+        private float trialTrackerCastDurationSec = 3f;
+        private float trialTrackerCastSlowdown = -0.5f;
 
         private int inventoryScanIntervalMs = 2000;
         private int hotbarEnforceIntervalMs = 1000;
@@ -73,6 +76,10 @@ namespace VsQuest
                 actionItemCastSlowdown = cfg.BossHuntTrackerCastSlowdown;
                 if (!string.IsNullOrWhiteSpace(cfg.BossHuntTrackerCastSpeedStatKey)) actionItemCastSpeedStatKey = cfg.BossHuntTrackerCastSpeedStatKey;
                 if (!string.IsNullOrWhiteSpace(cfg.BossHuntTrackerActionItemId)) bloodmeterActionItemId = cfg.BossHuntTrackerActionItemId;
+
+                if (!string.IsNullOrWhiteSpace(cfg.TrialTrackerActionItemId)) trialTrackerActionItemId = cfg.TrialTrackerActionItemId;
+                if (cfg.TrialTrackerCastDurationSec > 0f) trialTrackerCastDurationSec = cfg.TrialTrackerCastDurationSec;
+                trialTrackerCastSlowdown = cfg.TrialTrackerCastSlowdown;
 
                 if (cfg.InventoryScanIntervalMs > 0) inventoryScanIntervalMs = cfg.InventoryScanIntervalMs;
                 if (cfg.HotbarEnforceIntervalMs > 0) hotbarEnforceIntervalMs = cfg.HotbarEnforceIntervalMs;
@@ -167,13 +174,28 @@ namespace VsQuest
 
             attributeResolver = new ActionItemAttributeResolver(ActionItemRegistry);
             soundConfig = new ActionItemSoundConfig();
+
+            var castableItems = new Dictionary<string, CastableItemConfig>(StringComparer.OrdinalIgnoreCase)
+            {
+                [bloodmeterActionItemId] = new CastableItemConfig
+                {
+                    ActionItemId = bloodmeterActionItemId,
+                    CastDurationSec = actionItemCastDurationSec,
+                    CastSlowdown = actionItemCastSlowdown
+                },
+                [trialTrackerActionItemId] = new CastableItemConfig
+                {
+                    ActionItemId = trialTrackerActionItemId,
+                    CastDurationSec = trialTrackerCastDurationSec,
+                    CastSlowdown = trialTrackerCastSlowdown
+                }
+            };
+
             castController = new ActionItemCastController(
                 capi,
                 clientChannel,
                 attributeResolver,
-                bloodmeterActionItemId,
-                actionItemCastDurationSec,
-                actionItemCastSlowdown,
+                castableItems,
                 actionItemCastSpeedStatKey,
                 soundConfig.CastLoopSound,
                 soundConfig.CastCompleteSound,

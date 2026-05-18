@@ -27,14 +27,19 @@ namespace VsQuest
             var trialSystem = sapi.ModLoader.GetModSystem<HollowTrialSystem>();
             if (trialSystem == null) return false;
 
-            // Check all active trial bosses — any of them could be the target
-            var activeKeys = trialSystem.GetActiveTrialKeys();
-            if (activeKeys == null || activeKeys.Count == 0) return false;
+            // Check all trial configs — boss may have been spawned from any anchor
+            var allConfigs = trialSystem.GetAllConfigs();
+            if (allConfigs == null || allConfigs.Count == 0) return false;
 
-            foreach (var trialKey in activeKeys)
+            foreach (var cfg in allConfigs)
             {
-                var tracker = trialSystem.GetCombatTracker(trialKey);
+                if (cfg == null || string.IsNullOrWhiteSpace(cfg.trialKey)) continue;
+
+                var tracker = trialSystem.GetCombatTracker(cfg.trialKey);
                 if (tracker == null || !tracker.IsFinished) continue;
+
+                // TIER CHECK: boss must have been spawned at the matching tier
+                if (tracker.SpawnTier != tier) continue;
 
                 // SOLO ENFORCEMENT: if multiple players participated, kill is void
                 if (tracker.DamageByPlayer.Count > 1) continue;

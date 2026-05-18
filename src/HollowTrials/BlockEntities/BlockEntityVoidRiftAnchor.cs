@@ -17,6 +17,8 @@ namespace VsQuest
         private const string AttrTrialKey = "alegacyvsquest:voidrift:trialKey";
         private const string AttrDeadUntil = "alegacyvsquest:voidrift:deadUntil";
         private const string AttrSpawnedEntityId = "alegacyvsquest:voidrift:spawnedEntityId";
+        private const string AttrArenaEnabled = "alegacyvsquest:voidrift:arenaEnabled";
+        private const string AttrArenaKeepInventory = "alegacyvsquest:voidrift:arenaKeepInventory";
 
         private const int PacketOpenGui = 3000;
         private const int PacketSave = 3001;
@@ -26,6 +28,8 @@ namespace VsQuest
         private string storedTrialKey;
         private float yOffset;
         private float leashRange = 60f;
+        private bool arenaEnabled;
+        private bool arenaKeepInventory = true;
 
         // Per-anchor cooldown (independent of global state)
         private double deadUntilTotalHours;
@@ -131,6 +135,12 @@ namespace VsQuest
             if (api.Side == EnumAppSide.Server)
             {
                 TryRegisterAnchor();
+
+                // Auto-assign boss if none assigned (e.g. after first placement or world load)
+                if (string.IsNullOrWhiteSpace(storedTrialKey))
+                {
+                    AssignRandomBoss();
+                }
             }
 
             // Both sides: tick for particles
@@ -140,6 +150,16 @@ namespace VsQuest
         public override void OnBlockUnloaded()
         {
             base.OnBlockUnloaded();
+            if (particleListenerId != 0 && Api?.World != null)
+            {
+                Api.World.UnregisterGameTickListener(particleListenerId);
+                particleListenerId = 0;
+            }
+        }
+
+        public override void OnBlockRemoved()
+        {
+            base.OnBlockRemoved();
             if (particleListenerId != 0 && Api?.World != null)
             {
                 Api.World.UnregisterGameTickListener(particleListenerId);
@@ -172,6 +192,8 @@ namespace VsQuest
             leashRange = tree.GetFloat(AttrLeashRange, leashRange);
             deadUntilTotalHours = tree.GetDouble(AttrDeadUntil, deadUntilTotalHours);
             spawnedEntityId = tree.GetLong(AttrSpawnedEntityId, spawnedEntityId);
+            arenaEnabled = tree.GetBool(AttrArenaEnabled, arenaEnabled);
+            arenaKeepInventory = tree.GetBool(AttrArenaKeepInventory, arenaKeepInventory);
         }
 
         public override void ToTreeAttributes(ITreeAttribute tree)
@@ -185,6 +207,8 @@ namespace VsQuest
             tree.SetFloat(AttrLeashRange, leashRange);
             tree.SetDouble(AttrDeadUntil, deadUntilTotalHours);
             tree.SetLong(AttrSpawnedEntityId, spawnedEntityId);
+            tree.SetBool(AttrArenaEnabled, arenaEnabled);
+            tree.SetBool(AttrArenaKeepInventory, arenaKeepInventory);
         }
 
         internal void OnInteract(IPlayer byPlayer)
@@ -215,8 +239,8 @@ namespace VsQuest
 
             var sapi = Api as ICoreServerAPI;
 
-            // Check if player has an active trial quest (any quest containing "trial-tier")
-            bool hasTrialQuest = false;
+            // Check if player has an active trial quest matching this anchor's tier
+            bool hasMatchingQuest = false;
             try
             {
                 var questSystem = Api.ModLoader.GetModSystem<QuestSystem>();
@@ -225,11 +249,12 @@ namespace VsQuest
                     var playerQuests = questSystem.GetPlayerQuests(sp.PlayerUID);
                     if (playerQuests != null)
                     {
+                        string expectedQuestSuffix = $"trial-tier{tier}";
                         foreach (var aq in playerQuests)
                         {
-                            if (aq?.questId != null && aq.questId.Contains("trial-tier"))
+                            if (aq?.questId != null && aq.questId.Contains(expectedQuestSuffix))
                             {
-                                hasTrialQuest = true;
+                                hasMatchingQuest = true;
                                 break;
                             }
                         }
@@ -238,10 +263,11 @@ namespace VsQuest
             }
             catch { }
 
-            if (!hasTrialQuest)
+            if (!hasMatchingQuest)
             {
+                string tierName = tier switch { 1 => "Полое", 2 => "Глубинное", 3 => "Бездонное", _ => "" };
                 sapi.SendMessage(sp, Vintagestory.API.Config.GlobalConstants.GeneralChatGroup,
-                    "<font color=\"#6B7280\">Разлом молчит. Тебе нужно испытание, чтобы пробудить его.</font>", EnumChatType.Notification);
+                    $"<font color=\"#6B7280\">Разлом молчит. Тебе нужно испытание уровня «{tierName}», чтобы пробудить его.</font>", EnumChatType.Notification);
                 return;
             }
 
@@ -249,15 +275,9 @@ namespace VsQuest
             string activeKey = GetActiveTrialKey();
             if (string.IsNullOrWhiteSpace(activeKey))
             {
-                // No boss assigned — assign one now
-                AssignRandomBoss();
-                activeKey = GetActiveTrialKey();
-                if (string.IsNullOrWhiteSpace(activeKey))
-                {
-                    sapi.SendMessage(sp, Vintagestory.API.Config.GlobalConstants.GeneralChatGroup,
-                        "<font color=\"#6B7280\">Разлом пуст. Ни одно порождение не привязано к этому якорю.</font>", EnumChatType.Notification);
-                    return;
-                }
+                sapi.SendMessage(sp, Vintagestory.API.Config.GlobalConstants.GeneralChatGroup,
+                    "<font color=\"#6B7280\">Разлом пуст. Ни одно порождение не привязано к этому якорю.</font>", EnumChatType.Notification);
+                return;
             }
             else
             {
@@ -362,6 +382,8 @@ namespace VsQuest
             tier = data.tier;
             yOffset = data.yOffset;
             leashRange = data.leashRange > 0 ? data.leashRange : 60f;
+            arenaEnabled = data.arenaEnabled;
+            arenaKeepInventory = data.arenaKeepInventory;
 
             TryRegisterAnchor();
             MarkDirty(true);
@@ -377,7 +399,9 @@ namespace VsQuest
             {
                 tier = tier,
                 yOffset = yOffset,
-                leashRange = leashRange
+                leashRange = leashRange,
+                arenaEnabled = arenaEnabled,
+                arenaKeepInventory = arenaKeepInventory
             };
         }
 
@@ -399,6 +423,14 @@ namespace VsQuest
             {
                 Api?.Logger?.Error($"[VoidRiftAnchor] Exception in OnRemovedServerSide: {ex}");
             }
+
+            // Unregister arena
+            try
+            {
+                var arenaSystem = Api.ModLoader.GetModSystem<BossHuntArenaSystem>();
+                arenaSystem?.UnregisterArena(new BlockPos(Pos.X, Pos.Y, Pos.Z, Pos.dimension));
+            }
+            catch { }
         }
 
         /// <summary>
@@ -455,6 +487,35 @@ namespace VsQuest
             catch (Exception ex)
             {
                 Api?.Logger?.Error($"[VoidRiftAnchor] Exception in TryRegisterAnchor: {ex}");
+            }
+
+            // Register/unregister arena
+            TryRegisterArena();
+        }
+
+        private void TryRegisterArena()
+        {
+            if (Api?.Side != EnumAppSide.Server) return;
+
+            try
+            {
+                var arenaSystem = Api.ModLoader.GetModSystem<BossHuntArenaSystem>();
+                if (arenaSystem == null) return;
+
+                var arenaPos = new BlockPos(Pos.X, Pos.Y, Pos.Z, Pos.dimension);
+
+                if (arenaEnabled)
+                {
+                    arenaSystem.RegisterArena(arenaPos, yOffset, arenaKeepInventory);
+                }
+                else
+                {
+                    arenaSystem.UnregisterArena(arenaPos);
+                }
+            }
+            catch (Exception ex)
+            {
+                Api?.Logger?.Error($"[VoidRiftAnchor] Exception in TryRegisterArena: {ex}");
             }
         }
 

@@ -59,10 +59,10 @@
       },
       { "code": "bossenrage", "enrageTimerSeconds": 240 },
       { "code": "bossvulnerabilitywindow", "damageMultiplier": 2.0, "durationSeconds": 2.5, "triggerAbilities": ["bosscursemark"] },
-      { "code": "bossvoidzone", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 9, "maxTargetRange": 25, "maxRadius": 4, "growDurationSec": 2, "dpsInZone": 4, "lifetimeSec": 7, "maxActiveZones": 2, "sound": "effect/translocate-idle", "soundRange": 24 }] },
-      { "code": "bosscursemark", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 14, "maxTargetRange": 25, "markDelaySec": 3, "baseDamage": 14, "safeDistance": 15, "sound": "environment/thunder1", "soundRange": 32 }] },
+      { "code": "bossvoidzone", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 11, "maxTargetRange": 25, "maxRadius": 4, "growDurationSec": 2, "dpsInZone": 4, "lifetimeSec": 7, "maxActiveZones": 2, "sound": "effect/translocate-idle", "soundRange": 24 }] },
+      { "code": "bosscursemark", "stages": [{ "whenHealthRelBelow": 0.7, "cooldownSeconds": 16, "maxTargetRange": 25, "markDelaySec": 3, "baseDamage": 14, "safeDistance": 15, "sound": "environment/thunder1", "soundRange": 32 }] },
       { "code": "bossphaseshift", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 10, "maxTargetRange": 30, "shiftRadius": 10, "durationMs": 1000, "sound": "block/meteoriciron", "soundRange": 32 }] },
-      { "code": "bossrandomlightning", "stages": [{ "whenHealthRelBelow": 1.0, "cooldownSeconds": 9, "maxTargetRange": 25, "damage": 6, "damageTier": 3, "strikeCount": 2, "strikeRadius": 3, "minCount": 2, "maxCount": 3, "minRadius": 2, "maxRadius": 10, "warningDelayMs": 2500, "sound": "weather/lightning-verynear", "soundRange": 48, "soundVolume": 0.15, "warningSound": "effect/translocate-active", "warningSoundRange": 32, "warningSoundVolume": 0.3 }] },
+      { "code": "bossrandomlightning", "stages": [{ "whenHealthRelBelow": 0.7, "cooldownSeconds": 12, "maxTargetRange": 25, "damage": 6, "damageTier": 3, "strikeCount": 2, "strikeRadius": 3, "minCount": 2, "maxCount": 3, "minRadius": 2, "maxRadius": 10, "warningDelayMs": 2500, "sound": "weather/lightning-verynear", "soundRange": 48, "soundVolume": 0.15, "warningSound": "effect/translocate-active", "warningSoundRange": 32, "warningSoundVolume": 0.3 }] },
       {
         "code": "taskai",
         "inheritedTasks": false,

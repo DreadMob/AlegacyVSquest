@@ -25,21 +25,37 @@ namespace VsQuest
             string questId = message?.questId;
             if (string.IsNullOrWhiteSpace(questId)) return;
 
-            var config = trialSystem.FindConfigByQuestId(questId, out int matchedTier);
-            if (config == null || matchedTier == 0) return;
+            // Determine the tier from questId
+            int matchedTier = 0;
+            if (questId.Contains("tier1")) matchedTier = 1;
+            else if (questId.Contains("tier2")) matchedTier = 2;
+            else if (questId.Contains("tier3")) matchedTier = 3;
+            if (matchedTier == 0) return;
 
-            // Get combat tracker for this boss
-            var tracker = trialSystem.GetCombatTracker(config.trialKey);
-            if (tracker == null || !tracker.IsFinished) return;
+            // Find the finished tracker that matches this tier
+            HollowTrialConfig config = null;
+            TrialCombatTracker tracker = null;
+            string playerUid = player.PlayerUID;
 
-            // SOLO ENFORCEMENT: if multiple players participated, no rewards
-            if (tracker.DamageByPlayer.Count > 1)
+            var allConfigs = trialSystem.GetAllConfigs();
+            foreach (var cfg in allConfigs)
             {
-                tracker.Reset();
-                return;
+                if (cfg == null) continue;
+                var t = trialSystem.GetCombatTracker(cfg.trialKey);
+                if (t == null || !t.IsFinished) continue;
+                if (t.SpawnTier != matchedTier) continue;
+                if (t.DamageByPlayer.Count > 1) continue;
+
+                string creditPlayer = t.GetKillCreditPlayer(sapi);
+                if (string.Equals(creditPlayer, playerUid, StringComparison.OrdinalIgnoreCase))
+                {
+                    config = cfg;
+                    tracker = t;
+                    break;
+                }
             }
 
-            string playerUid = player.PlayerUID;
+            if (config == null || tracker == null) return;
 
             // Evaluate challenges for the specific tier
             var challenges = config.GetChallenges(matchedTier);
@@ -61,7 +77,13 @@ namespace VsQuest
             // Notify player about challenges
             if (completedChallenges.Count > 0)
             {
-                string challengeList = string.Join(", ", completedChallenges);
+                var localizedChallenges = new List<string>();
+                foreach (var ch in completedChallenges)
+                {
+                    string localized = LocalizationUtils.GetSafe($"albase:trial-challenge-{ch}");
+                    localizedChallenges.Add(string.Equals(localized, $"albase:trial-challenge-{ch}", StringComparison.OrdinalIgnoreCase) ? ch : localized);
+                }
+                string challengeList = string.Join(", ", localizedChallenges);
                 int bonus = TrialChallengeEvaluator.CalculateChallengeReputation(matchedTier, completedChallenges.Count);
                 string msg = LocalizationUtils.GetSafe("albase:trial-challenges-completed", challengeList, bonus);
                 sapi.SendMessage(player, GlobalConstants.GeneralChatGroup, msg, EnumChatType.Notification);

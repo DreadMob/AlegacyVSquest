@@ -5,6 +5,7 @@
   "predecessor": "albase:trial-intro",
   "trialTier": 3,
   "onAcceptedActions": [
+    { "id": "resettrialtracker", "args": [] },
     { "id": "playsound", "args": ["alegacyvsquest:sounds/queacc", "0.175"] },
     { "id": "notify", "args": ["albase:trial-quest-accepted-tier3"] }
   ],
@@ -12,7 +13,6 @@
     { "id": "killactivetrial", "objectiveId": "trial-tier3-kill", "args": ["3"] }
   ],
   "actionRewards": [
-    { "id": "trialchallengebonuses", "args": [] },
-    { "id": "randomquestitem", "args": ["1", "albase:trial-void-cloak", "albase:trial-abyss-belt", "albase:trial-deep-sigil", "albase:trial-bow", "albase:trial-abyss-pendant", "albase:trial-void-ring"] }
+    { "id": "trialchallengebonuses", "args": [] }
   ]
 }

@@ -170,9 +170,9 @@
   "albase:trial-quest-accepted-tier2": "<font color=\"#A78BFA\">[Испытания Пустоты]</font> Контракт принят: Глубинное Испытание. Используй Эхо Пустоты для поиска.",
   "albase:trial-quest-accepted-tier3": "<font color=\"#A78BFA\">[Испытания Пустоты]</font> Контракт принят: Бездонное Испытание. Используй Эхо Пустоты для поиска.",
 
-  "albase:trial-case-tier1": "Осколок Разлома (Полый)",
-  "albase:trial-case-tier2": "Осколок Разлома (Глубинный)",
-  "albase:trial-case-tier3": "Осколок Разлома (Бездонный)",
+  "albase:trial-case-tier1": "Полый Осколок",
+  "albase:trial-case-tier2": "Глубинный Осколок",
+  "albase:trial-case-tier3": "Бездонный Осколок",
 
   "albase:trial-currency-name": "Осколки Пустоты",
   "albase:trial-reputation-label": "Репутация",
