@@ -1,8 +1,8 @@
 # Alegacy VS Quest Chat Commands
 
-> **Documentation Version:** v3.0.0
+> **Documentation Version:** v3.1.0
 
-All commands require **`give` privilege** and are accessed via the `/avq` command.
+All commands require **`give` privilege** (unless noted otherwise) and are accessed via the `/avq` command.
 
 ---
 
@@ -69,6 +69,34 @@ Player attributes are persistent flags used for quest progress tracking.
 |---------|-----------|-------------|
 | `/avq bosshunt status` | — | Shows the current active boss key and time until rotation |
 | `/avq bosshunt skip` | — | Forces rotation to the next boss entry |
+
+### Hollow Trials
+
+| Command | Arguments | Description |
+|---------|-----------|-------------|
+| `/avq trials status` | — | Shows all anchors, bosses, tiers, cooldowns, and active modifier |
+| `/avq trials skip` | — | Kills all alive trial bosses, force-rotates, reassigns all anchors |
+| `/avq trials respawn` | `<anchorId>` | Force-respawns a trial boss at a specific anchor |
+| `/avq trials reload` | — | Reloads trial configs from disk (hot-reload). Requires `controlserver` privilege |
+| `/avq trials clear` | — | Clears all anchor registrations, despawns all bosses. Requires `controlserver` privilege |
+
+### Promo Codes (Admin)
+
+| Command | Arguments | Description |
+|---------|-----------|-------------|
+| `/avq promo create` | `<code> [type] [maxUses]` | Create a new promo code. Types: `single`, `personal`, `multi`, `unlimited` |
+| `/avq promo delete` | `<code>` | Delete a promo code |
+| `/avq promo list` | — | List all promo codes |
+| `/avq promo info` | `<code>` | Show info about a promo code |
+| `/avq promo addreward` | `<code> <rewardType> <itemId> [amount]` | Add a reward to an existing code |
+| `/avq promo reload` | — | Reload promo code configs |
+| `/avq promo reset` | `<playerName> <code>` | Reset a player's usage of a code |
+
+### Promo Codes (Player)
+
+| Command | Privilege | Description |
+|---------|-----------|-------------|
+| `/promo` | `chat` | Opens the promo code redemption dialog |
 
 ### Action Item Durability
 

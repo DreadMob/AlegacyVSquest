@@ -239,7 +239,29 @@ namespace VsQuest
             ActivateBossConfig(nextCfg, previousCfg);
             HandleQuestRotation(previousQuestId, nextCfg.questId);
 
+            // Broadcast rotation event to chat and Discord
+            BroadcastBossRotation(nextCfg);
+
             return true;
+        }
+
+        private void BroadcastBossRotation(BossHuntConfig nextCfg)
+        {
+            if (sapi == null || nextCfg == null) return;
+
+            try
+            {
+                string chatMsg = Lang.Get("alegacyvsquest:bosshunt-rotation-reset-chat");
+                string discordMsg = LocalizationUtils.GetSafe("alegacyvsquest:bosshunt-rotation-discord");
+
+                GlobalChatBroadcastUtil.BroadcastGeneralChatWithDiscord(
+                    sapi, chatMsg, discordMsg,
+                    EnumChatType.Notification, DiscordBroadcastKind.BossHuntEvent);
+            }
+            catch (Exception ex)
+            {
+                sapi.Logger.Warning("[BossHuntSystem] Failed to broadcast rotation: {0}", ex.Message);
+            }
         }
 
         private bool ShouldPostponeRotation(BossHuntConfig previousCfg, double nowHours)
@@ -352,11 +374,7 @@ namespace VsQuest
 
             if (anyReset)
             {
-                string chatMsg = Lang.Get("alegacyvsquest:bosshunt-rotation-reset-chat");
-                string discordMsg = LocalizationUtils.GetSafe("alegacyvsquest:bosshunt-rotation-discord");
-                GlobalChatBroadcastUtil.BroadcastGeneralChatWithDiscord(
-                    sapi, chatMsg, discordMsg,
-                    EnumChatType.Notification, DiscordBroadcastKind.BossHuntEvent);
+                // Broadcast already sent by BroadcastBossRotation in TryRotateBoss
             }
         }
     }

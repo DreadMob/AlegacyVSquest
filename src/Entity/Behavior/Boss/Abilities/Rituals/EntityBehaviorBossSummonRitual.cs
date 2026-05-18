@@ -17,7 +17,7 @@ namespace VsQuest
         private const string SummonedByEntityCodeKey = "alegacyvsquest:bosssummonritual:summonedByEntityCode";
 
         protected override string CooldownKey => "alegacyvsquest:bosssummonritual:lastStartMs";
-        protected override bool UseHealthBasedStages() => false;
+        protected override bool UseHealthBasedStages() => true;
         protected override bool RequiresTarget() => false;
         protected override int CheckIntervalMs => 500;
 

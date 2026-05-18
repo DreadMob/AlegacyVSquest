@@ -112,7 +112,7 @@
 
       { "code": "bosscombatmarker", "trackCombatTime": true },
 
-      { "code": "bossdespair", "despairDurationMultiplier": 3 },
+      { "code": "bossdespair", "stages": [{ "whenHealthRelBelow": 0.6, "cooldownSeconds": 20, "despairDurationMultiplier": 3 }] },
 
       { "code": "questtarget", "targetId": "alstory:echo-proklyatiya:clawchief" },
 

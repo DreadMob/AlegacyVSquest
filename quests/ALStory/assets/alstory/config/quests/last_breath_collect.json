@@ -16,16 +16,6 @@
           "demand": 1
         }
       ],
-      "killObjectives": [
-        {
-          "validCodes": ["alstory:alstory-eidolon-guardian"],
-          "demand": 1
-        },
-        {
-          "validCodes": ["alstory:bloodhand-clawchief"],
-          "demand": 1
-        }
-      ],
       "onStageCompleteActions": [
         {
           "id": "playsound",

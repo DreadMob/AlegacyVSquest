@@ -9,7 +9,10 @@ namespace VsQuest.Harmony
     [HarmonyPatch(typeof(Block), "OnBlockInteractStart")]
     public class BlockInteractPatch
     {
-        private const int DebounceMs = 500;
+        // Debounce for different blocks (prevents spam when clicking around)
+        private const int DebounceDifferentBlockMs = 500;
+        // Debounce for same block (low enough for hold mechanic to work smoothly)
+        private const int DebounceSameBlockMs = 150;
 
         private static long lastSendMs;
         private static int lastX = int.MinValue;
@@ -79,10 +82,15 @@ namespace VsQuest.Harmony
                 string code = __instance?.Code?.ToString();
 
                 long now = Environment.TickCount64;
-                if ((now - lastSendMs) < DebounceMs
-                    && lastX == x && lastY == y && lastZ == z
+                bool sameBlock = (lastX == x && lastY == y && lastZ == z
                     && lastDim == dim
-                    && string.Equals(lastBlockCode, code, StringComparison.Ordinal))
+                    && string.Equals(lastBlockCode, code, StringComparison.Ordinal));
+
+                // Use shorter debounce for same block (hold mechanic needs frequent updates)
+                // Use longer debounce for different blocks (prevents spam)
+                int debounceMs = sameBlock ? DebounceSameBlockMs : DebounceDifferentBlockMs;
+
+                if ((now - lastSendMs) < debounceMs && sameBlock)
                 {
                     return;
                 }

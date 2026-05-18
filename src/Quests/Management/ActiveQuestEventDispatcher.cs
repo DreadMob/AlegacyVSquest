@@ -83,6 +83,9 @@ namespace VsQuest
         {
             if (serverPlayer == null) return;
 
+            // Handle interactat/interactcount action objectives (hold RMB mechanic)
+            QuestInteractAtUtil.TryHandleInteractAtObjectives(quest, activeQuest, serverPlayer, position, _sapi);
+
             if (activeQuest.currentStageIndex >= 0 && activeQuest.currentStageIndex < quest.stages.Count)
             {
                 var stage = quest.stages[activeQuest.currentStageIndex];

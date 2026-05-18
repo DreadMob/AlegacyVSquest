@@ -4,7 +4,7 @@
   "client": {
     "renderer": "Shape",
     "shape": { "base": "albase:entity/humanoid/trader" },
-    "texture": { "base": "albase:entity/humanoid/trader" },
+    "texture": { "base": "albase:entity/humanoid/traderclothes/set3" },
     "behaviors": [
       { "code": "nametag", "showtagonlywhentargeted": true },
       { "code": "repulseagents" },

@@ -14,7 +14,7 @@ namespace VsQuest
         private const string DespairStageKey = "alegacyvsquest:bossdespairstage";
 
         protected override string CooldownKey => "alegacyvsquest:bossdespair:lastStartMs";
-        protected override bool UseHealthBasedStages() => false;
+        protected override bool UseHealthBasedStages() => true;
         protected override bool RequiresTarget() => false;
         protected override int CheckIntervalMs => 500;
 

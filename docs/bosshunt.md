@@ -3,7 +3,7 @@
 > **Documentation Version:** v3.0.0
 
 ## Overview
-The boss hunt system spawns a single active boss at a time, rotates it on a long schedule, and provides a questline with a tracker item. The active boss is chosen from configs in `quests/albase/assets/albase/config/bosshunt/*.json`.
+The boss hunt system spawns a single active boss at a time, rotates it on a long schedule, and provides a questline with a tracker item. The active boss is chosen from configs in `config/bosshunt/*.json` within any quest pack.
 
 ## Core concepts
 - **Boss config**: JSON file describing one boss (bossKey, entity code, quest id, points, timers).
@@ -22,7 +22,7 @@ The boss hunt system spawns a single active boss at a time, rotates it on a long
 - Bosses respect `playerLockRange` for tracking and relocation rules.
 
 ## Tracker item
-- Single action item: `albase:bosshunt-tracker`.
+- Action item defined in your quest pack (e.g. `yourmod:bosshunt-tracker`).
 - Uses the `trackboss` action with no args; the active boss key is resolved automatically.
 - Tracking only works when the player has the **active boss quest**.
 - Cooldown is 5 minutes and costs 2 HP per use.
