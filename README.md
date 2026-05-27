@@ -1,1 +1,1 @@
-NOW DEVELOPING HERE: https://github.com/DreadMob/Alegacy-Quest-Framework
+NOW DEVELOPING HERE: https://gitlab.com/DreadMob/Alegacy-Quest-Framework
